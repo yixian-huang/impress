@@ -28,6 +28,7 @@ type Page struct {
 	SortOrder      int            `gorm:"default:0" json:"sortOrder"`
 	SeoTitle       JSONMap        `gorm:"type:jsonb" json:"seoTitle"`
 	SeoDescription JSONMap        `gorm:"type:jsonb" json:"seoDescription"`
+	Keywords       JSONMap        `gorm:"type:text" json:"keywords"`
 	ThemeID        string         `gorm:"size:100;index" json:"themeId"`
 	ContentKey     string         `gorm:"size:100" json:"contentKey"`
 	RenderMode     string         `gorm:"size:20;default:'dynamic'" json:"renderMode"`
@@ -77,6 +78,9 @@ func (p *Page) BeforeSave(tx *gorm.DB) error {
 	}
 	if p.SeoDescription == nil {
 		p.SeoDescription = make(JSONMap)
+	}
+	if p.Keywords == nil {
+		p.Keywords = make(JSONMap)
 	}
 	if p.NavConfig == nil {
 		p.NavConfig = make(JSONMap)
