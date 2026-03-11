@@ -6,11 +6,13 @@
 
 **Architecture:** Each subsystem follows existing patterns: GORM model → repository interface + impl → handler → frontend API module → React page/component. New tables use goose migrations (from Phase 0). SEO meta injection uses the Phase 0 renderer with route-specific meta resolution.
 
-**Tech Stack:** Go/Gin/GORM (backend), React 19/TypeScript/TipTap (frontend), SQLite FTS5 / PostgreSQL tsvector (search), robfig/cron (scheduling)
+**Tech Stack:** Go/Gin/GORM (backend), React 19/TypeScript/TipTap (frontend), SQLite FTS5 / PostgreSQL tsvector (search), time.Ticker (scheduling)
 
 **Spec:** `docs/superpowers/specs/2026-03-11-open-source-evolution-design.md` — Phase 1
 
-**Prerequisites:** Phase 0 complete (goose migrations, SPA meta renderer, testing strategy, API versioning).
+**Prerequisites:** Phase 0 MUST be complete before starting Phase 1. Phase 0 provides: goose migration tooling, `backend/internal/seo/meta.go` (PageMeta struct + DefaultPageMeta), SPA meta renderer, testing strategy, API versioning.
+
+**Convention note:** New handlers use `RegisterRoutes(public, admin)` method for route setup. This is a deliberate improvement over the existing centralized registration in main.go. Existing handlers will be migrated to this pattern in future refactors.
 
 ---
 
@@ -31,8 +33,7 @@ backend/
 ├── internal/repository/
 │   ├── comment_repository.go              (create)
 │   ├── comment_repository_impl.go         (create)
-│   ├── search_repository.go              (create)
-│   ├── search_repository_impl.go         (create)
+│   (search uses raw SQL for FTS5 — no repository layer, handled in SearchService)
 ├── internal/handler/
 │   ├── comment/handler.go                 (create)
 │   ├── search/handler.go                 (create)
@@ -1304,12 +1305,12 @@ export interface SearchResponse {
 export async function searchContent(
   q: string,
   locale = "zh",
-  type = "",
+  contentType = "",
   page = 1,
   pageSize = 10
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({ q, locale, page: String(page), pageSize: String(pageSize) });
-  if (type) params.set("type", type);
+  if (contentType) params.set("type", contentType);
   const { data } = await http.get<SearchResponse>(`/public/search?${params}`);
   return data;
 }
@@ -1334,10 +1335,10 @@ export function useSearch() {
   const [loading, setLoading] = useState(false);
   const { i18n } = useTranslation();
 
-  const search = useCallback(async (query: string, type = "", page = 1) => {
+  const search = useCallback(async (query: string, contentType = "", page = 1) => {
     setLoading(true);
     try {
-      const resp = await searchContent(query, i18n.language, type, page);
+      const resp = await searchContent(query, i18n.language, contentType, page);
       setResults(resp);
     } finally {
       setLoading(false);
@@ -1375,6 +1376,7 @@ export default function SearchBox({ onSelect, className }: SearchBoxProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { suggestions, suggest } = useSearch();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1410,7 +1412,7 @@ export default function SearchBox({ onSelect, className }: SearchBoxProps) {
         }}
         onFocus={() => setShowSuggestions(true)}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-        placeholder={useTranslation().t("search.placeholder", "Search...")}
+        placeholder={t("search.placeholder", "Search...")}
         className="w-full border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
       />
       {showSuggestions && suggestions.length > 0 && (
@@ -1465,7 +1467,7 @@ export default function SearchPage() {
 
           <div className="space-y-6">
             {results.results.map((r) => (
-              <a key={`${r.type}-${r.id}`} href={r.url} className="block group">
+              <Link key={`${r.type}-${r.id}`} to={r.url} className="block group">
                 <h3 className="text-lg font-medium text-blue-700 group-hover:underline">{r.title}</h3>
                 <p
                   className="text-sm text-gray-600 mt-1"
@@ -1479,9 +1481,9 @@ export default function SearchPage() {
           {results.total > results.pageSize && (
             <div className="flex justify-center gap-2 mt-8">
               {Array.from({ length: Math.ceil(results.total / results.pageSize) }, (_, i) => (
-                <a
+                <Link
                   key={i}
-                  href={`/search?q=${encodeURIComponent(query)}&page=${i + 1}`}
+                  to={`/search?q=${encodeURIComponent(query)}&page=${i + 1}`}
                   className={`px-3 py-1 rounded ${i + 1 === results.page ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
                 >
                   {i + 1}
@@ -1590,32 +1592,22 @@ type Comment struct {
 
 func (c *Comment) Validate() error {
 	if c.Content == "" {
-		return ErrValidation("content is required")
+		return errors.New("content is required")
 	}
 	if c.AuthorName == "" {
-		return ErrValidation("author name is required")
+		return errors.New("author name is required")
 	}
 	if c.ContentType != "article" && c.ContentType != "page" {
-		return ErrValidation("content type must be 'article' or 'page'")
+		return errors.New("content type must be 'article' or 'page'")
 	}
 	if c.ContentID == 0 {
-		return ErrValidation("content id is required")
+		return errors.New("content id is required")
 	}
 	return nil
 }
 ```
 
-Note: `ErrValidation` should follow the existing error pattern in the model package. If no such helper exists, define a simple one:
-
-```go
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string { return e.Message }
-
-func ErrValidation(msg string) error { return &ValidationError{Message: msg} }
-```
+Add import `"errors"` to the file. This follows the existing model convention (Article, Page use `errors.New`).
 
 - [ ] **Step 2: Create migration**
 
@@ -1889,6 +1881,7 @@ type AntiSpamService struct {
 	ipTracker   map[string][]time.Time // IP -> submission timestamps
 	rateLimit   int                    // max submissions per window
 	rateWindow  time.Duration
+	done        chan struct{}
 }
 
 func NewAntiSpamService(captcha provider.CaptchaProvider) *AntiSpamService {
@@ -1898,15 +1891,27 @@ func NewAntiSpamService(captcha provider.CaptchaProvider) *AntiSpamService {
 		ipTracker:  make(map[string][]time.Time),
 		rateLimit:  5,
 		rateWindow: 10 * time.Minute,
+		done:       make(chan struct{}),
 	}
 	// Cleanup goroutine
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
-		for range ticker.C {
-			svc.cleanupTracker()
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				svc.cleanupTracker()
+			case <-svc.done:
+				return
+			}
 		}
 	}()
 	return svc
+}
+
+// Stop stops the cleanup goroutine.
+func (s *AntiSpamService) Stop() {
+	close(s.done)
 }
 
 // Check runs all anti-spam checks. Returns nil if OK, error describing the failure otherwise.
