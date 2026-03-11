@@ -28,19 +28,21 @@ func (h *Handler) GetSummary(c *gin.Context) {
 	}
 
 	// Calculate totals
-	var totalToday, totalLast7d, totalLast30d int64
+	var totalToday, totalLast7d, totalLast30d, totalUV int64
 	for _, s := range stats {
 		totalToday += s.Today
 		totalLast7d += s.Last7d
 		totalLast30d += s.Last30d
+		totalUV += s.UniqueVisitors
 	}
 
 	c.JSON(200, gin.H{
 		"pages": stats,
 		"totals": gin.H{
-			"today":  totalToday,
-			"last7d": totalLast7d,
-			"last30d": totalLast30d,
+			"today":          totalToday,
+			"last7d":         totalLast7d,
+			"last30d":        totalLast30d,
+			"uniqueVisitors": totalUV,
 		},
 	})
 }

@@ -26,6 +26,12 @@
  */
 
 export const common = {
+  notFound: {
+    title: 'Page Not Found',
+    description: 'The page you are looking for might have been removed or is temporarily unavailable.',
+    goBack: 'Go Back',
+    home: 'Home',
+  },
   nav: {
     home: 'Home',
     about: 'About Us',

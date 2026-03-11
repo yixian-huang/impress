@@ -37,7 +37,8 @@ func (r *GormPageViewRepository) GetSummary(ctx context.Context, now time.Time) 
 		Select(`page_key,
 			SUM(CASE WHEN viewed_at >= ? THEN 1 ELSE 0 END) as today,
 			SUM(CASE WHEN viewed_at >= ? THEN 1 ELSE 0 END) as last7d,
-			COUNT(*) as last30d`,
+			COUNT(*) as last30d,
+			COUNT(DISTINCT visitor_id) as unique_visitors`,
 			startOfToday, sevenDaysAgo).
 		Where("viewed_at >= ?", thirtyDaysAgo).
 		Group("page_key").

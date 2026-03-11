@@ -2,6 +2,8 @@ package public
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -64,13 +66,22 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	latency := time.Since(startTime)
 	metrics.Global().RecordPublicGetSuccess(latency)
 
+	// Capture request context values before entering goroutine
+	clientIP := c.ClientIP()
+	referer := c.GetHeader("Referer")
+
 	// Asynchronously record page view
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		// Hash IP to derive an anonymous visitor ID (first 16 hex chars of SHA-256)
+		hash := sha256.Sum256([]byte(clientIP))
+		visitorID := fmt.Sprintf("%x", hash[:])[:16]
 		if err := h.pvRepo.Create(ctx, &model.PageView{
-			PageKey: pageKeyStr,
-			Locale:  locale,
+			PageKey:   pageKeyStr,
+			Locale:    locale,
+			VisitorID: visitorID,
+			Referer:   referer,
 		}); err != nil {
 			slog.Error("failed to record page view", "pageKey", pageKeyStr, "error", err)
 		}

@@ -26,6 +26,12 @@
  */
 
 export const common = {
+  notFound: {
+    title: '页面未找到',
+    description: '您访问的页面可能已被移除或暂时不可用。',
+    goBack: '返回上页',
+    home: '返回首页',
+  },
   nav: {
     home: '首页',
     about: '关于我们',

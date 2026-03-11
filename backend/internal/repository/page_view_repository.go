@@ -9,10 +9,11 @@ import (
 
 // PageViewStats holds aggregated view counts for a single page key
 type PageViewStats struct {
-	PageKey string `json:"pageKey"`
-	Today   int64  `json:"today"`
-	Last7d  int64  `json:"last7d"`
-	Last30d int64  `json:"last30d"`
+	PageKey        string `json:"pageKey"`
+	Today          int64  `json:"today"`
+	Last7d         int64  `json:"last7d"`
+	Last30d        int64  `json:"last30d"`
+	UniqueVisitors int64  `json:"uniqueVisitors"`
 }
 
 // PageViewRepository defines the interface for page view data access
