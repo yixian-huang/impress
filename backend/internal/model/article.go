@@ -11,6 +11,7 @@ type ArticleStatus string
 const (
 	ArticleStatusDraft     ArticleStatus = "draft"
 	ArticleStatusPublished ArticleStatus = "published"
+	ArticleStatusScheduled ArticleStatus = "scheduled"
 )
 
 // Article represents a bilingual article
@@ -38,6 +39,7 @@ type Article struct {
 	Pinned            bool          `gorm:"default:false" json:"pinned"`
 	Visibility        string        `gorm:"size:30;default:'public'" json:"visibility"`
 	Metadata          JSONMap       `gorm:"type:jsonb" json:"metadata"`
+	ScheduledAt       *time.Time    `json:"scheduledAt" gorm:"index"`
 	PublishedAt       *time.Time    `json:"publishedAt"`
 	CreatedAt         time.Time     `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt         time.Time     `gorm:"autoUpdateTime" json:"updatedAt"`
@@ -51,8 +53,8 @@ func (a *Article) Validate() error {
 	if a.ZhTitle == "" {
 		return errors.New("zhTitle is required")
 	}
-	if a.Status != ArticleStatusDraft && a.Status != ArticleStatusPublished {
-		return errors.New("status must be draft or published")
+	if a.Status != ArticleStatusDraft && a.Status != ArticleStatusPublished && a.Status != ArticleStatusScheduled {
+		return errors.New("status must be draft, published, or scheduled")
 	}
 	return nil
 }

@@ -13,6 +13,7 @@ type PageStatus string
 const (
 	PageStatusDraft     PageStatus = "draft"
 	PageStatusPublished PageStatus = "published"
+	PageStatusScheduled PageStatus = "scheduled"
 )
 
 // Page represents a dynamic page with bilingual support
@@ -39,6 +40,7 @@ type Page struct {
 	AllowComments  bool           `gorm:"default:true" json:"allowComments"`
 	Pinned         bool           `gorm:"default:false" json:"pinned"`
 	Visibility     string         `gorm:"size:30;default:'public'" json:"visibility"`
+	ScheduledAt    *time.Time     `json:"scheduledAt" gorm:"index"`
 	PublishedAt    *time.Time     `json:"publishedAt"`
 	Metadata       JSONMap        `gorm:"type:jsonb" json:"metadata"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"createdAt"`
@@ -56,8 +58,8 @@ func (p *Page) Validate() error {
 	if p.Slug == "" {
 		return errors.New("slug is required")
 	}
-	if p.Status != PageStatusDraft && p.Status != PageStatusPublished {
-		return errors.New("status must be draft or published")
+	if p.Status != PageStatusDraft && p.Status != PageStatusPublished && p.Status != PageStatusScheduled {
+		return errors.New("status must be draft, published, or scheduled")
 	}
 	if p.RenderMode != "" && p.RenderMode != "hardcoded" && p.RenderMode != "dynamic" {
 		return errors.New("renderMode must be hardcoded or dynamic")
