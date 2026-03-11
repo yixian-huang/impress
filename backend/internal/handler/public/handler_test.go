@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"blotting-consultancy/internal/model"
+	. "blotting-consultancy/internal/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -49,6 +51,17 @@ func (m *MockContentDocumentRepository) Delete(ctx context.Context, pageKey mode
 	return nil
 }
 
+// MockPageViewRepository is a mock implementation for testing
+type MockPageViewRepository struct{}
+
+func (m *MockPageViewRepository) Create(ctx context.Context, pv *model.PageView) error {
+	return nil
+}
+
+func (m *MockPageViewRepository) GetSummary(ctx context.Context, now time.Time) ([]PageViewStats, error) {
+	return nil, nil
+}
+
 func setupTestRouter(handler *Handler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -69,7 +82,7 @@ func TestGetPublicContent_Success(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/home?locale=zh", nil)
@@ -105,7 +118,7 @@ func TestGetPublicContent_EnglishLocale(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/about?locale=en", nil)
@@ -133,7 +146,7 @@ func TestGetPublicContent_DefaultLocale(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	// No locale parameter provided - should default to zh
@@ -152,7 +165,7 @@ func TestGetPublicContent_DefaultLocale(t *testing.T) {
 
 func TestGetPublicContent_InvalidPageKey(t *testing.T) {
 	mockRepo := &MockContentDocumentRepository{}
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/invalid-page", nil)
@@ -171,7 +184,7 @@ func TestGetPublicContent_InvalidPageKey(t *testing.T) {
 
 func TestGetPublicContent_InvalidLocale(t *testing.T) {
 	mockRepo := &MockContentDocumentRepository{}
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/home?locale=fr", nil)
@@ -196,7 +209,7 @@ func TestGetPublicContent_PageNotFound(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/home?locale=zh", nil)
@@ -226,7 +239,7 @@ func TestGetPublicContent_NeverExposesDraftFields(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(mockRepo)
+	handler := NewHandler(mockRepo, &MockPageViewRepository{})
 	router := setupTestRouter(handler)
 
 	req := httptest.NewRequest("GET", "/public/content/home?locale=zh", nil)
@@ -265,7 +278,7 @@ func TestGetPublicContent_AllValidPageKeys(t *testing.T) {
 				},
 			}
 
-			handler := NewHandler(mockRepo)
+			handler := NewHandler(mockRepo, &MockPageViewRepository{})
 			router := setupTestRouter(handler)
 
 			req := httptest.NewRequest("GET", "/public/content/"+pageKey+"?locale=zh", nil)

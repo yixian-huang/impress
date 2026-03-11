@@ -46,6 +46,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		&model.ContentDocument{},
 		&model.ContentVersion{},
 		&model.InstalledTheme{},
+		&model.PageView{},
 	)
 	require.NoError(t, err)
 
@@ -54,6 +55,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
 	contentDocRepo := repository.NewGormContentDocumentRepository(database.DB)
 	contentVersionRepo := repository.NewGormContentVersionRepository(database.DB)
+	pageViewRepo := repository.NewGormPageViewRepository(database.DB)
 
 	// Initialize services
 	validationService := service.NewValidationService()
@@ -84,7 +86,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		contentService,
 		auditLog,
 	)
-	publicHandlerInst := publicHandler.NewHandler(contentDocRepo)
+	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo)
 
 	// Setup router
 	gin.SetMode(gin.TestMode)

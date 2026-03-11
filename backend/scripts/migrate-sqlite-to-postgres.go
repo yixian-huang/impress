@@ -72,14 +72,14 @@ func main() {
 	}
 
 	// Initialize repositories
-	srcUserRepo := repository.NewUserRepository(srcDB)
-	targetUserRepo := repository.NewUserRepository(targetDB)
+	srcUserRepo := repository.NewGormUserRepository(srcDB.DB)
+	targetUserRepo := repository.NewGormUserRepository(targetDB.DB)
 
-	srcDocRepo := repository.NewContentDocumentRepository(srcDB)
-	targetDocRepo := repository.NewContentDocumentRepository(targetDB)
+	srcDocRepo := repository.NewGormContentDocumentRepository(srcDB.DB)
+	targetDocRepo := repository.NewGormContentDocumentRepository(targetDB.DB)
 
-	srcVersionRepo := repository.NewContentVersionRepository(srcDB)
-	targetVersionRepo := repository.NewContentVersionRepository(targetDB)
+	srcVersionRepo := repository.NewGormContentVersionRepository(srcDB.DB)
+	targetVersionRepo := repository.NewGormContentVersionRepository(targetDB.DB)
 
 	ctx := context.Background()
 
