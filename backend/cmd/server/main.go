@@ -39,6 +39,7 @@ import (
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	menuHandler "blotting-consultancy/internal/handler/menu"
 	themeHandler "blotting-consultancy/internal/handler/theme"
+	searchhandler "blotting-consultancy/internal/handler/search"
 	seoHandler "blotting-consultancy/internal/handler/seo"
 	userHandler "blotting-consultancy/internal/handler/user"
 	"blotting-consultancy/internal/middleware"
@@ -219,6 +220,10 @@ func main() {
 	)
 	log.Info("Services initialized")
 
+	// Start scheduler for auto-publishing scheduled content
+	schedulerService := service.NewSchedulerService(database.DB)
+	schedulerService.Start()
+
 	// Initialize audit logger
 	auditLog := audit.NewLogger(log)
 	auditDbWriter := audit.NewDbWriter(auditEventRepo)
@@ -258,6 +263,8 @@ func main() {
 	captchaProvider := &provider.NoopCaptchaProvider{}
 	antispamService := service.NewAntiSpamService(captchaProvider)
 	commentHandlerInst := commentHandler.NewHandler(commentRepo, antispamService)
+	searchService := service.NewSearchService(database.DB, db.IsPostgresDSN(cfg.DBDSN))
+	searchHandlerInst := searchhandler.NewHandler(searchService)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -568,6 +575,9 @@ func main() {
 
 	// Comment routes (public + admin)
 	commentHandlerInst.RegisterRoutes(publicGroup, adminGroup)
+
+	// Search routes (public + admin)
+	searchHandlerInst.RegisterRoutes(publicGroup, adminGroup)
 
 	// Serve uploaded files statically
 	router.Static("/uploads", cfg.UploadDir)
