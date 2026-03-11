@@ -1,5 +1,7 @@
 package seo
 
+import "html/template"
+
 // PageMeta holds all meta tag values for server-side injection into index.html.
 type PageMeta struct {
 	Title        string
@@ -17,6 +19,9 @@ type PageMeta struct {
 
 	// Twitter Card
 	TwitterCard string
+
+	// JSON-LD script content (not escaped by template engine)
+	JSONLD template.HTML
 }
 
 const (

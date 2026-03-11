@@ -22,6 +22,8 @@
     <meta name="twitter:title" content="{{.OgTitle}}" />
     <meta name="twitter:description" content="{{.OgDescription}}" />
 
+    {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <!-- Remix Icon -->
