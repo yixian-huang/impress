@@ -11,12 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pressly/goose/v3"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm/logger"
 
 	"blotting-consultancy/internal/backup"
 	"blotting-consultancy/internal/db"
+	"blotting-consultancy/internal/db/migrations"
 	analyticsHandler "blotting-consultancy/internal/handler/analytics"
 	articleHandler "blotting-consultancy/internal/handler/article"
 	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
@@ -136,6 +139,28 @@ func main() {
 	if err := migrator.RunMigrations(db.DataMigrations()); err != nil {
 		log.Error("Failed to run data migrations", "error", err)
 		os.Exit(1)
+	}
+	// Run goose migrations (for schema changes beyond GORM AutoMigrate)
+	{
+		sqlDB, err := database.DB.DB()
+		if err != nil {
+			log.Error("Failed to get sql.DB for goose migrations", "error", err)
+			os.Exit(1)
+		}
+		goose.SetBaseFS(migrations.EmbedMigrations)
+		dialect := "sqlite3"
+		if db.IsPostgresDSN(cfg.DBDSN) {
+			dialect = "postgres"
+		}
+		if err := goose.SetDialect(dialect); err != nil {
+			log.Error("Failed to set goose dialect", "error", err)
+			os.Exit(1)
+		}
+		if err := goose.Up(sqlDB, "."); err != nil {
+			log.Error("Failed to run goose migrations", "error", err)
+			os.Exit(1)
+		}
+		log.Info("Goose migrations applied successfully")
 	}
 	log.Info("Database migrations completed")
 
