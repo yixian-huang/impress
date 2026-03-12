@@ -58,3 +58,20 @@ func (r *Registry) MustGet(name string) interface{} {
 	}
 	return p
 }
+
+// AI returns the registered AIProvider, or a noop provider if none is registered.
+func (r *Registry) AI() AIProvider {
+	p := r.Get("ai")
+	if p == nil {
+		return nil
+	}
+	if ai, ok := p.(AIProvider); ok {
+		return ai
+	}
+	return nil
+}
+
+// SetAI registers (or replaces) the AIProvider.
+func (r *Registry) SetAI(ai AIProvider) {
+	r.Register("ai", ai)
+}
