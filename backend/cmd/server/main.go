@@ -47,6 +47,16 @@ import (
 	searchhandler "blotting-consultancy/internal/handler/search"
 	seoHandler "blotting-consultancy/internal/handler/seo"
 	userHandler "blotting-consultancy/internal/handler/user"
+	aiHandler "blotting-consultancy/internal/handler/ai"
+	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
+	mediaFolderHandler "blotting-consultancy/internal/handler/media_folder"
+	migrationHandler "blotting-consultancy/internal/handler/migration"
+	qaHandler "blotting-consultancy/internal/handler/qa"
+	siteHandler "blotting-consultancy/internal/handler/site"
+	storageHandler "blotting-consultancy/internal/handler/storage"
+	systemHandler "blotting-consultancy/internal/handler/system"
+	translationHandler "blotting-consultancy/internal/handler/translation"
+	"blotting-consultancy/internal/migration"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/provider"
@@ -158,6 +168,13 @@ func main() {
 		&model.UserRole{},
 		&model.MarketplaceItem{},
 		&model.MarketplaceVersion{},
+		&model.MediaFolder{},
+		&model.ChunkedUpload{},
+		&model.QALog{},
+		&model.Glossary{},
+		&model.StorageConfig{},
+		&model.Site{},
+		&model.SiteUser{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -219,6 +236,12 @@ func main() {
 	commentRepo := repository.NewGormCommentRepository(database.DB)
 	roleRepo := repository.NewGormRoleRepository(database.DB)
 	marketplaceRepo := repository.NewGormMarketplaceRepository(database.DB)
+	mediaFolderRepo := repository.NewGormMediaFolderRepository(database.DB)
+	chunkedUploadRepo := repository.NewGormChunkedUploadRepository(database.DB)
+	qaLogRepo := repository.NewGormQALogRepository(database.DB)
+	glossaryRepo := repository.NewGormGlossaryRepository(database.DB)
+	storageConfigRepo := repository.NewGormStorageConfigRepository(database.DB)
+	siteRepo := repository.NewGormSiteRepository(database.DB)
 	log.Info("Repositories initialized")
 
 	// Initialize theme page service early (needed for seeding)
@@ -265,6 +288,24 @@ func main() {
 	// Initialize search service (needed by article handler)
 	searchService := service.NewSearchService(database.DB, db.IsPostgresDSN(cfg.DBDSN))
 
+	// Initialize chunked upload service
+	chunkedUploadSvc := service.NewChunkedUploadService(
+		chunkedUploadRepo,
+		mediaRepo,
+		"./tmp/uploads",
+		cfg.UploadDir,
+		"",
+	)
+
+	// Initialize site service
+	siteSvc := service.NewSiteService(database.DB, siteRepo)
+
+	// Initialize migration service
+	migrationSvc := migration.NewService(articleRepo, categoryRepo, tagRepo)
+
+	// Initialize translation provider (noop by default)
+	translationProvider := service.NewNoopTranslationProvider()
+
 	// Initialize event bus
 	bus := eventbus.New()
 	bus.Subscribe(eventbus.ContentCreated, eventbus.AsyncHandler(func(e eventbus.Event) {
@@ -284,6 +325,11 @@ func main() {
 	registry.Register("captcha", &provider.NoopCaptchaProvider{})
 	registry.Register("storage", service.NewLocalStorage(cfg.UploadDir))
 	log.Info("Provider registry initialized", "providers", registry.List())
+
+	// Initialize QA / embedding services (depend on registry.AI())
+	vectorStore := service.NewMemoryVectorStore()
+	qaService := service.NewQAService(registry.AI(), vectorStore)
+	embeddingService := service.NewEmbeddingService(registry.AI(), vectorStore)
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
@@ -321,6 +367,15 @@ func main() {
 	marketplaceHandlerInst := marketplaceHandler.NewHandler(marketplaceSvc)
 	wizardSvc := service.NewWizardService(registry.AI(), pageRepo)
 	wizardHandlerInst := wizardHandler.NewHandler(wizardSvc)
+	aiHandlerInst := aiHandler.NewHandler(registry)
+	chunkedUploadHandlerInst := chunkedUploadHandler.NewHandler(chunkedUploadSvc)
+	mediaFolderHandlerInst := mediaFolderHandler.NewHandler(mediaFolderRepo, mediaRepo)
+	migrationHandlerInst := migrationHandler.NewHandler(migrationSvc)
+	qaHandlerInst := qaHandler.NewHandler(qaService, embeddingService, qaLogRepo, contentDocRepo, articleRepo)
+	siteHandlerInst := siteHandler.NewHandler(siteSvc, siteRepo)
+	storageHandlerInst := storageHandler.NewHandler(storageConfigRepo)
+	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir)
+	translationHandlerInst := translationHandler.NewHandler(translationProvider, glossaryRepo, articleRepo)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -457,6 +512,9 @@ func main() {
 		// Public theme pages route
 		publicGroup.GET("/theme-pages", pageHandlerInst.PublicListThemePages)
 	}
+
+	// Public Q&A (knowledge base ask)
+	publicGroup.POST("/qa/ask", qaHandlerInst.PublicAsk)
 
 	// Form submission (public, with dedicated rate limit)
 	router.POST("/public/form-submissions", middleware.FormSubmitRateLimit(), formSubmissionHandlerInst.HandlePublicSubmit)
@@ -672,6 +730,67 @@ func main() {
 		adminGroup.PUT("/marketplace/items/:slug/update", marketplaceHandlerInst.AdminUpdateItem)
 		adminGroup.DELETE("/marketplace/items/:slug", marketplaceHandlerInst.AdminUninstallItem)
 		adminGroup.POST("/marketplace/items/:slug/versions", marketplaceHandlerInst.AdminAddVersion)
+
+		// AI provider management
+		adminGroup.POST("/ai/chat", aiHandlerInst.Chat)
+		adminGroup.POST("/ai/summarize", aiHandlerInst.Summarize)
+		adminGroup.POST("/ai/suggest-titles", aiHandlerInst.SuggestTitles)
+		adminGroup.POST("/ai/suggest-tags", aiHandlerInst.SuggestTags)
+		adminGroup.POST("/ai/complete", aiHandlerInst.Complete)
+		adminGroup.GET("/ai/config", aiHandlerInst.GetConfig)
+		adminGroup.PUT("/ai/config", aiHandlerInst.UpdateConfig)
+
+		// Chunked upload
+		adminGroup.POST("/media/upload/init", chunkedUploadHandlerInst.InitUpload)
+		adminGroup.POST("/media/upload/:uploadId/chunk", chunkedUploadHandlerInst.UploadChunk)
+		adminGroup.POST("/media/upload/:uploadId/complete", chunkedUploadHandlerInst.CompleteUpload)
+
+		// Media folders
+		adminGroup.GET("/media/folders", mediaFolderHandlerInst.ListTree)
+		adminGroup.POST("/media/folders", mediaFolderHandlerInst.Create)
+		adminGroup.PUT("/media/folders/:id", mediaFolderHandlerInst.Rename)
+		adminGroup.DELETE("/media/folders/:id", mediaFolderHandlerInst.Delete)
+		adminGroup.PUT("/media/:id/move", mediaFolderHandlerInst.MoveMedia)
+
+		// Data migration (import from WordPress, Halo, Markdown)
+		adminGroup.POST("/migration/import", migrationHandlerInst.Import)
+		adminGroup.GET("/migration/jobs", migrationHandlerInst.ListJobs)
+		adminGroup.GET("/migration/jobs/:jobId", migrationHandlerInst.GetJob)
+		adminGroup.GET("/migration/jobs/:jobId/stream", migrationHandlerInst.StreamProgress)
+
+		// Knowledge base Q&A (admin)
+		adminGroup.POST("/qa/index", qaHandlerInst.AdminIndex)
+		adminGroup.GET("/qa/logs", qaHandlerInst.AdminListLogs)
+		adminGroup.POST("/qa/logs/:id/feedback", qaHandlerInst.AdminFeedback)
+
+		// Site management
+		adminGroup.GET("/sites", siteHandlerInst.AdminList)
+		adminGroup.GET("/sites/:id", siteHandlerInst.AdminGetByID)
+		adminGroup.POST("/sites", siteHandlerInst.AdminCreate)
+		adminGroup.PUT("/sites/:id", siteHandlerInst.AdminUpdate)
+		adminGroup.DELETE("/sites/:id", siteHandlerInst.AdminDelete)
+		adminGroup.GET("/sites/:id/users", siteHandlerInst.AdminListUsers)
+		adminGroup.POST("/sites/:id/users", siteHandlerInst.AdminAssignUser)
+		adminGroup.DELETE("/sites/:id/users/:userId", siteHandlerInst.AdminUnassignUser)
+		adminGroup.GET("/sites/:id/export", siteHandlerInst.AdminExport)
+		adminGroup.POST("/sites/import", siteHandlerInst.AdminImport)
+
+		// Storage configuration
+		adminGroup.GET("/storage/config", storageHandlerInst.GetConfig)
+		adminGroup.PUT("/storage/config", storageHandlerInst.UpdateConfig)
+		adminGroup.POST("/storage/test", storageHandlerInst.TestConnection)
+
+		// System status
+		adminGroup.GET("/system/status", systemHandlerInst.GetStatus)
+
+		// Translation & glossary
+		adminGroup.POST("/translate", translationHandlerInst.Translate)
+		adminGroup.POST("/translate/batch", translationHandlerInst.BatchTranslate)
+		adminGroup.POST("/translate/article/:id", translationHandlerInst.TranslateArticle)
+		adminGroup.GET("/glossary", translationHandlerInst.GlossaryList)
+		adminGroup.POST("/glossary", translationHandlerInst.GlossaryCreate)
+		adminGroup.PUT("/glossary/:id", translationHandlerInst.GlossaryUpdate)
+		adminGroup.DELETE("/glossary/:id", translationHandlerInst.GlossaryDelete)
 	}
 
 	// SEO routes (public + admin)
