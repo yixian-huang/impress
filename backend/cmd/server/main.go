@@ -26,6 +26,7 @@ import (
 	analyticsHandler "blotting-consultancy/internal/handler/analytics"
 	articleHandler "blotting-consultancy/internal/handler/article"
 	roleHandler "blotting-consultancy/internal/handler/role"
+	wizardHandler "blotting-consultancy/internal/handler/wizard"
 	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
 	authHandler "blotting-consultancy/internal/handler/auth"
 	backupHandler "blotting-consultancy/internal/handler/backup"
@@ -40,6 +41,7 @@ import (
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
 	formSubmissionHandler "blotting-consultancy/internal/handler/form_submission"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
+	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
 	menuHandler "blotting-consultancy/internal/handler/menu"
 	themeHandler "blotting-consultancy/internal/handler/theme"
 	searchhandler "blotting-consultancy/internal/handler/search"
@@ -154,6 +156,8 @@ func main() {
 		&model.RBACRole{},
 		&model.Permission{},
 		&model.UserRole{},
+		&model.MarketplaceItem{},
+		&model.MarketplaceVersion{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
@@ -214,6 +218,7 @@ func main() {
 	menuRepo := repository.NewGormMenuRepository(database.DB)
 	commentRepo := repository.NewGormCommentRepository(database.DB)
 	roleRepo := repository.NewGormRoleRepository(database.DB)
+	marketplaceRepo := repository.NewGormMarketplaceRepository(database.DB)
 	log.Info("Repositories initialized")
 
 	// Initialize theme page service early (needed for seeding)
@@ -312,6 +317,10 @@ func main() {
 	commentHandlerInst := commentHandler.NewHandler(commentRepo, antispamService)
 	searchHandlerInst := searchhandler.NewHandler(searchService)
 	roleHandlerInst := roleHandler.NewHandler(roleRepo, userRepo)
+	marketplaceSvc := service.NewMarketplaceService(marketplaceRepo)
+	marketplaceHandlerInst := marketplaceHandler.NewHandler(marketplaceSvc)
+	wizardSvc := service.NewWizardService(registry.AI(), pageRepo)
+	wizardHandlerInst := wizardHandler.NewHandler(wizardSvc)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -647,6 +656,22 @@ func main() {
 
 		// Permission listing (requires roles:read via RBAC)
 		adminGroup.GET("/permissions", roleHandlerInst.ListPermissions)
+
+		// AI Site Building Wizard
+		adminGroup.POST("/wizard/generate-plan", wizardHandlerInst.GeneratePlan)
+		adminGroup.POST("/wizard/apply-plan", wizardHandlerInst.ApplyPlan)
+		adminGroup.POST("/wizard/suggest-colors", wizardHandlerInst.SuggestColors)
+		adminGroup.POST("/wizard/generate-content", wizardHandlerInst.GenerateContent)
+
+		// Marketplace (plugin/theme registry)
+		adminGroup.GET("/marketplace/items", marketplaceHandlerInst.AdminListItems)
+		adminGroup.GET("/marketplace/installed", marketplaceHandlerInst.AdminListInstalled)
+		adminGroup.POST("/marketplace/items", marketplaceHandlerInst.AdminRegisterItem)
+		adminGroup.GET("/marketplace/items/:slug", marketplaceHandlerInst.AdminGetItem)
+		adminGroup.POST("/marketplace/items/:slug/install", marketplaceHandlerInst.AdminInstallItem)
+		adminGroup.PUT("/marketplace/items/:slug/update", marketplaceHandlerInst.AdminUpdateItem)
+		adminGroup.DELETE("/marketplace/items/:slug", marketplaceHandlerInst.AdminUninstallItem)
+		adminGroup.POST("/marketplace/items/:slug/versions", marketplaceHandlerInst.AdminAddVersion)
 	}
 
 	// SEO routes (public + admin)
