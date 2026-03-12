@@ -207,11 +207,20 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Extract filename from URL to delete the physical file
+	// Extract filename from URL to delete the physical file and derivatives
 	parts := strings.Split(media.URL, "/uploads/")
 	if len(parts) == 2 {
 		filePath := filepath.Join(h.uploadDir, parts[1])
-		os.Remove(filePath) // Best effort; ignore error
+		// Verify resolved path is within uploadDir to prevent path traversal
+		absUpload, _ := filepath.Abs(h.uploadDir)
+		absFile, _ := filepath.Abs(filePath)
+		if strings.HasPrefix(absFile, absUpload+string(filepath.Separator)) {
+			os.Remove(filePath) // Best effort; ignore error
+			// Clean up WebP and thumbnail derivatives
+			base := strings.TrimSuffix(filePath, filepath.Ext(filePath))
+			os.Remove(base + ".webp")
+			os.Remove(base + "_thumb.webp")
+		}
 	}
 
 	// Delete database record
@@ -252,6 +261,13 @@ func (h *Handler) Recrop(c *gin.Context) {
 		return
 	}
 	destPath := filepath.Join(h.uploadDir, parts[1])
+	// Verify resolved path is within uploadDir to prevent path traversal
+	absUpload, _ := filepath.Abs(h.uploadDir)
+	absFile, _ := filepath.Abs(destPath)
+	if !strings.HasPrefix(absFile, absUpload+string(filepath.Separator)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的文件路径"}})
+		return
+	}
 
 	// Overwrite the physical file
 	out, err := os.Create(destPath)

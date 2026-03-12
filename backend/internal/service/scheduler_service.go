@@ -10,12 +10,14 @@ import (
 type SchedulerService struct {
 	db     *gorm.DB
 	logger *slog.Logger
+	done   chan struct{}
 }
 
 func NewSchedulerService(db *gorm.DB) *SchedulerService {
 	return &SchedulerService{
 		db:     db,
 		logger: slog.Default(),
+		done:   make(chan struct{}),
 	}
 }
 
@@ -56,11 +58,21 @@ func (s *SchedulerService) Start() {
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			if _, err := s.PublishOverdue(); err != nil {
-				s.logger.Error("Scheduler error", "error", err)
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-ticker.C:
+				if _, err := s.PublishOverdue(); err != nil {
+					s.logger.Error("Scheduler error", "error", err)
+				}
 			}
 		}
 	}()
 	s.logger.Info("Scheduler started (checking every 1 minute)")
+}
+
+func (s *SchedulerService) Stop() {
+	close(s.done)
+	s.logger.Info("Scheduler stopped")
 }

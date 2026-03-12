@@ -62,13 +62,18 @@ func (h *Handler) AdminImportMarkdown(c *gin.Context) {
 		return
 	}
 
+	const maxFileSize = 5 * 1024 * 1024 // 5MB per file
+
 	var imported []string
 	for _, file := range files {
+		if file.Size > maxFileSize {
+			continue
+		}
 		f, err := file.Open()
 		if err != nil {
 			continue
 		}
-		content, err := io.ReadAll(f)
+		content, err := io.ReadAll(io.LimitReader(f, maxFileSize+1))
 		f.Close()
 		if err != nil {
 			continue

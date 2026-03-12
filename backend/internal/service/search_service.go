@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -51,12 +52,39 @@ func (s *SearchService) Search(ctx context.Context, query, locale, contentType s
 	return s.searchSQLiteFTS(ctx, query, locale, contentType, page, pageSize)
 }
 
+// escapeLike escapes SQL LIKE special characters.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
+}
+
+// sanitizeFTS5Query makes user input safe for FTS5 MATCH by wrapping it in
+// double quotes (phrase query) after escaping embedded double quotes.
+func sanitizeFTS5Query(q string) string {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return q
+	}
+	// Remove FTS5 special operators and characters
+	q = strings.ReplaceAll(q, "\"", "")
+	// Strip column filter syntax (e.g. "title:")
+	q = regexp.MustCompile(`\w+\s*:`).ReplaceAllString(q, "")
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return q
+	}
+	// Wrap in double quotes to force phrase matching
+	return "\"" + q + "\""
+}
+
 // searchSQLiteLike performs a LIKE-based search for CJK content.
 func (s *SearchService) searchSQLiteLike(ctx context.Context, query, locale, contentType string, page, pageSize int) (*provider.SearchResponse, error) {
 	offset := (page - 1) * pageSize
-	likePattern := "%" + query + "%"
+	likePattern := "%" + escapeLike(query) + "%"
 
-	conditions := []string{"(title LIKE ? OR body LIKE ?)"}
+	conditions := []string{"(title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\')"}
 	args := []interface{}{likePattern, likePattern}
 
 	if locale != "" {
@@ -126,8 +154,13 @@ func (s *SearchService) searchSQLiteLike(ctx context.Context, query, locale, con
 func (s *SearchService) searchSQLiteFTS(ctx context.Context, query, locale, contentType string, page, pageSize int) (*provider.SearchResponse, error) {
 	offset := (page - 1) * pageSize
 
+	sanitized := sanitizeFTS5Query(query)
+	if sanitized == "" {
+		return &provider.SearchResponse{Results: []provider.SearchResult{}, Total: 0, Page: page, PageSize: pageSize, Query: query}, nil
+	}
+
 	conditions := []string{"search_index_fts MATCH ?"}
-	args := []interface{}{query}
+	args := []interface{}{sanitized}
 
 	if locale != "" {
 		conditions = append(conditions, "locale = ?")
@@ -212,13 +245,18 @@ func (s *SearchService) Suggest(ctx context.Context, prefix, locale string, limi
 	}
 	var titles []string
 	if containsCJK(prefix) {
-		sql := "SELECT DISTINCT title FROM search_index_fts WHERE title LIKE ? AND locale = ? LIMIT ?"
-		if err := s.db.WithContext(ctx).Raw(sql, prefix+"%", locale, limit).Scan(&titles).Error; err != nil {
+		sql := "SELECT DISTINCT title FROM search_index_fts WHERE title LIKE ? ESCAPE '\\' AND locale = ? LIMIT ?"
+		if err := s.db.WithContext(ctx).Raw(sql, escapeLike(prefix)+"%", locale, limit).Scan(&titles).Error; err != nil {
 			return nil, fmt.Errorf("suggest: %w", err)
 		}
 	} else {
+		safePrefix := strings.ReplaceAll(prefix, "\"", "")
+		safePrefix = strings.TrimSpace(safePrefix)
+		if safePrefix == "" {
+			return titles, nil
+		}
 		sql := "SELECT DISTINCT title FROM search_index_fts WHERE title MATCH ? AND locale = ? LIMIT ?"
-		if err := s.db.WithContext(ctx).Raw(sql, prefix+"*", locale, limit).Scan(&titles).Error; err != nil {
+		if err := s.db.WithContext(ctx).Raw(sql, "\""+safePrefix+"\"*", locale, limit).Scan(&titles).Error; err != nil {
 			return nil, fmt.Errorf("suggest: %w", err)
 		}
 	}

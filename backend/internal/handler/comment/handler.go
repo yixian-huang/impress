@@ -94,7 +94,11 @@ func (h *Handler) AdminList(c *gin.Context) {
 }
 
 func (h *Handler) AdminUpdateStatus(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
 	var input struct {
 		Status model.CommentStatus `json:"status" binding:"required"`
 	}
@@ -110,7 +114,11 @@ func (h *Handler) AdminUpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) AdminDelete(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
 	if err := h.repo.Delete(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment"})
 		return
@@ -119,7 +127,11 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 }
 
 func (h *Handler) AdminPin(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
 	var input struct {
 		Pinned bool `json:"pinned"`
 	}

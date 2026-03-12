@@ -262,7 +262,7 @@ func main() {
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
 	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo)
 	userHandlerInst := userHandler.NewHandler(userRepo)
-	seoHandlerInst := seoHandler.NewHandler()
+	seoHandlerInst := seoHandler.NewHandler(database.DB)
 	captchaProvider := &provider.NoopCaptchaProvider{}
 	antispamService := service.NewAntiSpamService(captchaProvider)
 	commentHandlerInst := commentHandler.NewHandler(commentRepo, antispamService)
@@ -642,6 +642,10 @@ func main() {
 	<-quit
 
 	log.Info("Server shutting down gracefully...")
+
+	// Stop background services
+	schedulerService.Stop()
+	antispamService.Stop()
 
 	// Shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)

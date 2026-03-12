@@ -5,6 +5,19 @@ import { useTranslation } from "react-i18next";
 import { useSearch } from "@/hooks/useSearch";
 import SearchBox from "@/components/feature/SearchBox";
 
+/** Sanitize FTS5 snippet: escape all HTML except <mark> tags */
+function sanitizeSnippet(html: string): string {
+  const parts = html.split(/(<\/?mark>)/gi);
+  return parts
+    .map((part) => {
+      if (part.toLowerCase() === "<mark>" || part.toLowerCase() === "</mark>") {
+        return part.toLowerCase();
+      }
+      return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    })
+    .join("");
+}
+
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
@@ -38,7 +51,9 @@ export default function SearchPage() {
                 </h3>
                 <p
                   className="text-sm text-gray-600 mt-1"
-                  dangerouslySetInnerHTML={{ __html: r.snippet }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeSnippet(r.snippet),
+                  }}
                 />
                 <span className="text-xs text-gray-400">{r.url}</span>
               </Link>

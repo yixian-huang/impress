@@ -48,6 +48,9 @@ func (c *Comment) Validate() error {
 	if c.Content == "" {
 		return errors.New("content is required")
 	}
+	if len(c.Content) > 10000 {
+		return errors.New("content must be 10000 characters or fewer")
+	}
 	if c.AuthorName == "" {
 		return errors.New("author name is required")
 	}
