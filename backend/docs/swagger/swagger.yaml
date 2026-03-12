@@ -1,0 +1,16 @@
+basePath: /
+host: localhost:8088
+info:
+  contact: {}
+  description: Bilingual CMS backend API for Impress (印迹). Supports content management,
+    articles, pages, themes, media, and more.
+  title: Impress CMS API
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  BearerAuth:
+    description: Enter "Bearer {token}" for JWT authentication
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

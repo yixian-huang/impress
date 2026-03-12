@@ -17,6 +17,7 @@ import (
 
 	"blotting-consultancy/internal/backup"
 	"blotting-consultancy/internal/db"
+	"blotting-consultancy/internal/eventbus"
 	analyticsHandler "blotting-consultancy/internal/handler/analytics"
 	articleHandler "blotting-consultancy/internal/handler/article"
 	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
@@ -53,6 +54,15 @@ var (
 	GitBranch = "unknown"
 )
 
+// @title           Impress CMS API
+// @version         1.0
+// @description     Bilingual CMS backend API for Impress (印迹). Supports content management, articles, pages, themes, media, and more.
+// @host            localhost:8088
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter "Bearer {token}" for JWT authentication
 func main() {
 	// Load configuration
 	cfg, err := config.Load()
@@ -186,6 +196,19 @@ func main() {
 	backupSvc := backup.NewService(database.DB, "./backups", 10, cfg.UploadDir, Version)
 	log.Info("Audit logger and backup service initialized")
 
+	// Initialize event bus
+	bus := eventbus.New()
+	bus.Subscribe(eventbus.ContentCreated, eventbus.AsyncHandler(func(e eventbus.Event) {
+		log.Info("Content event", "type", e.Type)
+	}))
+	bus.Subscribe(eventbus.ContentUpdated, eventbus.AsyncHandler(func(e eventbus.Event) {
+		log.Info("Content event", "type", e.Type)
+	}))
+	bus.Subscribe(eventbus.ContentDeleted, eventbus.AsyncHandler(func(e eventbus.Event) {
+		log.Info("Content event", "type", e.Type)
+	}))
+	log.Info("Event bus initialized")
+
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
 	contentHandlerInst := contentHandler.NewHandler(
@@ -201,7 +224,7 @@ func main() {
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo)
 	tagHandlerInst := tagHandler.NewHandler(tagRepo)
-	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo)
+	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, bus)
 	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, cfg.BaseURL)

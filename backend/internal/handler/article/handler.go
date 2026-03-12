@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"blotting-consultancy/internal/eventbus"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 )
@@ -16,6 +17,7 @@ type Handler struct {
 	articleRepo  repository.ArticleRepository
 	categoryRepo repository.CategoryRepository
 	tagRepo      repository.TagRepository
+	eventBus     eventbus.EventBus
 }
 
 // NewHandler creates a new article handler
@@ -23,11 +25,13 @@ func NewHandler(
 	articleRepo repository.ArticleRepository,
 	categoryRepo repository.CategoryRepository,
 	tagRepo repository.TagRepository,
+	eventBus eventbus.EventBus,
 ) *Handler {
 	return &Handler{
 		articleRepo:  articleRepo,
 		categoryRepo: categoryRepo,
 		tagRepo:      tagRepo,
+		eventBus:     eventBus,
 	}
 }
 
@@ -205,6 +209,19 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 		return
 	}
 
+	// Publish content created event
+	if h.eventBus != nil {
+		h.eventBus.Publish(eventbus.Event{
+			Type: eventbus.ContentCreated,
+			Payload: eventbus.ContentEventPayload{
+				ContentType: "article",
+				ContentID:   article.ID,
+				Slug:        article.Slug,
+				Action:      eventbus.ContentCreated,
+			},
+		})
+	}
+
 	c.JSON(http.StatusCreated, created)
 }
 
@@ -274,6 +291,19 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		return
 	}
 
+	// Publish content updated event
+	if h.eventBus != nil {
+		h.eventBus.Publish(eventbus.Event{
+			Type: eventbus.ContentUpdated,
+			Payload: eventbus.ContentEventPayload{
+				ContentType: "article",
+				ContentID:   existing.ID,
+				Slug:        existing.Slug,
+				Action:      eventbus.ContentUpdated,
+			},
+		})
+	}
+
 	c.JSON(http.StatusOK, updated)
 }
 
@@ -289,6 +319,18 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 	if err := h.articleRepo.Delete(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
 		return
+	}
+
+	// Publish content deleted event
+	if h.eventBus != nil {
+		h.eventBus.Publish(eventbus.Event{
+			Type: eventbus.ContentDeleted,
+			Payload: eventbus.ContentEventPayload{
+				ContentType: "article",
+				ContentID:   uint(id),
+				Action:      eventbus.ContentDeleted,
+			},
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
