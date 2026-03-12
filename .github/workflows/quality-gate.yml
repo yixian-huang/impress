@@ -96,6 +96,15 @@ jobs:
           cd backend && go mod tidy
           git diff --exit-code backend/go.mod backend/go.sum
 
+      - name: Install swag CLI
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger docs
+        run: cd backend && swag init -g cmd/server/main.go -o docs/swagger --parseDependency --parseInternal
+
+      - name: Verify Swagger docs are up to date
+        run: git diff --exit-code backend/docs/swagger/
+
       - name: Run Go vet
         run: cd backend && go vet ./...
 
