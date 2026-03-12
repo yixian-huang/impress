@@ -29,6 +29,19 @@ type RollbackResponse struct {
 }
 
 // Rollback handles POST /admin/content/{pageKey}/rollback/{version}
+// @Summary      Rollback content
+// @Description  Rolls back published content to a previous version
+// @Tags         Content (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey path string          true "Page key"
+// @Param        version path int             true "Source version to rollback to"
+// @Param        body    body RollbackRequest  true "Rollback parameters"
+// @Success      200 {object} RollbackResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/rollback/{version} [post]
 func (h *Handler) Rollback(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

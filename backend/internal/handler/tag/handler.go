@@ -23,6 +23,13 @@ func NewHandler(tagRepo repository.TagRepository, articleRepo repository.Article
 
 // List returns all tags
 // GET /admin/tags
+// @Summary      List all tags
+// @Description  Returns all tags for admin management
+// @Tags         Tags (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{items=[]object}
+// @Router       /admin/tags [get]
 func (h *Handler) List(c *gin.Context) {
 	items, err := h.tagRepo.List(c.Request.Context())
 	if err != nil {
@@ -34,6 +41,16 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create creates a new tag
 // POST /admin/tags
+// @Summary      Create tag
+// @Description  Create a new tag
+// @Tags         Tags (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Tag data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/tags [post]
 func (h *Handler) Create(c *gin.Context) {
 	var input model.Tag
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -51,6 +68,18 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Update updates a tag
 // PUT /admin/tags/:id
+// @Summary      Update tag
+// @Description  Update an existing tag by ID
+// @Tags         Tags (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Tag ID"
+// @Param        body body object true "Updated tag data"
+// @Success      200 {object} object
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/tags/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -87,6 +116,16 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete deletes a tag
 // DELETE /admin/tags/:id
+// @Summary      Delete tag
+// @Description  Delete a tag by ID
+// @Tags         Tags (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Tag ID"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/tags/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -104,6 +143,12 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // PublicList returns all tags
 // GET /public/tags
+// @Summary      List all tags
+// @Description  Returns all tags for public display
+// @Tags         Tags
+// @Produce      json
+// @Success      200 {object} object{items=[]object}
+// @Router       /public/tags [get]
 func (h *Handler) PublicList(c *gin.Context) {
 	items, err := h.tagRepo.List(c.Request.Context())
 	if err != nil {
@@ -115,6 +160,16 @@ func (h *Handler) PublicList(c *gin.Context) {
 
 // PublicGetBySlug returns a tag by slug with paginated published articles
 // GET /public/tags/:slug?page=1&pageSize=10
+// @Summary      Get tag by slug
+// @Description  Returns a tag by slug with paginated published articles
+// @Tags         Tags
+// @Produce      json
+// @Param        slug     path  string true  "Tag slug"
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(10)
+// @Success      200 {object} object{tag=object,articles=object}
+// @Failure      404 {object} object{error=string}
+// @Router       /public/tags/{slug} [get]
 func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 

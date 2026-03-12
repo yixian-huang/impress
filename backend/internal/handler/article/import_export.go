@@ -14,6 +14,15 @@ import (
 
 // AdminExportMarkdown handles GET /admin/articles/:id/export
 // Returns the article as a Markdown file with YAML front matter.
+// @Summary      Export article as Markdown
+// @Description  Returns the article as a Markdown file with YAML front matter
+// @Tags         Articles (Admin)
+// @Produce      text/markdown
+// @Security     BearerAuth
+// @Param        id path int true "Article ID"
+// @Success      200 {file} file
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/articles/{id}/export [get]
 func (h *Handler) AdminExportMarkdown(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -49,6 +58,16 @@ func (h *Handler) AdminExportMarkdown(c *gin.Context) {
 
 // AdminImportMarkdown handles POST /admin/articles/import
 // Accepts multipart form with .md files. Creates draft articles.
+// @Summary      Import articles from Markdown
+// @Description  Accepts multipart form with .md files and creates draft articles
+// @Tags         Articles (Admin)
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        files formData file true "Markdown files to import"
+// @Success      200 {object} object{imported=[]string,count=int}
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/articles/import [post]
 func (h *Handler) AdminImportMarkdown(c *gin.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {

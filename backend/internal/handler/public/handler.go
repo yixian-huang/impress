@@ -31,6 +31,16 @@ func NewHandler(docRepo repository.ContentDocumentRepository, pvRepo repository.
 
 // GetPublicContent handles GET /public/content/{pageKey}?locale=zh|en
 // Returns published-only content with locale support
+// @Summary      Get public content by page key
+// @Description  Returns published-only content for a given page key with locale support and records page view
+// @Tags         Public Content
+// @Produce      json
+// @Param        pageKey path   string true  "Page key (e.g. home, about)"
+// @Param        locale  query  string false "Locale (zh or en)" default(zh)
+// @Success      200 {object} object{pageKey=string,version=int,locale=string,config=object}
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /public/content/{pageKey} [get]
 func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Record metrics attempt and start timer
 	metrics.Global().RecordPublicGetAttempt()

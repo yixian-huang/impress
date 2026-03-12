@@ -25,6 +25,20 @@ type UpdateDraftResponse struct {
 }
 
 // UpdateDraft handles PUT /admin/content/{pageKey}/draft
+// @Summary      Update draft content
+// @Description  Updates the draft config for a page key with optimistic locking via If-Match header
+// @Tags         Content (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey  path   string            true "Page key"
+// @Param        If-Match header int               true "Expected draft version for optimistic locking"
+// @Param        body     body   UpdateDraftRequest true "Draft content data"
+// @Success      200 {object} UpdateDraftResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Failure      409 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/draft [put]
 func (h *Handler) UpdateDraft(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

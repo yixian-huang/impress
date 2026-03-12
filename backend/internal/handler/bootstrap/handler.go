@@ -55,8 +55,15 @@ func defaultThemeConfig() model.JSONMap {
 	}
 }
 
-// PublicBootstrap returns all data needed for SPA initial render in one response.
-// GET /public/bootstrap?locale=zh|en&pageKey=home
+// PublicBootstrap returns all data needed for SPA initial render.
+// @Summary      Bootstrap SPA
+// @Description  Returns active theme, tokens, pages, global config in a single response
+// @Tags         Bootstrap
+// @Produce      json
+// @Param        locale  query string false "Locale (zh or en)" default(zh)
+// @Param        pageKey query string false "Optional page key to include content"
+// @Success      200 {object} object{activeTheme=object,themeTokens=object,themePages=[]object,globalConfig=object}
+// @Router       /public/bootstrap [get]
 func (h *Handler) PublicBootstrap(c *gin.Context) {
 	ctx := c.Request.Context()
 	locale := c.DefaultQuery("locale", "zh")

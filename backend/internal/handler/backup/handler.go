@@ -23,8 +23,14 @@ func NewHandler(service *backupService.Service) *Handler {
 	return &Handler{service: service}
 }
 
-// List returns all backup records
-// GET /admin/backups
+// List returns all backup records.
+// @Summary      List backups
+// @Description  Returns all backup records
+// @Tags         Backup
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{items=[]object}
+// @Router       /admin/backups [get]
 func (h *Handler) List(c *gin.Context) {
 	records, err := h.service.ListBackups(c.Request.Context())
 	if err != nil {
@@ -37,8 +43,14 @@ func (h *Handler) List(c *gin.Context) {
 	})
 }
 
-// Trigger manually triggers a database backup
-// POST /admin/backups/trigger
+// Trigger manually triggers a database backup.
+// @Summary      Trigger backup
+// @Description  Manually trigger a database backup
+// @Tags         Backup
+// @Produce      json
+// @Security     BearerAuth
+// @Success      201 {object} object
+// @Router       /admin/backups/trigger [post]
 func (h *Handler) Trigger(c *gin.Context) {
 	record, err := h.service.RunBackup(c.Request.Context())
 	if err != nil {
@@ -50,7 +62,13 @@ func (h *Handler) Trigger(c *gin.Context) {
 }
 
 // Export generates a full site export ZIP archive.
-// POST /admin/backups/export
+// @Summary      Export site
+// @Description  Generate a full site export as a ZIP archive
+// @Tags         Backup
+// @Produce      json
+// @Security     BearerAuth
+// @Success      201 {object} object
+// @Router       /admin/backups/export [post]
 func (h *Handler) Export(c *gin.Context) {
 	record, err := h.service.RunExport()
 	if err != nil {
@@ -62,7 +80,15 @@ func (h *Handler) Export(c *gin.Context) {
 }
 
 // DownloadExport serves an export ZIP file for download.
-// GET /admin/backups/export/:filename
+// @Summary      Download export
+// @Description  Download a site export ZIP file
+// @Tags         Backup
+// @Produce      application/zip
+// @Security     BearerAuth
+// @Param        filename path string true "Export filename"
+// @Success      200 {file} file
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/backups/export/{filename} [get]
 func (h *Handler) DownloadExport(c *gin.Context) {
 	filename := c.Param("filename")
 
@@ -88,7 +114,15 @@ func (h *Handler) DownloadExport(c *gin.Context) {
 }
 
 // Import uploads a ZIP and restores the full site.
-// POST /admin/backups/import
+// @Summary      Import site
+// @Description  Upload a ZIP archive and restore the full site
+// @Tags         Backup
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file formData file true "Import ZIP file"
+// @Success      200 {object} object{message=string}
+// @Router       /admin/backups/import [post]
 func (h *Handler) Import(c *gin.Context) {
 	// Limit request body to 500MB
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 500<<20)
@@ -113,8 +147,16 @@ func (h *Handler) Import(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "导入成功，请重新登录"})
 }
 
-// ValidateImport uploads a ZIP and validates its structure without importing.
-// POST /admin/backups/import/validate
+// ValidateImport validates an import archive without applying it.
+// @Summary      Validate import
+// @Description  Upload a ZIP and validate its structure without importing
+// @Tags         Backup
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file formData file true "Import ZIP file to validate"
+// @Success      200 {object} object
+// @Router       /admin/backups/import/validate [post]
 func (h *Handler) ValidateImport(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 500<<20)
 

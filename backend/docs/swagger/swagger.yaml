@@ -3,6 +3,25 @@ definitions:
   blotting-consultancy_internal_model.JSONMap:
     additionalProperties: true
     type: object
+  blotting-consultancy_internal_service.TranslationState:
+    enum:
+    - done
+    - missing
+    - stale
+    type: string
+    x-enum-varnames:
+    - TranslationStateDone
+    - TranslationStateMissing
+    - TranslationStateStale
+  blotting-consultancy_internal_service.ValidationError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+      path:
+        type: string
+    type: object
   internal_handler_article.createUpdateInput:
     properties:
       allowComments:
@@ -114,6 +133,200 @@ definitions:
       expiresIn:
         type: integer
     type: object
+  internal_handler_comment.createInput:
+    properties:
+      authorEmail:
+        type: string
+      authorName:
+        type: string
+      authorUrl:
+        type: string
+      captchaToken:
+        type: string
+      content:
+        type: string
+      contentId:
+        type: integer
+      contentType:
+        type: string
+      parentId:
+        type: integer
+    required:
+    - authorName
+    - content
+    - contentId
+    - contentType
+    type: object
+  internal_handler_content.GetDraftResponse:
+    properties:
+      config:
+        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+      pageKey:
+        type: string
+      publishedVersion:
+        type: integer
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  internal_handler_content.GetVersionDetailResponse:
+    properties:
+      config:
+        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+      createdBy:
+        type: integer
+      id:
+        type: integer
+      pageKey:
+        type: string
+      publishedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  internal_handler_content.GetVersionsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/internal_handler_content.VersionListItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  internal_handler_content.PublishRequest:
+    properties:
+      changeNote:
+        type: string
+      expectedDraftVersion:
+        type: integer
+    required:
+    - expectedDraftVersion
+    type: object
+  internal_handler_content.PublishResponse:
+    properties:
+      pageKey:
+        type: string
+      publishedAt:
+        type: string
+      publishedVersion:
+        type: integer
+    type: object
+  internal_handler_content.RollbackRequest:
+    properties:
+      changeNote:
+        type: string
+    type: object
+  internal_handler_content.RollbackResponse:
+    properties:
+      pageKey:
+        type: string
+      publishedAt:
+        type: string
+      publishedVersion:
+        type: integer
+      sourceVersion:
+        type: integer
+    type: object
+  internal_handler_content.UpdateDraftRequest:
+    properties:
+      changeNote:
+        type: string
+      config:
+        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+    required:
+    - config
+    type: object
+  internal_handler_content.UpdateDraftResponse:
+    properties:
+      pageKey:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  internal_handler_content.ValidateRequest:
+    properties:
+      config:
+        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+    required:
+    - config
+    type: object
+  internal_handler_content.ValidateResponse:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/blotting-consultancy_internal_service.ValidationError'
+        type: array
+      translationStatus:
+        additionalProperties:
+          $ref: '#/definitions/blotting-consultancy_internal_service.TranslationState'
+        type: object
+      valid:
+        type: boolean
+    type: object
+  internal_handler_content.VersionListItem:
+    properties:
+      changeNote:
+        type: string
+      createdAt:
+        type: string
+      operator:
+        type: string
+      version:
+        type: integer
+    type: object
+  internal_handler_user.CreateRequest:
+    properties:
+      password:
+        minLength: 6
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - role
+    - username
+    type: object
+  internal_handler_user.UpdateRequest:
+    properties:
+      password:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_handler_user.UserResponse:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      isSuperAdmin:
+        type: boolean
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      updatedAt:
+        type: string
+      username:
+        type: string
+    type: object
 host: localhost:8088
 info:
   contact: {}
@@ -122,6 +335,36 @@ info:
   title: Impress CMS API
   version: "1.0"
 paths:
+  /admin/analytics/summary:
+    get:
+      description: Returns page view statistics including today, last 7 days, last
+        30 days, and unique visitors
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              pages:
+                items:
+                  type: object
+                type: array
+              totals:
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get analytics summary
+      tags:
+      - Analytics (Admin)
   /admin/articles:
     get:
       description: Returns paginated articles including drafts for admin management
@@ -289,6 +532,2303 @@ paths:
       summary: Update article
       tags:
       - Articles (Admin)
+  /admin/articles/{id}/export:
+    get:
+      description: Returns the article as a Markdown file with YAML front matter
+      parameters:
+      - description: Article ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - text/markdown
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export article as Markdown
+      tags:
+      - Articles (Admin)
+  /admin/audit-logs:
+    get:
+      description: Returns paginated audit events with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - description: Action filter
+        in: query
+        name: action
+        type: string
+      - description: Actor filter
+        in: query
+        name: actor
+        type: string
+      - description: From date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: To date (RFC3339)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              page:
+                type: integer
+              pageSize:
+                type: integer
+              total:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - Audit Logs
+  /admin/backups:
+    get:
+      description: Returns all backup records
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List backups
+      tags:
+      - Backup
+  /admin/backups/export:
+    post:
+      description: Generate a full site export as a ZIP archive
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export site
+      tags:
+      - Backup
+  /admin/backups/export/{filename}:
+    get:
+      description: Download a site export ZIP file
+      parameters:
+      - description: Export filename
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Download export
+      tags:
+      - Backup
+  /admin/backups/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a ZIP archive and restore the full site
+      parameters:
+      - description: Import ZIP file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Import site
+      tags:
+      - Backup
+  /admin/backups/import/validate:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a ZIP and validate its structure without importing
+      parameters:
+      - description: Import ZIP file to validate
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Validate import
+      tags:
+      - Backup
+  /admin/backups/trigger:
+    post:
+      description: Manually trigger a database backup
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trigger backup
+      tags:
+      - Backup
+  /admin/categories:
+    get:
+      description: Returns all categories for admin management
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all categories
+      tags:
+      - Categories (Admin)
+    post:
+      consumes:
+      - application/json
+      description: Create a new category
+      parameters:
+      - description: Category data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create category
+      tags:
+      - Categories
+  /admin/categories/{id}:
+    delete:
+      description: Delete a category by ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete category
+      tags:
+      - Categories
+    get:
+      description: Returns a single category by its database ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get category by ID
+      tags:
+      - Categories (Admin)
+    put:
+      consumes:
+      - application/json
+      description: Update an existing category by ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated category data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update category
+      tags:
+      - Categories
+  /admin/categories/tree:
+    get:
+      description: Returns categories organized in a parent-child tree structure
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List categories as tree
+      tags:
+      - Categories (Admin)
+  /admin/comments:
+    get:
+      description: Returns paginated comments with optional status filtering
+      parameters:
+      - description: Status filter
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              comments:
+                items:
+                  type: object
+                type: array
+              total:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all comments (admin)
+      tags:
+      - Comments (Admin)
+  /admin/comments/{id}:
+    delete:
+      description: Delete a comment by ID
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete comment
+      tags:
+      - Comments (Admin)
+  /admin/comments/{id}/pin:
+    put:
+      consumes:
+      - application/json
+      description: Set or unset the pinned flag on a comment
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pin state
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Pin comment
+      tags:
+      - Comments (Admin)
+  /admin/comments/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Approve, reject, or mark a comment as spam
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update comment status
+      tags:
+      - Comments (Admin)
+  /admin/content/{pageKey}/draft:
+    get:
+      description: Returns the draft config for a given page key
+      parameters:
+      - description: Page key (e.g. home, about)
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.GetDraftResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get draft content
+      tags:
+      - Content (Admin)
+    put:
+      consumes:
+      - application/json
+      description: Updates the draft config for a page key with optimistic locking
+        via If-Match header
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - description: Expected draft version for optimistic locking
+        in: header
+        name: If-Match
+        required: true
+        type: integer
+      - description: Draft content data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_content.UpdateDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.UpdateDraftResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update draft content
+      tags:
+      - Content (Admin)
+  /admin/content/{pageKey}/publish:
+    post:
+      consumes:
+      - application/json
+      description: Promotes the current draft to published state with optimistic locking
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - description: Publish parameters
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_content.PublishRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.PublishResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish content
+      tags:
+      - Content (Admin)
+  /admin/content/{pageKey}/rollback/{version}:
+    post:
+      consumes:
+      - application/json
+      description: Rolls back published content to a previous version
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - description: Source version to rollback to
+        in: path
+        name: version
+        required: true
+        type: integer
+      - description: Rollback parameters
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_content.RollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.RollbackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rollback content
+      tags:
+      - Content (Admin)
+  /admin/content/{pageKey}/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validates a page config and returns translation status without
+        saving
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - description: Config to validate
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_content.ValidateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.ValidateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Validate content config
+      tags:
+      - Content (Admin)
+  /admin/content/{pageKey}/versions:
+    get:
+      description: Returns a paginated list of published versions for a page key
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.GetVersionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List content versions
+      tags:
+      - Content (Admin)
+  /admin/content/{pageKey}/versions/{version}:
+    get:
+      description: Returns the config snapshot for a specific published version
+      parameters:
+      - description: Page key
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_content.GetVersionDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get version detail
+      tags:
+      - Content (Admin)
+  /admin/form-submissions:
+    get:
+      description: Returns paginated form submissions with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - description: Form type filter
+        in: query
+        name: formType
+        type: string
+      - description: Status filter (unread/read/archived)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              page:
+                type: integer
+              pageSize:
+                type: integer
+              total:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List form submissions (admin)
+      tags:
+      - Form Submissions (Admin)
+  /admin/form-submissions/{id}:
+    delete:
+      description: Soft-delete a form submission by ID
+      parameters:
+      - description: Submission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete form submission
+      tags:
+      - Form Submissions (Admin)
+    get:
+      description: Returns a single form submission
+      parameters:
+      - description: Submission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get form submission by ID
+      tags:
+      - Form Submissions (Admin)
+  /admin/form-submissions/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Update the status of a single form submission
+      parameters:
+      - description: Submission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update submission status
+      tags:
+      - Form Submissions (Admin)
+  /admin/form-submissions/bulk-status:
+    post:
+      consumes:
+      - application/json
+      description: Update the status of multiple form submissions at once
+      parameters:
+      - description: IDs and target status
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk update status
+      tags:
+      - Form Submissions (Admin)
+  /admin/form-submissions/counts:
+    get:
+      description: Returns submission counts grouped by status
+      parameters:
+      - description: Form type filter
+        in: query
+        name: formType
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              counts:
+                type: object
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get submission counts
+      tags:
+      - Form Submissions (Admin)
+  /admin/media:
+    get:
+      description: Returns paginated list of uploaded media files
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              page:
+                type: integer
+              pageSize:
+                type: integer
+              total:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List media files
+      tags:
+      - Media
+  /admin/media/{id}:
+    delete:
+      description: Remove a media file and its database record
+      parameters:
+      - description: Media ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete media file
+      tags:
+      - Media
+  /admin/media/{id}/recrop:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Replaces the physical file for an existing media item with a new
+        cropped version
+      parameters:
+      - description: Media ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Re-cropped image file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Recrop media file
+      tags:
+      - Media (Admin)
+  /admin/media/{id}/rename:
+    put:
+      consumes:
+      - application/json
+      description: Updates the display filename of a media item
+      parameters:
+      - description: Media ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New filename
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            filename:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rename media file
+      tags:
+      - Media (Admin)
+  /admin/media/{id}/usages:
+    get:
+      description: Returns a list of pages and articles that reference the given media
+        item
+      parameters:
+      - description: Media ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              usages:
+                items:
+                  type: object
+                type: array
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get media usages
+      tags:
+      - Media (Admin)
+  /admin/media/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an image file via multipart form data
+      parameters:
+      - description: Image file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload media file
+      tags:
+      - Media
+  /admin/menus:
+    get:
+      description: Returns all menu groups
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List menu groups
+      tags:
+      - Menus
+    post:
+      consumes:
+      - application/json
+      description: Create a new menu group
+      parameters:
+      - description: Menu group data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create menu group
+      tags:
+      - Menus
+  /admin/menus/{id}:
+    delete:
+      description: Delete a menu group and its items
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete menu group
+      tags:
+      - Menus
+    get:
+      description: Returns a menu group with its items as a flat list
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get menu group
+      tags:
+      - Menus
+    put:
+      consumes:
+      - application/json
+      description: Update a menu group's name and slug
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated menu group data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update menu group
+      tags:
+      - Menus
+  /admin/menus/{id}/items:
+    post:
+      consumes:
+      - application/json
+      description: Create a new menu item within a menu group
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Menu item data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create menu item
+      tags:
+      - Menus
+  /admin/menus/{id}/items/{itemId}:
+    delete:
+      description: Delete a menu item by ID
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Menu item ID
+        in: path
+        name: itemId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete menu item
+      tags:
+      - Menus
+    put:
+      consumes:
+      - application/json
+      description: Update a menu item's properties
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Menu item ID
+        in: path
+        name: itemId
+        required: true
+        type: integer
+      - description: Updated menu item data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update menu item
+      tags:
+      - Menus
+  /admin/menus/{id}/items/reorder:
+    put:
+      consumes:
+      - application/json
+      description: Set the display order of menu items in a group
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Ordered item IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reorder menu items
+      tags:
+      - Menus
+  /admin/menus/{id}/primary:
+    put:
+      description: Set a menu group as the primary navigation menu
+      parameters:
+      - description: Menu group ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set primary menu
+      tags:
+      - Menus
+  /admin/pages:
+    get:
+      description: Returns pages with optional status, parentId, and themeId filters
+      parameters:
+      - description: Status filter (draft/published)
+        in: query
+        name: status
+        type: string
+      - description: Parent page ID filter
+        in: query
+        name: parentId
+        type: integer
+      - description: Theme ID filter
+        in: query
+        name: themeId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all pages (admin)
+      tags:
+      - Pages (Admin)
+    post:
+      consumes:
+      - application/json
+      description: Create a new page (draft by default)
+      parameters:
+      - description: Page data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create page
+      tags:
+      - Pages (Admin)
+  /admin/pages/{id}:
+    delete:
+      description: Soft-delete a page by ID
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete page
+      tags:
+      - Pages (Admin)
+    get:
+      description: Returns a single page by its database ID
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get page by ID (admin)
+      tags:
+      - Pages (Admin)
+    put:
+      consumes:
+      - application/json
+      description: Update an existing page by ID
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated page data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update page
+      tags:
+      - Pages (Admin)
+  /admin/pages/{id}/publish:
+    put:
+      description: Set a page's status to published
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish page
+      tags:
+      - Pages (Admin)
+  /admin/pages/{id}/unpublish:
+    put:
+      description: Revert a page's status back to draft
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Unpublish page
+      tags:
+      - Pages (Admin)
+  /admin/search/rebuild:
+    post:
+      description: Rebuild the full-text search index from scratch
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rebuild search index
+      tags:
+      - Search (Admin)
+  /admin/seo/robots:
+    get:
+      description: Returns the robots.txt content for admin editing
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              content:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get robots.txt (admin)
+      tags:
+      - SEO
+    put:
+      consumes:
+      - application/json
+      description: Update the robots.txt content
+      parameters:
+      - description: Robots.txt content
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              content:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update robots.txt
+      tags:
+      - SEO
+  /admin/tags:
+    get:
+      description: Returns all tags for admin management
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all tags
+      tags:
+      - Tags (Admin)
+    post:
+      consumes:
+      - application/json
+      description: Create a new tag
+      parameters:
+      - description: Tag data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create tag
+      tags:
+      - Tags (Admin)
+  /admin/tags/{id}:
+    delete:
+      description: Delete a tag by ID
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete tag
+      tags:
+      - Tags (Admin)
+    put:
+      consumes:
+      - application/json
+      description: Update an existing tag by ID
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated tag data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update tag
+      tags:
+      - Tags (Admin)
+  /admin/theme:
+    get:
+      description: Returns draft and published theme token configurations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get theme settings (admin)
+      tags:
+      - Theme Tokens
+    put:
+      consumes:
+      - application/json
+      description: Update theme design tokens with optimistic locking
+      parameters:
+      - description: Theme token configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update theme settings
+      tags:
+      - Theme Tokens
+  /admin/themes:
+    get:
+      description: Returns all installed themes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List installed themes
+      tags:
+      - Themes
+    post:
+      consumes:
+      - application/json
+      description: Install a new external theme
+      parameters:
+      - description: Theme data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Install theme
+      tags:
+      - Themes
+  /admin/themes/{id}:
+    delete:
+      description: Uninstall (soft-delete) a theme
+      parameters:
+      - description: Theme ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete theme
+      tags:
+      - Themes
+    get:
+      description: Returns a single installed theme
+      parameters:
+      - description: Theme ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get theme by ID
+      tags:
+      - Themes
+    put:
+      consumes:
+      - application/json
+      description: Update an installed theme's configuration
+      parameters:
+      - description: Theme ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated theme data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update theme
+      tags:
+      - Themes
+  /admin/themes/{id}/activate:
+    put:
+      description: Set a theme as the active theme and seed its pages
+      parameters:
+      - description: Theme ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Activate theme
+      tags:
+      - Themes
+  /admin/users:
+    get:
+      description: Returns paginated list of users
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              page:
+                type: integer
+              total:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with username, password, and role
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_user.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/internal_handler_user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - Users
+  /admin/users/{id}:
+    delete:
+      description: Delete a user by ID (cannot delete self or last super admin)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      description: Returns a single user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_user.UserResponse'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user profile, password, role, or permissions
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated user data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_user.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_user.UserResponse'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - Users
   /auth/login:
     post:
       consumes:
@@ -399,6 +2939,33 @@ paths:
       summary: Refresh token
       tags:
       - Auth
+  /public/active-theme:
+    get:
+      description: Returns the currently active installed theme
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              externalUrl:
+                type: string
+              source:
+                type: string
+              themeId:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get active theme
+      tags:
+      - Themes
   /public/articles:
     get:
       description: Returns paginated published articles with optional category/tag
@@ -469,6 +3036,513 @@ paths:
       summary: Get article by slug
       tags:
       - Articles
+  /public/bootstrap:
+    get:
+      description: Returns active theme, tokens, pages, global config in a single
+        response
+      parameters:
+      - default: zh
+        description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      - description: Optional page key to include content
+        in: query
+        name: pageKey
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              activeTheme:
+                type: object
+              globalConfig:
+                type: object
+              themePages:
+                items:
+                  type: object
+                type: array
+              themeTokens:
+                type: object
+            type: object
+      summary: Bootstrap SPA
+      tags:
+      - Bootstrap
+  /public/categories:
+    get:
+      description: Returns all categories that are not hidden from public listing
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      summary: List visible categories
+      tags:
+      - Categories
+  /public/categories/{slug}:
+    get:
+      description: Returns a category by slug with paginated published articles
+      parameters:
+      - description: Category slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              articles:
+                type: object
+              category:
+                type: object
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get category by slug
+      tags:
+      - Categories
+  /public/comments:
+    get:
+      description: Returns paginated approved comments for a given content item
+      parameters:
+      - description: Content type
+        in: query
+        name: contentType
+        required: true
+        type: string
+      - description: Content ID
+        in: query
+        name: contentId
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              comments:
+                items:
+                  type: object
+                type: array
+              total:
+                type: integer
+            type: object
+      summary: List comments
+      tags:
+      - Comments
+    post:
+      consumes:
+      - application/json
+      description: Submit a new comment on content (subject to anti-spam checks)
+      parameters:
+      - description: Comment data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_comment.createInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Create comment
+      tags:
+      - Comments
+  /public/content/{pageKey}:
+    get:
+      description: Returns published-only content for a given page key with locale
+        support and records page view
+      parameters:
+      - description: Page key (e.g. home, about)
+        in: path
+        name: pageKey
+        required: true
+        type: string
+      - default: zh
+        description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              config:
+                type: object
+              locale:
+                type: string
+              pageKey:
+                type: string
+              version:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get public content by page key
+      tags:
+      - Public Content
+  /public/form-submissions:
+    post:
+      consumes:
+      - application/json
+      description: Submit a public contact/inquiry form
+      parameters:
+      - description: Form submission data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Submit form
+      tags:
+      - Form Submissions
+  /public/menu:
+    get:
+      description: Returns the primary menu group with items as a nested tree
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              id:
+                type: integer
+              items:
+                items:
+                  type: object
+                type: array
+              name:
+                type: string
+            type: object
+      summary: Get primary menu
+      tags:
+      - Menus
+  /public/pages:
+    get:
+      description: Returns all published pages with optional locale filtering
+      parameters:
+      - description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      summary: List published pages
+      tags:
+      - Pages
+  /public/pages/{slug}:
+    get:
+      description: Returns a single published page with config and SEO data
+      parameters:
+      - description: Page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get page by slug
+      tags:
+      - Pages
+  /public/robots.txt:
+    get:
+      description: Returns the current robots.txt content
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get robots.txt
+      tags:
+      - SEO
+  /public/search:
+    get:
+      description: Full-text search across articles and pages
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: zh
+        description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      - description: Content type filter
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: Search content
+      tags:
+      - Search
+  /public/search/suggest:
+    get:
+      description: Returns autocomplete suggestions for a search prefix
+      parameters:
+      - description: Search prefix
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: zh
+        description: Locale (zh or en)
+        in: query
+        name: locale
+        type: string
+      - default: 5
+        description: Max suggestions
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Search suggestions
+      tags:
+      - Search
+  /public/tags:
+    get:
+      description: Returns all tags for public display
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      summary: List all tags
+      tags:
+      - Tags
+  /public/tags/{slug}:
+    get:
+      description: Returns a tag by slug with paginated published articles
+      parameters:
+      - description: Tag slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              articles:
+                type: object
+              tag:
+                type: object
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get tag by slug
+      tags:
+      - Tags
+  /public/theme:
+    get:
+      description: Returns the published theme design tokens (colors, fonts, layout)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: Get public theme tokens
+      tags:
+      - Theme Tokens
+  /public/theme-pages:
+    get:
+      description: Returns published pages associated with the currently active theme
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+            type: object
+      summary: List theme pages
+      tags:
+      - Pages
+  /sitemap.xml:
+    get:
+      description: Returns an XML sitemap with all published pages
+      produces:
+      - application/xml
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get sitemap
+      tags:
+      - Sitemap
 securityDefinitions:
   BearerAuth:
     description: Enter "Bearer {token}" for JWT authentication

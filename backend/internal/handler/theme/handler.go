@@ -44,8 +44,13 @@ func defaultThemeConfig() model.JSONMap {
 	}
 }
 
-// PublicGet returns the active (published) theme tokens
-// GET /public/theme
+// PublicGet returns the active (published) theme tokens.
+// @Summary      Get public theme tokens
+// @Description  Returns the published theme design tokens (colors, fonts, layout)
+// @Tags         Theme Tokens
+// @Produce      json
+// @Success      200 {object} object
+// @Router       /public/theme [get]
 func (h *Handler) PublicGet(c *gin.Context) {
 	doc, err := h.contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyTheme)
 	if err != nil {
@@ -63,8 +68,14 @@ func (h *Handler) PublicGet(c *gin.Context) {
 	c.JSON(http.StatusOK, config)
 }
 
-// AdminGet returns the theme settings for editing (draft config)
-// GET /admin/theme
+// AdminGet returns the theme settings for editing.
+// @Summary      Get theme settings (admin)
+// @Description  Returns draft and published theme token configurations
+// @Tags         Theme Tokens
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object
+// @Router       /admin/theme [get]
 func (h *Handler) AdminGet(c *gin.Context) {
 	doc, err := h.contentDocRepo.FindByPageKey(c.Request.Context(), model.PageKeyTheme)
 	if err != nil {
@@ -102,8 +113,17 @@ type updateInput struct {
 	DraftVersion int           `json:"draftVersion"`
 }
 
-// AdminUpdate updates the theme settings
-// PUT /admin/theme
+// AdminUpdate updates the theme settings.
+// @Summary      Update theme settings
+// @Description  Update theme design tokens with optimistic locking
+// @Tags         Theme Tokens
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Theme token configuration"
+// @Success      200 {object} object
+// @Failure      409 {object} object{error=string}
+// @Router       /admin/theme [put]
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	var input updateInput
 	if err := c.ShouldBindJSON(&input); err != nil {

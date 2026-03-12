@@ -25,6 +25,17 @@ type GetVersionsResponse struct {
 }
 
 // GetVersions handles GET /admin/content/{pageKey}/versions
+// @Summary      List content versions
+// @Description  Returns a paginated list of published versions for a page key
+// @Tags         Content (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey  path  string true  "Page key"
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(20)
+// @Success      200 {object} GetVersionsResponse
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/versions [get]
 func (h *Handler) GetVersions(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

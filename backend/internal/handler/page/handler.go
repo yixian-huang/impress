@@ -24,8 +24,16 @@ func NewHandler(pageRepo repository.PageRepository, themeRepo repository.Install
 
 // --- Public endpoints ---
 
-// PublicGetBySlug returns a published page by slug
-// GET /public/pages/:slug?locale=zh|en
+// PublicGetBySlug returns a published page by slug.
+// @Summary      Get page by slug
+// @Description  Returns a single published page with config and SEO data
+// @Tags         Pages
+// @Produce      json
+// @Param        slug   path   string true  "Page slug"
+// @Param        locale query  string false "Locale (zh or en)"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /public/pages/{slug} [get]
 func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 
@@ -62,8 +70,14 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// PublicList returns all published pages
-// GET /public/pages
+// PublicList returns all published pages.
+// @Summary      List published pages
+// @Description  Returns all published pages with optional locale filtering
+// @Tags         Pages
+// @Produce      json
+// @Param        locale query string false "Locale (zh or en)"
+// @Success      200 {object} object{items=[]object}
+// @Router       /public/pages [get]
 func (h *Handler) PublicList(c *gin.Context) {
 	pages, err := h.pageRepo.ListPublished(c.Request.Context())
 	if err != nil {
@@ -92,8 +106,13 @@ func (h *Handler) PublicList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
-// PublicListThemePages returns published pages for the active theme
-// GET /public/theme-pages
+// PublicListThemePages returns published pages for the active theme.
+// @Summary      List theme pages
+// @Description  Returns published pages associated with the currently active theme
+// @Tags         Pages
+// @Produce      json
+// @Success      200 {object} object{items=[]object}
+// @Router       /public/theme-pages [get]
 func (h *Handler) PublicListThemePages(c *gin.Context) {
 	// Find active theme
 	activeTheme, err := h.themeRepo.FindActive(c.Request.Context())
@@ -133,8 +152,17 @@ func (h *Handler) PublicListThemePages(c *gin.Context) {
 
 // --- Admin endpoints ---
 
-// AdminList returns all pages with optional filters
-// GET /admin/pages?status=draft&parentId=1&themeId=corporate-classic
+// AdminList returns all pages with optional filters.
+// @Summary      List all pages (admin)
+// @Description  Returns pages with optional status, parentId, and themeId filters
+// @Tags         Pages (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status   query string false "Status filter (draft/published)"
+// @Param        parentId query int    false "Parent page ID filter"
+// @Param        themeId  query string false "Theme ID filter"
+// @Success      200 {object} object{items=[]object}
+// @Router       /admin/pages [get]
 func (h *Handler) AdminList(c *gin.Context) {
 	status := c.Query("status")
 	themeID := c.Query("themeId")
@@ -170,8 +198,16 @@ func (h *Handler) AdminList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": pages})
 }
 
-// AdminGetByID returns a single page by ID
-// GET /admin/pages/:id
+// AdminGetByID returns a single page by ID.
+// @Summary      Get page by ID (admin)
+// @Description  Returns a single page by its database ID
+// @Tags         Pages (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Page ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/pages/{id} [get]
 func (h *Handler) AdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -213,8 +249,17 @@ type createUpdateInput struct {
 	Metadata       model.JSONMap `json:"metadata"`
 }
 
-// AdminCreate creates a new page
-// POST /admin/pages
+// AdminCreate creates a new page.
+// @Summary      Create page
+// @Description  Create a new page (draft by default)
+// @Tags         Pages (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Page data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/pages [post]
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -286,8 +331,18 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, created)
 }
 
-// AdminUpdate updates an existing page
-// PUT /admin/pages/:id
+// AdminUpdate updates an existing page.
+// @Summary      Update page
+// @Description  Update an existing page by ID
+// @Tags         Pages (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Page ID"
+// @Param        body body object true "Updated page data"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/pages/{id} [put]
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -369,8 +424,16 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
-// AdminDelete soft-deletes a page
-// DELETE /admin/pages/:id
+// AdminDelete soft-deletes a page.
+// @Summary      Delete page
+// @Description  Soft-delete a page by ID
+// @Tags         Pages (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Page ID"
+// @Success      200 {object} object{message=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/pages/{id} [delete]
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -386,8 +449,16 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
 
-// AdminPublish sets page status to published
-// PUT /admin/pages/:id/publish
+// AdminPublish sets page status to published.
+// @Summary      Publish page
+// @Description  Set a page's status to published
+// @Tags         Pages (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Page ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/pages/{id}/publish [put]
 func (h *Handler) AdminPublish(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -414,8 +485,16 @@ func (h *Handler) AdminPublish(c *gin.Context) {
 	c.JSON(http.StatusOK, page)
 }
 
-// AdminUnpublish sets page status to draft
-// PUT /admin/pages/:id/unpublish
+// AdminUnpublish reverts page status to draft.
+// @Summary      Unpublish page
+// @Description  Revert a page's status back to draft
+// @Tags         Pages (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Page ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/pages/{id}/unpublish [put]
 func (h *Handler) AdminUnpublish(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

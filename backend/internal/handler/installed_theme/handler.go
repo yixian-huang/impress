@@ -24,8 +24,14 @@ func NewHandler(themeRepo repository.InstalledThemeRepository, themePageService 
 
 // --- Public endpoints ---
 
-// PublicGetActive returns the currently active theme
-// GET /public/active-theme
+// PublicGetActive returns the currently active theme.
+// @Summary      Get active theme
+// @Description  Returns the currently active installed theme
+// @Tags         Themes
+// @Produce      json
+// @Success      200 {object} object{themeId=string,source=string,externalUrl=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /public/active-theme [get]
 func (h *Handler) PublicGetActive(c *gin.Context) {
 	theme, err := h.themeRepo.FindActive(c.Request.Context())
 	if err != nil {
@@ -42,8 +48,14 @@ func (h *Handler) PublicGetActive(c *gin.Context) {
 
 // --- Admin endpoints ---
 
-// AdminList returns all installed themes
-// GET /admin/themes
+// AdminList returns all installed themes.
+// @Summary      List installed themes
+// @Description  Returns all installed themes
+// @Tags         Themes
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} object
+// @Router       /admin/themes [get]
 func (h *Handler) AdminList(c *gin.Context) {
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
@@ -54,8 +66,16 @@ func (h *Handler) AdminList(c *gin.Context) {
 	c.JSON(http.StatusOK, themes)
 }
 
-// AdminGetByID returns a single installed theme by GORM ID
-// GET /admin/themes/:id
+// AdminGetByID returns a single installed theme by ID.
+// @Summary      Get theme by ID
+// @Description  Returns a single installed theme
+// @Tags         Themes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Theme ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/themes/{id} [get]
 func (h *Handler) AdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -94,8 +114,17 @@ type createInput struct {
 	Config      model.JSONMap `json:"config"`
 }
 
-// AdminCreate installs a new external theme
-// POST /admin/themes
+// AdminCreate installs a new external theme.
+// @Summary      Install theme
+// @Description  Install a new external theme
+// @Tags         Themes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Theme data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/themes [post]
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -150,8 +179,18 @@ type updateInput struct {
 	Config      model.JSONMap `json:"config"`
 }
 
-// AdminUpdate updates an installed theme's configuration
-// PUT /admin/themes/:id
+// AdminUpdate updates an installed theme's configuration.
+// @Summary      Update theme
+// @Description  Update an installed theme's configuration
+// @Tags         Themes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Theme ID"
+// @Param        body body object true "Updated theme data"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/themes/{id} [put]
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -217,8 +256,16 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, existing)
 }
 
-// AdminDelete uninstalls (soft-deletes) a theme
-// DELETE /admin/themes/:id
+// AdminDelete uninstalls a theme.
+// @Summary      Delete theme
+// @Description  Uninstall (soft-delete) a theme
+// @Tags         Themes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Theme ID"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/themes/{id} [delete]
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -265,8 +312,15 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
 
-// AdminActivate activates a theme
-// PUT /admin/themes/:id/activate
+// AdminActivate activates a theme.
+// @Summary      Activate theme
+// @Description  Set a theme as the active theme and seed its pages
+// @Tags         Themes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Theme ID"
+// @Success      200 {object} object
+// @Router       /admin/themes/{id}/activate [put]
 func (h *Handler) AdminActivate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

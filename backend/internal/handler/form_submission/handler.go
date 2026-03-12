@@ -35,8 +35,16 @@ type submitInput struct {
 	Metadata  model.JSONMap `json:"metadata"`
 }
 
-// HandlePublicSubmit handles a public form submission
-// POST /public/form-submissions
+// HandlePublicSubmit handles a public form submission.
+// @Summary      Submit form
+// @Description  Submit a public contact/inquiry form
+// @Tags         Form Submissions
+// @Accept       json
+// @Produce      json
+// @Param        body body object true "Form submission data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /public/form-submissions [post]
 func (h *Handler) HandlePublicSubmit(c *gin.Context) {
 	var input submitInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -68,8 +76,18 @@ func (h *Handler) HandlePublicSubmit(c *gin.Context) {
 
 // --- Admin endpoints ---
 
-// HandleAdminList returns paginated form submissions with optional filters
-// GET /admin/form-submissions?page=1&pageSize=20&formType=contact&status=unread
+// HandleAdminList returns paginated form submissions.
+// @Summary      List form submissions (admin)
+// @Description  Returns paginated form submissions with optional filters
+// @Tags         Form Submissions (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(20)
+// @Param        formType query string false "Form type filter"
+// @Param        status   query string false "Status filter (unread/read/archived)"
+// @Success      200 {object} object{items=[]object,total=int,page=int,pageSize=int}
+// @Router       /admin/form-submissions [get]
 func (h *Handler) HandleAdminList(c *gin.Context) {
 	page := 1
 	pageSize := 20
@@ -106,8 +124,15 @@ func (h *Handler) HandleAdminList(c *gin.Context) {
 	})
 }
 
-// HandleAdminCounts returns submission counts grouped by status
-// GET /admin/form-submissions/counts?formType=contact
+// HandleAdminCounts returns submission counts grouped by status.
+// @Summary      Get submission counts
+// @Description  Returns submission counts grouped by status
+// @Tags         Form Submissions (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        formType query string false "Form type filter"
+// @Success      200 {object} object{counts=object}
+// @Router       /admin/form-submissions/counts [get]
 func (h *Handler) HandleAdminCounts(c *gin.Context) {
 	formType := c.Query("formType")
 
@@ -120,8 +145,16 @@ func (h *Handler) HandleAdminCounts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"counts": counts})
 }
 
-// HandleAdminGetByID returns a single form submission by ID
-// GET /admin/form-submissions/:id
+// HandleAdminGetByID returns a single form submission by ID.
+// @Summary      Get form submission by ID
+// @Description  Returns a single form submission
+// @Tags         Form Submissions (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Submission ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/form-submissions/{id} [get]
 func (h *Handler) HandleAdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -143,8 +176,18 @@ type statusUpdateInput struct {
 	Status string `json:"status"`
 }
 
-// HandleAdminUpdateStatus updates the status of a single form submission
-// PATCH /admin/form-submissions/:id/status
+// HandleAdminUpdateStatus updates the status of a form submission.
+// @Summary      Update submission status
+// @Description  Update the status of a single form submission
+// @Tags         Form Submissions (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Submission ID"
+// @Param        body body object true "Status update"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/form-submissions/{id}/status [patch]
 func (h *Handler) HandleAdminUpdateStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -180,8 +223,16 @@ type bulkStatusInput struct {
 	Status string `json:"status"`
 }
 
-// HandleAdminBulkUpdateStatus updates the status of multiple form submissions
-// POST /admin/form-submissions/bulk-status
+// HandleAdminBulkUpdateStatus updates status of multiple submissions.
+// @Summary      Bulk update status
+// @Description  Update the status of multiple form submissions at once
+// @Tags         Form Submissions (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "IDs and target status"
+// @Success      200 {object} object{message=string,count=int}
+// @Router       /admin/form-submissions/bulk-status [post]
 func (h *Handler) HandleAdminBulkUpdateStatus(c *gin.Context) {
 	var input bulkStatusInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -206,8 +257,16 @@ func (h *Handler) HandleAdminBulkUpdateStatus(c *gin.Context) {
 	})
 }
 
-// HandleAdminDelete soft-deletes a form submission
-// DELETE /admin/form-submissions/:id
+// HandleAdminDelete soft-deletes a form submission.
+// @Summary      Delete form submission
+// @Description  Soft-delete a form submission by ID
+// @Tags         Form Submissions (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Submission ID"
+// @Success      200 {object} object{message=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/form-submissions/{id} [delete]
 func (h *Handler) HandleAdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

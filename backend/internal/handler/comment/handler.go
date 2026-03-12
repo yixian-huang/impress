@@ -31,6 +31,17 @@ type createInput struct {
 	CaptchaToken string `json:"captchaToken"`
 }
 
+// PublicCreate creates a new comment.
+// @Summary      Create comment
+// @Description  Submit a new comment on content (subject to anti-spam checks)
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Param        body body createInput true "Comment data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Failure      429 {object} object{error=string}
+// @Router       /public/comments [post]
 func (h *Handler) PublicCreate(c *gin.Context) {
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -64,6 +75,17 @@ func (h *Handler) PublicCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, comment)
 }
 
+// PublicList returns approved comments for content.
+// @Summary      List comments
+// @Description  Returns paginated approved comments for a given content item
+// @Tags         Comments
+// @Produce      json
+// @Param        contentType query string true  "Content type"
+// @Param        contentId   query int    true  "Content ID"
+// @Param        page        query int    false "Page number"    default(1)
+// @Param        pageSize    query int    false "Items per page" default(20)
+// @Success      200 {object} object{comments=[]object,total=int}
+// @Router       /public/comments [get]
 func (h *Handler) PublicList(c *gin.Context) {
 	contentType := c.Query("contentType")
 	contentID, _ := strconv.ParseUint(c.Query("contentId"), 10, 32)
@@ -81,6 +103,17 @@ func (h *Handler) PublicList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": page, "pageSize": pageSize})
 }
 
+// AdminList returns all comments with optional status filter.
+// @Summary      List all comments (admin)
+// @Description  Returns paginated comments with optional status filtering
+// @Tags         Comments (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status   query string false "Status filter"
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(20)
+// @Success      200 {object} object{comments=[]object,total=int}
+// @Router       /admin/comments [get]
 func (h *Handler) AdminList(c *gin.Context) {
 	status := c.DefaultQuery("status", "")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -93,6 +126,17 @@ func (h *Handler) AdminList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": page, "pageSize": pageSize})
 }
 
+// AdminUpdateStatus updates a comment's status.
+// @Summary      Update comment status
+// @Description  Approve, reject, or mark a comment as spam
+// @Tags         Comments (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Comment ID"
+// @Param        body body object true "Status update"
+// @Success      200 {object} object{message=string}
+// @Router       /admin/comments/{id}/status [patch]
 func (h *Handler) AdminUpdateStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -113,6 +157,15 @@ func (h *Handler) AdminUpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
 }
 
+// AdminDelete deletes a comment.
+// @Summary      Delete comment
+// @Description  Delete a comment by ID
+// @Tags         Comments (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Comment ID"
+// @Success      200 {object} object{message=string}
+// @Router       /admin/comments/{id} [delete]
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -126,6 +179,17 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
+// AdminPin pins or unpins a comment.
+// @Summary      Pin comment
+// @Description  Set or unset the pinned flag on a comment
+// @Tags         Comments (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Comment ID"
+// @Param        body body object true "Pin state"
+// @Success      200 {object} object{message=string}
+// @Router       /admin/comments/{id}/pin [put]
 func (h *Handler) AdminPin(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

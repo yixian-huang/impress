@@ -20,8 +20,20 @@ func NewHandler(auditEventRepo repository.AuditEventRepository) *Handler {
 	return &Handler{auditEventRepo: auditEventRepo}
 }
 
-// List returns a paginated, filtered list of audit events
-// GET /admin/audit-logs?page=1&pageSize=20&action=&actor=&from=&to=
+// List returns a paginated, filtered list of audit events.
+// @Summary      List audit logs
+// @Description  Returns paginated audit events with optional filters
+// @Tags         Audit Logs
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(20)
+// @Param        action   query string false "Action filter"
+// @Param        actor    query string false "Actor filter"
+// @Param        from     query string false "From date (RFC3339)"
+// @Param        to       query string false "To date (RFC3339)"
+// @Success      200 {object} object{items=[]object,total=int,page=int,pageSize=int}
+// @Router       /admin/audit-logs [get]
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))

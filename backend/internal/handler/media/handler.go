@@ -40,7 +40,17 @@ func NewHandler(mediaRepo repository.MediaRepository, uploadDir string, baseURL 
 	}
 }
 
-// Upload handles file upload via multipart form
+// Upload handles file upload via multipart form.
+// @Summary      Upload media file
+// @Description  Upload an image file via multipart form data
+// @Tags         Media
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file formData file true "Image file to upload"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/media/upload [post]
 func (h *Handler) Upload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -157,7 +167,16 @@ func (h *Handler) Upload(c *gin.Context) {
 	c.JSON(http.StatusCreated, media)
 }
 
-// List returns a paginated list of media items
+// List returns a paginated list of media items.
+// @Summary      List media files
+// @Description  Returns paginated list of uploaded media files
+// @Tags         Media
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page     query int false "Page number"    default(1)
+// @Param        pageSize query int false "Items per page" default(20)
+// @Success      200 {object} object{items=[]object,total=int,page=int,pageSize=int}
+// @Router       /admin/media [get]
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -191,7 +210,16 @@ func (h *Handler) List(c *gin.Context) {
 	})
 }
 
-// Delete removes a media item and its file
+// Delete removes a media item and its file.
+// @Summary      Delete media file
+// @Description  Remove a media file and its database record
+// @Tags         Media
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Media ID"
+// @Success      200 {object} object{message=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/media/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -233,6 +261,18 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 // Recrop replaces the physical file for an existing media item with a re-cropped version
+// @Summary      Recrop media file
+// @Description  Replaces the physical file for an existing media item with a new cropped version
+// @Tags         Media (Admin)
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path     int  true "Media ID"
+// @Param        file formData file true "Re-cropped image file"
+// @Success      200 {object} object
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/media/{id}/recrop [post]
 func (h *Handler) Recrop(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -309,6 +349,16 @@ func (h *Handler) Recrop(c *gin.Context) {
 }
 
 // GetUsages returns a list of pages/articles that reference a media item
+// @Summary      Get media usages
+// @Description  Returns a list of pages and articles that reference the given media item
+// @Tags         Media (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Media ID"
+// @Success      200 {object} object{usages=[]object}
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/media/{id}/usages [get]
 func (h *Handler) GetUsages(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -333,6 +383,18 @@ func (h *Handler) GetUsages(c *gin.Context) {
 }
 
 // Rename updates the display filename of a media item
+// @Summary      Rename media file
+// @Description  Updates the display filename of a media item
+// @Tags         Media (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int                        true "Media ID"
+// @Param        body body object{filename=string}     true "New filename"
+// @Success      200 {object} object
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/media/{id}/rename [put]
 func (h *Handler) Rename(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

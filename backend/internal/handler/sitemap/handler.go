@@ -74,8 +74,13 @@ const defaultPageChangeFreq = "monthly"
 const articlePriority = "0.8"
 const articleChangeFreq = "weekly"
 
-// GetSitemap generates and returns an XML sitemap
-// GET /sitemap.xml
+// GetSitemap generates and returns an XML sitemap.
+// @Summary      Get sitemap
+// @Description  Returns an XML sitemap with all published pages
+// @Tags         Sitemap
+// @Produce      application/xml
+// @Success      200 {string} string
+// @Router       /sitemap.xml [get]
 func (h *Handler) GetSitemap(c *gin.Context) {
 	docs, err := h.contentDocRepo.List(c.Request.Context())
 	if err != nil {

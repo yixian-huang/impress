@@ -42,14 +42,39 @@ func (h *Handler) getRobotsTxt() string {
 	return setting.Value
 }
 
+// GetRobotsTxt returns the robots.txt content.
+// @Summary      Get robots.txt
+// @Description  Returns the current robots.txt content
+// @Tags         SEO
+// @Produce      text/plain
+// @Success      200 {string} string
+// @Router       /public/robots.txt [get]
 func (h *Handler) GetRobotsTxt(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(h.getRobotsTxt()))
 }
 
+// AdminGetRobotsTxt returns robots.txt for editing.
+// @Summary      Get robots.txt (admin)
+// @Description  Returns the robots.txt content for admin editing
+// @Tags         SEO
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{content=string}
+// @Router       /admin/seo/robots [get]
 func (h *Handler) AdminGetRobotsTxt(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"content": h.getRobotsTxt()})
 }
 
+// AdminUpdateRobotsTxt updates the robots.txt content.
+// @Summary      Update robots.txt
+// @Description  Update the robots.txt content
+// @Tags         SEO
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Robots.txt content"
+// @Success      200 {object} object{content=string}
+// @Router       /admin/seo/robots [put]
 func (h *Handler) AdminUpdateRobotsTxt(c *gin.Context) {
 	var input struct {
 		Content string `json:"content" binding:"required"`

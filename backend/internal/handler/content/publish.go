@@ -28,6 +28,20 @@ type PublishResponse struct {
 }
 
 // Publish handles POST /admin/content/{pageKey}/publish
+// @Summary      Publish content
+// @Description  Promotes the current draft to published state with optimistic locking
+// @Tags         Content (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey path string         true "Page key"
+// @Param        body    body PublishRequest  true "Publish parameters"
+// @Success      200 {object} PublishResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Failure      409 {object} object{error=string}
+// @Failure      422 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/publish [post]
 func (h *Handler) Publish(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

@@ -50,8 +50,16 @@ func toUserResponse(u *model.User) UserResponse {
 	}
 }
 
-// List returns a paginated list of users
-// GET /admin/users
+// List returns a paginated list of users.
+// @Summary      List users
+// @Description  Returns paginated list of users
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page     query int false "Page number"    default(1)
+// @Param        pageSize query int false "Items per page" default(20)
+// @Success      200 {object} object{items=[]object,total=int,page=int}
+// @Router       /admin/users [get]
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -81,8 +89,16 @@ func (h *Handler) List(c *gin.Context) {
 	})
 }
 
-// GetByID returns a single user
-// GET /admin/users/:id
+// GetByID returns a single user.
+// @Summary      Get user by ID
+// @Description  Returns a single user by ID
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "User ID"
+// @Success      200 {object} UserResponse
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/users/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -107,8 +123,18 @@ type CreateRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-// Create creates a new user
-// POST /admin/users
+// Create creates a new user.
+// @Summary      Create user
+// @Description  Create a new user with username, password, and role
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body CreateRequest true "User data"
+// @Success      201 {object} UserResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      409 {object} object{error=string}
+// @Router       /admin/users [post]
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -167,8 +193,18 @@ type UpdateRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-// Update updates a user
-// PUT /admin/users/:id
+// Update updates a user.
+// @Summary      Update user
+// @Description  Update user profile, password, role, or permissions
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int           true "User ID"
+// @Param        body body UpdateRequest true "Updated user data"
+// @Success      200 {object} UserResponse
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/users/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -243,8 +279,16 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// Delete deletes a user
-// DELETE /admin/users/:id
+// Delete deletes a user.
+// @Summary      Delete user
+// @Description  Delete a user by ID (cannot delete self or last super admin)
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "User ID"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/users/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

@@ -25,6 +25,17 @@ type ValidateResponse struct {
 }
 
 // Validate handles POST /admin/content/{pageKey}/validate
+// @Summary      Validate content config
+// @Description  Validates a page config and returns translation status without saving
+// @Tags         Content (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey path string          true "Page key"
+// @Param        body    body ValidateRequest  true "Config to validate"
+// @Success      200 {object} ValidateResponse
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/validate [post]
 func (h *Handler) Validate(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

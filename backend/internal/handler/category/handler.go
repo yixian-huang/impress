@@ -21,8 +21,14 @@ func NewHandler(categoryRepo repository.CategoryRepository, articleRepo reposito
 	return &Handler{categoryRepo: categoryRepo, articleRepo: articleRepo}
 }
 
-// List returns all categories
-// GET /admin/categories
+// List returns all categories.
+// @Summary      List all categories
+// @Description  Returns all categories for admin management
+// @Tags         Categories (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{items=[]object}
+// @Router       /admin/categories [get]
 func (h *Handler) List(c *gin.Context) {
 	items, err := h.categoryRepo.List(c.Request.Context())
 	if err != nil {
@@ -34,6 +40,16 @@ func (h *Handler) List(c *gin.Context) {
 
 // GetByID returns a single category by ID
 // GET /admin/categories/:id
+// @Summary      Get category by ID
+// @Description  Returns a single category by its database ID
+// @Tags         Categories (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Category ID"
+// @Success      200 {object} object
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/categories/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -52,6 +68,13 @@ func (h *Handler) GetByID(c *gin.Context) {
 
 // ListTree returns categories as a tree structure
 // GET /admin/categories/tree
+// @Summary      List categories as tree
+// @Description  Returns categories organized in a parent-child tree structure
+// @Tags         Categories (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{items=[]object}
+// @Router       /admin/categories/tree [get]
 func (h *Handler) ListTree(c *gin.Context) {
 	items, err := h.categoryRepo.ListTree(c.Request.Context())
 	if err != nil {
@@ -61,8 +84,17 @@ func (h *Handler) ListTree(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
-// Create creates a new category
-// POST /admin/categories
+// Create creates a new category.
+// @Summary      Create category
+// @Description  Create a new category
+// @Tags         Categories
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object true "Category data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/categories [post]
 func (h *Handler) Create(c *gin.Context) {
 	var input model.Category
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -78,8 +110,18 @@ func (h *Handler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
-// Update updates a category
-// PUT /admin/categories/:id
+// Update updates a category.
+// @Summary      Update category
+// @Description  Update an existing category by ID
+// @Tags         Categories
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Category ID"
+// @Param        body body object true "Updated category data"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/categories/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -119,8 +161,16 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, existing)
 }
 
-// Delete deletes a category
-// DELETE /admin/categories/:id
+// Delete deletes a category.
+// @Summary      Delete category
+// @Description  Delete a category by ID
+// @Tags         Categories
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Category ID"
+// @Success      200 {object} object{message=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/categories/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -138,6 +188,12 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // PublicList returns all visible categories
 // GET /public/categories
+// @Summary      List visible categories
+// @Description  Returns all categories that are not hidden from public listing
+// @Tags         Categories
+// @Produce      json
+// @Success      200 {object} object{items=[]object}
+// @Router       /public/categories [get]
 func (h *Handler) PublicList(c *gin.Context) {
 	items, err := h.categoryRepo.List(c.Request.Context())
 	if err != nil {
@@ -158,6 +214,16 @@ func (h *Handler) PublicList(c *gin.Context) {
 
 // PublicGetBySlug returns a category by slug with paginated published articles
 // GET /public/categories/:slug?page=1&pageSize=10
+// @Summary      Get category by slug
+// @Description  Returns a category by slug with paginated published articles
+// @Tags         Categories
+// @Produce      json
+// @Param        slug     path  string true  "Category slug"
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(10)
+// @Success      200 {object} object{category=object,articles=object}
+// @Failure      404 {object} object{error=string}
+// @Router       /public/categories/{slug} [get]
 func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 

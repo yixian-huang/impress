@@ -19,6 +19,14 @@ func NewHandler(pvRepo repository.PageViewRepository) *Handler {
 }
 
 // GetSummary handles GET /admin/analytics/summary
+// @Summary      Get analytics summary
+// @Description  Returns page view statistics including today, last 7 days, last 30 days, and unique visitors
+// @Tags         Analytics (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{pages=[]object,totals=object}
+// @Failure      500 {object} object{error=string}
+// @Router       /admin/analytics/summary [get]
 func (h *Handler) GetSummary(c *gin.Context) {
 	now := time.Now()
 	stats, err := h.pvRepo.GetSummary(c.Request.Context(), now)

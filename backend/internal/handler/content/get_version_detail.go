@@ -24,6 +24,17 @@ type GetVersionDetailResponse struct {
 }
 
 // GetVersionDetail handles GET /admin/content/{pageKey}/versions/{version}
+// @Summary      Get version detail
+// @Description  Returns the config snapshot for a specific published version
+// @Tags         Content (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        pageKey path string true "Page key"
+// @Param        version path int    true "Version number"
+// @Success      200 {object} GetVersionDetailResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/content/{pageKey}/versions/{version} [get]
 func (h *Handler) GetVersionDetail(c *gin.Context) {
 	pageKeyStr := c.Param("pageKey")
 	pageKey := model.PageKey(pageKeyStr)

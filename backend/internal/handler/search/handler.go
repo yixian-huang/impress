@@ -17,6 +17,18 @@ func NewHandler(search provider.SearchProvider) *Handler {
 	return &Handler{search: search}
 }
 
+// PublicSearch performs a full-text search.
+// @Summary      Search content
+// @Description  Full-text search across articles and pages
+// @Tags         Search
+// @Produce      json
+// @Param        q        query string true  "Search query"
+// @Param        locale   query string false "Locale (zh or en)" default(zh)
+// @Param        type     query string false "Content type filter"
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(10)
+// @Success      200 {object} object
+// @Router       /public/search [get]
 func (h *Handler) PublicSearch(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -42,6 +54,16 @@ func (h *Handler) PublicSearch(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// PublicSuggest returns search suggestions.
+// @Summary      Search suggestions
+// @Description  Returns autocomplete suggestions for a search prefix
+// @Tags         Search
+// @Produce      json
+// @Param        q      query string true  "Search prefix"
+// @Param        locale query string false "Locale (zh or en)" default(zh)
+// @Param        limit  query int    false "Max suggestions"   default(5)
+// @Success      200 {array} string
+// @Router       /public/search/suggest [get]
 func (h *Handler) PublicSuggest(c *gin.Context) {
 	prefix := c.Query("q")
 	if prefix == "" {
@@ -58,6 +80,14 @@ func (h *Handler) PublicSuggest(c *gin.Context) {
 	c.JSON(http.StatusOK, suggestions)
 }
 
+// AdminRebuildIndex rebuilds the search index.
+// @Summary      Rebuild search index
+// @Description  Rebuild the full-text search index from scratch
+// @Tags         Search (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{message=string}
+// @Router       /admin/search/rebuild [post]
 func (h *Handler) AdminRebuildIndex(c *gin.Context) {
 	if err := h.search.RebuildIndex(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "rebuild failed"})
