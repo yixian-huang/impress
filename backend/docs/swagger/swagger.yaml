@@ -1,5 +1,57 @@
 basePath: /
 definitions:
+  blotting-consultancy_internal_model.JSONMap:
+    additionalProperties: true
+    type: object
+  internal_handler_article.createUpdateInput:
+    properties:
+      allowComments:
+        type: boolean
+      author:
+        type: string
+      autoSummary:
+        type: boolean
+      categoryId:
+        type: integer
+      categoryIds:
+        items:
+          type: integer
+        type: array
+      coverImage:
+        type: string
+      enBody:
+        type: string
+      enMetaDescription:
+        type: string
+      enSeoTitle:
+        type: string
+      enTitle:
+        type: string
+      metadata:
+        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+      ogImage:
+        type: string
+      pinned:
+        type: boolean
+      slug:
+        type: string
+      status:
+        type: string
+      tagIds:
+        items:
+          type: integer
+        type: array
+      visibility:
+        type: string
+      zhBody:
+        type: string
+      zhMetaDescription:
+        type: string
+      zhSeoTitle:
+        type: string
+      zhTitle:
+        type: string
+    type: object
   internal_handler_auth.LoginRequest:
     properties:
       password:
@@ -37,6 +89,12 @@ definitions:
     properties:
       id:
         type: integer
+      isSuperAdmin:
+        type: boolean
+      permissions:
+        items:
+          type: string
+        type: array
       role:
         type: string
       username:
@@ -64,6 +122,173 @@ info:
   title: Impress CMS API
   version: "1.0"
 paths:
+  /admin/articles:
+    get:
+      description: Returns paginated articles including drafts for admin management
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - description: Status filter (draft/published/scheduled)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              total:
+                type: integer
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all articles (admin)
+      tags:
+      - Articles (Admin)
+    post:
+      consumes:
+      - application/json
+      description: Create a new article (draft by default)
+      parameters:
+      - description: Article data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_article.createUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create article
+      tags:
+      - Articles (Admin)
+  /admin/articles/{id}:
+    delete:
+      description: Permanently delete an article by ID
+      parameters:
+      - description: Article ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete article
+      tags:
+      - Articles (Admin)
+    get:
+      description: Returns a single article by its database ID
+      parameters:
+      - description: Article ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get article by ID (admin)
+      tags:
+      - Articles (Admin)
+    put:
+      consumes:
+      - application/json
+      description: Update an existing article by ID
+      parameters:
+      - description: Article ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated article data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_article.createUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update article
+      tags:
+      - Articles (Admin)
   /auth/login:
     post:
       consumes:
@@ -174,6 +399,76 @@ paths:
       summary: Refresh token
       tags:
       - Auth
+  /public/articles:
+    get:
+      description: Returns paginated published articles with optional category/tag
+        filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - description: Category slug filter
+        in: query
+        name: category
+        type: string
+      - description: Tag slug filter
+        in: query
+        name: tag
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              items:
+                items:
+                  type: object
+                type: array
+              page:
+                type: integer
+              pageSize:
+                type: integer
+              total:
+                type: integer
+            type: object
+      summary: List published articles
+      tags:
+      - Articles
+  /public/articles/{slug}:
+    get:
+      description: Returns a single published article with full content
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get article by slug
+      tags:
+      - Articles
 securityDefinitions:
   BearerAuth:
     description: Enter "Bearer {token}" for JWT authentication

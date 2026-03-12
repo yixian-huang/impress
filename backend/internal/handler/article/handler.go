@@ -43,8 +43,17 @@ func NewHandler(
 
 // --- Public endpoints ---
 
-// PublicList returns a paginated list of published articles
-// GET /public/articles?page=1&pageSize=10&category=&tag=
+// PublicList returns a paginated list of published articles.
+// @Summary      List published articles
+// @Description  Returns paginated published articles with optional category/tag filtering
+// @Tags         Articles
+// @Produce      json
+// @Param        page      query int    false "Page number"    default(1)
+// @Param        pageSize  query int    false "Items per page" default(10)
+// @Param        category  query string false "Category slug filter"
+// @Param        tag       query string false "Tag slug filter"
+// @Success      200 {object} object{items=[]object,total=int,page=int,pageSize=int}
+// @Router       /public/articles [get]
 func (h *Handler) PublicList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -73,8 +82,15 @@ func (h *Handler) PublicList(c *gin.Context) {
 	})
 }
 
-// PublicGetBySlug returns a single published article by slug
-// GET /public/articles/:slug
+// PublicGetBySlug returns a single published article by slug.
+// @Summary      Get article by slug
+// @Description  Returns a single published article with full content
+// @Tags         Articles
+// @Produce      json
+// @Param        slug path string true "Article slug"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /public/articles/{slug} [get]
 func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 
@@ -100,8 +116,18 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 
 // --- Admin endpoints ---
 
-// AdminList returns a paginated list of articles (all statuses)
-// GET /admin/articles?page=1&pageSize=10&status=
+// AdminList returns all articles for admin management.
+// @Summary      List all articles (admin)
+// @Description  Returns paginated articles including drafts for admin management
+// @Tags         Articles (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page     query int    false "Page number"    default(1)
+// @Param        pageSize query int    false "Items per page" default(10)
+// @Param        status   query string false "Status filter (draft/published/scheduled)"
+// @Success      200 {object} object{items=[]object,total=int}
+// @Failure      401 {object} object{error=string}
+// @Router       /admin/articles [get]
 func (h *Handler) AdminList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -129,8 +155,16 @@ func (h *Handler) AdminList(c *gin.Context) {
 	})
 }
 
-// AdminGetByID returns a single article by ID
-// GET /admin/articles/:id
+// AdminGetByID returns a single article by ID.
+// @Summary      Get article by ID (admin)
+// @Description  Returns a single article by its database ID
+// @Tags         Articles (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Article ID"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/articles/{id} [get]
 func (h *Handler) AdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -172,8 +206,17 @@ type createUpdateInput struct {
 	Metadata          model.JSONMap `json:"metadata"`
 }
 
-// AdminCreate creates a new article
-// POST /admin/articles
+// AdminCreate creates a new article.
+// @Summary      Create article
+// @Description  Create a new article (draft by default)
+// @Tags         Articles (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body createUpdateInput true "Article data"
+// @Success      201 {object} object
+// @Failure      400 {object} object{error=string}
+// @Router       /admin/articles [post]
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -282,8 +325,18 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, created)
 }
 
-// AdminUpdate updates an existing article
-// PUT /admin/articles/:id
+// AdminUpdate updates an existing article.
+// @Summary      Update article
+// @Description  Update an existing article by ID
+// @Tags         Articles (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path int    true "Article ID"
+// @Param        body body createUpdateInput true "Updated article data"
+// @Success      200 {object} object
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/articles/{id} [put]
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -404,8 +457,16 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
-// AdminDelete deletes an article
-// DELETE /admin/articles/:id
+// AdminDelete deletes an article.
+// @Summary      Delete article
+// @Description  Permanently delete an article by ID
+// @Tags         Articles (Admin)
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Article ID"
+// @Success      200 {object} object{message=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /admin/articles/{id} [delete]
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
