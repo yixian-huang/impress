@@ -175,6 +175,10 @@ func main() {
 		&model.StorageConfig{},
 		&model.Site{},
 		&model.SiteUser{},
+		&model.UnifiedPage{},
+		&model.PageVersion{},
+		&model.PageTemplate{},
+		&model.SiteConfig{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
