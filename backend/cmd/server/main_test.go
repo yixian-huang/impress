@@ -66,7 +66,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		Env:              "test",
 	}
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
-	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo)
+	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, nil)
 
 	// Setup router
 	gin.SetMode(gin.TestMode)

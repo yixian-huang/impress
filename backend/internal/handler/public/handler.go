@@ -9,6 +9,7 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/apierror"
 	"blotting-consultancy/pkg/metrics"
 
@@ -17,30 +18,27 @@ import (
 
 // Handler handles public content-related HTTP requests
 type Handler struct {
-	docRepo repository.ContentDocumentRepository
-	pvRepo  repository.PageViewRepository
+	docRepo  repository.ContentDocumentRepository
+	pvRepo   repository.PageViewRepository
+	pageRepo repository.UnifiedPageRepository
 }
 
 // NewHandler creates a new public content handler
-func NewHandler(docRepo repository.ContentDocumentRepository, pvRepo repository.PageViewRepository) *Handler {
+func NewHandler(
+	docRepo repository.ContentDocumentRepository,
+	pvRepo repository.PageViewRepository,
+	pageRepo repository.UnifiedPageRepository,
+) *Handler {
 	return &Handler{
-		docRepo: docRepo,
-		pvRepo:  pvRepo,
+		docRepo:  docRepo,
+		pvRepo:   pvRepo,
+		pageRepo: pageRepo,
 	}
 }
 
 // GetPublicContent handles GET /public/content/{pageKey}?locale=zh|en
-// Returns published-only content with locale support
-// @Summary      Get public content by page key
-// @Description  Returns published-only content for a given page key with locale support and records page view
-// @Tags         Public Content
-// @Produce      json
-// @Param        pageKey path   string true  "Page key (e.g. home, about)"
-// @Param        locale  query  string false "Locale (zh or en)" default(zh)
-// @Success      200 {object} object{pageKey=string,version=int,locale=string,config=object}
-// @Failure      400 {object} object{error=string}
-// @Failure      404 {object} object{error=string}
-// @Router       /public/content/{pageKey} [get]
+// Returns published-only content with locale support.
+// Reads from unified_pages first (new system); falls back to content_documents (legacy).
 func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Record metrics attempt and start timer
 	metrics.Global().RecordPublicGetAttempt()
@@ -64,7 +62,30 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 		return
 	}
 
-	// Fetch published content document
+	// Try unified_pages first (slug == pageKey for the 7 builtin pages)
+	if h.pageRepo != nil {
+		page, err := h.pageRepo.FindBySlug(c.Request.Context(), pageKeyStr)
+		if err == nil && len(page.PublishedConfig) > 0 {
+			// Convert sections-based config back to flat content doc format
+			publishedMap := model.JSONMap(page.PublishedConfig)
+			flatConfig := service.ConvertSectionsToContentDoc(pageKeyStr, publishedMap)
+
+			latency := time.Since(startTime)
+			metrics.Global().RecordPublicGetSuccess(latency)
+
+			h.recordPageViewAsync(pageKeyStr, locale, c)
+
+			c.JSON(200, gin.H{
+				"pageKey": pageKeyStr,
+				"version": page.PublishedVersion,
+				"locale":  locale,
+				"config":  flatConfig,
+			})
+			return
+		}
+	}
+
+	// Fallback: read from legacy content_documents
 	doc, err := h.docRepo.FindByPageKey(c.Request.Context(), pageKey)
 	if err != nil {
 		metrics.Global().RecordPublicGetFailure()
@@ -76,26 +97,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	latency := time.Since(startTime)
 	metrics.Global().RecordPublicGetSuccess(latency)
 
-	// Capture request context values before entering goroutine
-	clientIP := c.ClientIP()
-	referer := c.GetHeader("Referer")
-
-	// Asynchronously record page view
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		// Hash IP to derive an anonymous visitor ID (first 16 hex chars of SHA-256)
-		hash := sha256.Sum256([]byte(clientIP))
-		visitorID := fmt.Sprintf("%x", hash[:])[:16]
-		if err := h.pvRepo.Create(ctx, &model.PageView{
-			PageKey:   pageKeyStr,
-			Locale:    locale,
-			VisitorID: visitorID,
-			Referer:   referer,
-		}); err != nil {
-			slog.Error("failed to record page view", "pageKey", pageKeyStr, "error", err)
-		}
-	}()
+	h.recordPageViewAsync(pageKeyStr, locale, c)
 
 	// Return published-only data (never expose draft fields)
 	c.JSON(200, gin.H{
@@ -104,4 +106,25 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 		"locale":  locale,
 		"config":  doc.PublishedConfig,
 	})
+}
+
+// recordPageViewAsync records a page view in a background goroutine.
+func (h *Handler) recordPageViewAsync(pageKey, locale string, c *gin.Context) {
+	clientIP := c.ClientIP()
+	referer := c.GetHeader("Referer")
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		hash := sha256.Sum256([]byte(clientIP))
+		visitorID := fmt.Sprintf("%x", hash[:])[:16]
+		if err := h.pvRepo.Create(ctx, &model.PageView{
+			PageKey:   pageKey,
+			Locale:    locale,
+			VisitorID: visitorID,
+			Referer:   referer,
+		}); err != nil {
+			slog.Error("failed to record page view", "pageKey", pageKey, "error", err)
+		}
+	}()
 }

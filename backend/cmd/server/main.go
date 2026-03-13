@@ -337,7 +337,7 @@ func main() {
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
 	// (old contentHandlerInst removed — replaced by unified page handler)
-	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo)
+	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo)
 	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo, articleRepo)

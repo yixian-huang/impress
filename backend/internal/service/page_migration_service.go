@@ -231,6 +231,63 @@ func wrapPath(data map[string]interface{}, path string) {
 	}
 }
 
+// ConvertSectionsToContentDoc reverses ConvertContentDocToSections:
+// given a sections-based config and the page key, it rebuilds the flat
+// config keyed by the original content doc keys (hero, about, advantages, etc.)
+// so that existing frontend pages can consume it without changes.
+func ConvertSectionsToContentDoc(pageKey string, config model.JSONMap) model.JSONMap {
+	mappings, ok := pageKeyMappings[pageKey]
+	if !ok {
+		return config
+	}
+
+	sectionsRaw, ok := config["sections"]
+	if !ok {
+		return config
+	}
+
+	sectionsSlice, ok := sectionsRaw.([]interface{})
+	if !ok {
+		return config
+	}
+
+	// Build a lookup: sectionType → configKey from the mappings.
+	// If a page has multiple sections of the same type, we match by order.
+	type matchEntry struct {
+		configKey string
+		matched   bool
+	}
+	ordered := make([]matchEntry, len(mappings))
+	for i, m := range mappings {
+		ordered[i] = matchEntry{configKey: m.ConfigKey}
+	}
+
+	result := model.JSONMap{}
+
+	for _, s := range sectionsSlice {
+		sMap, ok := s.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		sType, _ := sMap["type"].(string)
+
+		// Find the first unmatched mapping with the same section type
+		for i, m := range mappings {
+			if m.SectionType == sType && !ordered[i].matched {
+				ordered[i].matched = true
+				if props, ok := sMap["props"].(map[string]interface{}); ok {
+					result[m.ConfigKey] = props
+				} else if data, ok := sMap["data"].(map[string]interface{}); ok {
+					result[m.ConfigKey] = data
+				}
+				break
+			}
+		}
+	}
+
+	return result
+}
+
 // unwrapPath extracts a value from a nested map using dot notation.
 func unwrapPath(data map[string]interface{}, path string) interface{} {
 	parts := strings.Split(path, ".")
