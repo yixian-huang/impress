@@ -293,5 +293,7 @@ func newTestSeeder(db *gorm.DB) *Seeder {
 	themeRepo := repository.NewGormInstalledThemeRepository(db)
 	pageRepo := repository.NewGormPageRepository(db)
 	themePageSvc := service.NewThemePageService(pageRepo)
-	return NewSeeder(userRepo, contentRepo, themeRepo, themePageSvc)
+	unifiedPageRepo := repository.NewGormUnifiedPageRepository(db)
+	templateRepo := repository.NewGormPageTemplateRepository(db)
+	return NewSeeder(userRepo, contentRepo, themeRepo, themePageSvc, unifiedPageRepo, templateRepo)
 }

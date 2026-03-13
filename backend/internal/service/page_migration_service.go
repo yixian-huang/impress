@@ -98,8 +98,11 @@ func ConvertContentDocToSections(pageKey string, config model.JSONMap) model.JSO
 	for _, m := range mappings {
 		props := model.JSONMap{}
 		if val, exists := config[m.ConfigKey]; exists {
-			if mapVal, ok := val.(map[string]interface{}); ok {
-				props = model.JSONMap(mapVal)
+			switch v := val.(type) {
+			case map[string]interface{}:
+				props = model.JSONMap(v)
+			case model.JSONMap:
+				props = v
 			}
 		}
 

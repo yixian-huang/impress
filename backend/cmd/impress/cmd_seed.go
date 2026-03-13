@@ -31,7 +31,9 @@ func seedCmd() *cobra.Command {
 			pageRepo := repository.NewGormPageRepository(database.DB)
 			themePageService := service.NewThemePageService(pageRepo)
 
-			seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService)
+			unifiedPageRepo := repository.NewGormUnifiedPageRepository(database.DB)
+			templateRepo := repository.NewGormPageTemplateRepository(database.DB)
+			seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService, unifiedPageRepo, templateRepo)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 

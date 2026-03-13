@@ -259,7 +259,7 @@ func main() {
 	themePageService := service.NewThemePageService(pageRepo)
 
 	// Run seed (idempotent)
-	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService)
+	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService, unifiedPageRepo, pageTemplateRepo)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
 	if err := seeder.SeedAll(seedCtx); err != nil {

@@ -17,15 +17,26 @@ type Seeder struct {
 	contentRepo        repository.ContentDocumentRepository
 	installedThemeRepo repository.InstalledThemeRepository
 	themePageService   *service.ThemePageService
+	unifiedPageRepo    repository.UnifiedPageRepository
+	templateRepo       repository.PageTemplateRepository
 }
 
 // NewSeeder creates a new seeder instance
-func NewSeeder(userRepo repository.UserRepository, contentRepo repository.ContentDocumentRepository, installedThemeRepo repository.InstalledThemeRepository, themePageService *service.ThemePageService) *Seeder {
+func NewSeeder(
+	userRepo repository.UserRepository,
+	contentRepo repository.ContentDocumentRepository,
+	installedThemeRepo repository.InstalledThemeRepository,
+	themePageService *service.ThemePageService,
+	unifiedPageRepo repository.UnifiedPageRepository,
+	templateRepo repository.PageTemplateRepository,
+) *Seeder {
 	return &Seeder{
 		userRepo:           userRepo,
 		contentRepo:        contentRepo,
 		installedThemeRepo: installedThemeRepo,
 		themePageService:   themePageService,
+		unifiedPageRepo:    unifiedPageRepo,
+		templateRepo:       templateRepo,
 	}
 }
 
@@ -38,6 +49,10 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	}
 
 	if err := s.SeedContentDocuments(ctx); err != nil {
+		return err
+	}
+
+	if err := s.SeedUnifiedPages(ctx); err != nil {
 		return err
 	}
 
@@ -129,6 +144,90 @@ func (s *Seeder) SeedContentDocuments(ctx context.Context) error {
 		}
 
 		log.Printf("Created content document for page: %s", pageKey)
+	}
+
+	return nil
+}
+
+// builtinPageDefs defines the 7 builtin pages with deterministic IDs.
+var builtinPageDefs = []struct {
+	ID     uint
+	Slug   string
+	ZhName string
+	EnName string
+}{
+	{1, "home", "首页", "Home"},
+	{2, "about", "关于我们", "About Us"},
+	{3, "advantages", "我们的优势", "Our Advantages"},
+	{4, "core-services", "核心服务", "Core Services"},
+	{5, "cases", "案例展示", "Case Studies"},
+	{6, "experts", "专家团队", "Our Experts"},
+	{7, "contact", "联系我们", "Contact Us"},
+}
+
+// SeedUnifiedPages creates unified pages and page templates for the 7 builtin pages.
+// Converts the same seed data from content_documents into sections format.
+func (s *Seeder) SeedUnifiedPages(ctx context.Context) error {
+	if s.unifiedPageRepo == nil {
+		return nil
+	}
+
+	for _, def := range builtinPageDefs {
+		// Check if unified page already exists
+		existing, err := s.unifiedPageRepo.FindBySlug(ctx, def.Slug)
+		if err == nil && existing != nil {
+			log.Printf("Unified page %s already exists, skipping", def.Slug)
+			continue
+		}
+
+		// Convert seed config to sections format
+		pageKey := model.PageKey(def.Slug)
+		flatConfig := getInitialConfig(pageKey)
+		sectionsConfig := service.ConvertContentDocToSections(def.Slug, flatConfig)
+
+		// Create page template
+		if s.templateRepo != nil {
+			templateKey := "builtin-" + def.Slug
+			existingTpl, tplErr := s.templateRepo.FindByKey(ctx, templateKey)
+			if tplErr != nil || existingTpl == nil {
+				tpl := &model.PageTemplate{
+					ID:            def.ID,
+					Key:           templateKey,
+					NameZh:        def.ZhName,
+					NameEn:        def.EnName,
+					Category:      "builtin",
+					Config:        sectionsConfig,
+				}
+				if err := s.templateRepo.Create(ctx, tpl); err != nil {
+					log.Printf("Warning: failed to create page template %s: %v", templateKey, err)
+				}
+			}
+		}
+
+		// Create unified page
+		templateID := def.ID
+		pubConfig := model.NullableJSONMap(sectionsConfig)
+		page := &model.UnifiedPage{
+			ID:               def.ID,
+			Slug:             def.Slug,
+			ZhTitle:          def.ZhName,
+			EnTitle:          def.EnName,
+			Mode:             model.PageModeTemplate,
+			TemplateID:       &templateID,
+			DraftConfig:      sectionsConfig,
+			DraftVersion:     1,
+			PublishedConfig:  pubConfig,
+			PublishedVersion: 1,
+			Status:           "published",
+			SortOrder:        int(def.ID),
+			ShowInNav:        true,
+		}
+
+		if err := s.unifiedPageRepo.Create(ctx, page); err != nil {
+			return err
+		}
+
+		log.Printf("Created unified page: %s (ID=%d)", def.Slug, def.ID)
 	}
 
 	return nil
