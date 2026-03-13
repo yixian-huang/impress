@@ -58,6 +58,7 @@ import (
 	translationHandler "blotting-consultancy/internal/handler/translation"
 	unifiedPageHandler "blotting-consultancy/internal/handler/unified_page"
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
+	themeExportHandler "blotting-consultancy/internal/handler/theme_export"
 	"blotting-consultancy/internal/migration"
 	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/model"
@@ -252,7 +253,6 @@ func main() {
 	pageVersionRepo := repository.NewGormPageVersionRepository(database.DB)
 	pageTemplateRepo := repository.NewGormPageTemplateRepository(database.DB)
 	siteConfigRepo := repository.NewGormSiteConfigRepository(database.DB)
-	_ = siteConfigRepo // wired to handlers in later tasks
 	log.Info("Repositories initialized")
 
 	// Initialize theme page service early (needed for seeding)
@@ -390,6 +390,8 @@ func main() {
 	unifiedPageSvc := service.NewUnifiedPageService(unifiedPageRepo, pageVersionRepo)
 	unifiedPageHdl := unifiedPageHandler.NewHandler(unifiedPageRepo, pageVersionRepo, unifiedPageSvc)
 	pageTemplateHdl := pageTemplateHandler.NewHandler(pageTemplateRepo)
+	themeExportSvc := service.NewThemeExportService(pageTemplateRepo, siteConfigRepo)
+	themeExportHdl := themeExportHandler.NewHandler(themeExportSvc)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -829,6 +831,12 @@ func main() {
 		adminGroup.PUT("/templates/:id", pageTemplateHdl.Update)
 		adminGroup.DELETE("/templates/:id", pageTemplateHdl.Delete)
 		adminGroup.POST("/templates/:id/duplicate", pageTemplateHdl.Duplicate)
+
+		// Theme export/import
+		adminGroup.POST("/theme-packages/export", themeExportHdl.Export)
+		adminGroup.POST("/theme-packages/import", themeExportHdl.Import)
+		adminGroup.GET("/theme-packages", themeExportHdl.List)
+		adminGroup.PUT("/theme-packages/:id/apply", themeExportHdl.Apply)
 	}
 
 	// SEO routes (public + admin)
