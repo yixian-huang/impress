@@ -1,20 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  getPage,
-  createPage,
-  updatePage,
-  type CreatePageRequest,
-} from "@/api/pages";
 import { SectionRenderer } from "@/theme/sections";
-import { getSectionSchema } from "@/theme/schemas";
 import { useSectionRegistry } from "@/plugins/hooks";
-import FieldRenderer from "@/components/admin/form-fields/FieldRenderer";
-import MetadataEditor from "@/components/admin/MetadataEditor";
 import type { SectionData } from "@/theme/types";
+import {
+  getUnifiedPage,
+  getUnifiedPageDraft,
+  createUnifiedPage,
+  updateUnifiedPageDraft,
+  publishUnifiedPage,
+  unpublishUnifiedPage,
+  listUnifiedPageVersions,
+  rollbackUnifiedPage,
+} from "@/api/unifiedPages";
 
 // ---------------------------------------------------------------------------
-// SectionPicker -- modal overlay to add a new section type
+// SectionPicker — modal overlay to add a new section type
 // ---------------------------------------------------------------------------
 function SectionPicker({
   onSelect,
@@ -29,9 +30,7 @@ function SectionPicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            添加区块
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900">添加区块</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
@@ -59,13 +58,14 @@ function SectionPicker({
 }
 
 // ---------------------------------------------------------------------------
-// SectionListItem -- a single row in the section list
+// SectionListItem — a single row in the section list sidebar
 // ---------------------------------------------------------------------------
 function SectionListItem({
   section,
   index,
   total,
   isSelected,
+  isComposable,
   onSelect,
   onMoveUp,
   onMoveDown,
@@ -76,6 +76,7 @@ function SectionListItem({
   index: number;
   total: number;
   isSelected: boolean;
+  isComposable: boolean;
   onSelect: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -90,14 +91,16 @@ function SectionListItem({
   const { metas: sectionMetas } = useSectionRegistry();
   const meta = sectionMetas.find((m) => m.type === section.type);
   const label = meta?.labelZh || section.type;
+  const locked = !!section.locked;
+  const draggable = isComposable && !locked;
 
   return (
     <div
-      draggable
-      onDragStart={dragHandlers.onDragStart}
-      onDragOver={dragHandlers.onDragOver}
-      onDrop={dragHandlers.onDrop}
-      onDragEnd={dragHandlers.onDragEnd}
+      draggable={draggable}
+      onDragStart={draggable ? dragHandlers.onDragStart : undefined}
+      onDragOver={draggable ? dragHandlers.onDragOver : undefined}
+      onDrop={draggable ? dragHandlers.onDrop : undefined}
+      onDragEnd={draggable ? dragHandlers.onDragEnd : undefined}
       onClick={onSelect}
       className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer select-none border transition-colors ${
         isSelected
@@ -105,10 +108,14 @@ function SectionListItem({
           : "border-gray-200 bg-white hover:border-gray-300"
       }`}
     >
-      {/* drag grip */}
-      <span className="text-gray-400 cursor-grab text-xs" title="拖拽排序">
-        &#x2630;
-      </span>
+      {/* drag grip or lock icon */}
+      {locked ? (
+        <span className="text-gray-400 text-xs" title="模板锁定">&#128274;</span>
+      ) : draggable ? (
+        <span className="text-gray-400 cursor-grab text-xs" title="拖拽排序">&#x2630;</span>
+      ) : (
+        <span className="text-gray-300 text-xs">&#x2630;</span>
+      )}
 
       {/* index + label */}
       <span className="flex-1 text-sm text-gray-800 truncate">
@@ -116,62 +123,265 @@ function SectionListItem({
         {label}
       </span>
 
-      {/* up / down / delete */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onMoveUp();
-        }}
-        disabled={index === 0}
-        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
-        title="上移"
-      >
-        &#9650;
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onMoveDown();
-        }}
-        disabled={index === total - 1}
-        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
-        title="下移"
-      >
-        &#9660;
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="text-gray-400 hover:text-red-600 text-sm px-1"
-        title="删除"
-      >
-        &times;
-      </button>
+      {/* up / down / delete — only for composable & unlocked */}
+      {isComposable && !locked && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+            disabled={index === 0}
+            className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
+            title="上移"
+          >&#9650;</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+            disabled={index === total - 1}
+            className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
+            title="下移"
+          >&#9660;</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="text-gray-400 hover:text-red-600 text-sm px-1"
+            title="删除"
+          >&times;</button>
+        </>
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// SectionList -- ordered list with drag-and-drop reordering
+// VersionHistoryPanel — slide-out panel listing versions
 // ---------------------------------------------------------------------------
-function SectionList({
-  sections,
-  selectedIndex,
-  onSelect,
-  onMove,
-  onDelete,
-  onAdd,
+function VersionHistoryPanel({
+  pageId,
+  onClose,
+  onRollback,
 }: {
-  sections: SectionData[];
-  selectedIndex: number | null;
-  onSelect: (i: number) => void;
-  onMove: (from: number, to: number) => void;
-  onDelete: (i: number) => void;
-  onAdd: () => void;
+  pageId: number;
+  onClose: () => void;
+  onRollback: (version: number) => void;
 }) {
+  const [versions, setVersions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    listUnifiedPageVersions(pageId)
+      .then((data: any) => {
+        setVersions(Array.isArray(data) ? data : data?.items || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [pageId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+      <div className="w-96 bg-white h-full shadow-xl flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">版本历史</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="text-center text-gray-500 py-8">加载中...</div>
+          ) : versions.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">暂无版本记录</div>
+          ) : (
+            <div className="space-y-2">
+              {versions.map((v: any) => (
+                <div
+                  key={v.version ?? v.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">
+                      版本 {v.version ?? v.id}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {v.createdAt ? new Date(v.createdAt).toLocaleString() : ""}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onRollback(v.version ?? v.id)}
+                    className="text-xs px-3 py-1 border border-blue-500 text-blue-600 rounded hover:bg-blue-50"
+                  >
+                    回滚
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ConflictDialog
+// ---------------------------------------------------------------------------
+function ConflictDialog({
+  currentVersion,
+  onReload,
+  onDismiss,
+}: {
+  currentVersion: number;
+  onReload: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
+        <h3 className="text-lg font-semibold text-red-700 mb-2">版本冲突</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          此页面已被他人编辑，当前服务端版本为 <strong>{currentVersion}</strong>。
+          请重新加载后再编辑。
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onDismiss}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            关闭
+          </button>
+          <button
+            onClick={onReload}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            重新加载
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+export default function PageEditorPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const isNew = !id;
+  const pageId = id ? Number(id) : 0;
+  const { metas: sectionMetas } = useSectionRegistry();
+
+  // -- page metadata --
+  const [slug, setSlug] = useState("");
+  const [zhTitle, setZhTitle] = useState("");
+  const [enTitle, setEnTitle] = useState("");
+  const [mode, setMode] = useState<"template" | "composable">("composable");
+  const [showInNav, setShowInNav] = useState(false);
+  const [sortOrder, setSortOrder] = useState(0);
+  const [status, setStatus] = useState("draft");
+
+  // -- section editor state --
+  const [sections, setSections] = useState<SectionData[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [publishedVersion, setPublishedVersion] = useState(0);
+  const [editorMode, setEditorMode] = useState<"visual" | "json">("visual");
+  const [sectionJson, setSectionJson] = useState("[]");
+
+  // -- UI state --
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [conflictVersion, setConflictVersion] = useState<number | null>(null);
+  const [loading, setLoading] = useState(!!id);
+
+  // -- ref for drag --
   const dragIndexRef = useRef<number | null>(null);
+
+  // -- load existing page --
+  const loadPage = useCallback(async () => {
+    if (!pageId) return;
+    setLoading(true);
+    try {
+      const [meta, draft] = await Promise.all([
+        getUnifiedPage(pageId),
+        getUnifiedPageDraft(pageId),
+      ]);
+      setSlug(meta.slug);
+      setZhTitle(meta.zhTitle);
+      setEnTitle(meta.enTitle);
+      setMode(meta.mode);
+      setShowInNav(meta.showInNav);
+      setSortOrder(meta.sortOrder);
+      setStatus(meta.status);
+      setPublishedVersion(meta.publishedVersion);
+      setDraftVersion(draft.version);
+
+      const config = draft.config as { sections?: SectionData[] } | null;
+      const loadedSections = config?.sections || [];
+      setSections(loadedSections);
+      setSectionJson(JSON.stringify(loadedSections, null, 2));
+    } catch {
+      setError("加载页面失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [pageId]);
+
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
+
+  // -- keep JSON in sync --
+  useEffect(() => {
+    if (editorMode === "visual") {
+      setSectionJson(JSON.stringify(sections, null, 2));
+    }
+  }, [sections, editorMode]);
+
+  // -- section helpers --
+  const isComposable = mode === "composable";
+
+  const addSection = useCallback(
+    (type: string) => {
+      const newSection: SectionData = {
+        id: crypto.randomUUID(),
+        type,
+        variant: "default",
+        locked: false,
+        data: {},
+        settings: {},
+      };
+      setSections((prev) => [...prev, newSection]);
+      setSelectedIndex(sections.length);
+      setShowPicker(false);
+    },
+    [sections.length],
+  );
+
+  const moveSection = useCallback((from: number, to: number) => {
+    setSections((prev) => {
+      const next = [...prev];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setSelectedIndex(to);
+  }, []);
+
+  const deleteSection = useCallback((index: number) => {
+    if (!window.confirm("确定要删除此区块吗？")) return;
+    setSections((prev) => prev.filter((_, i) => i !== index));
+    setSelectedIndex((prev) => {
+      if (prev === null) return null;
+      if (prev === index) return null;
+      if (prev > index) return prev - 1;
+      return prev;
+    });
+  }, []);
+
+  const updateSectionData = useCallback((index: number, data: Record<string, unknown>) => {
+    setSections((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, data } : s)),
+    );
+  }, []);
 
   const makeDragHandlers = (index: number) => ({
     onDragStart: (e: React.DragEvent) => {
@@ -185,297 +395,133 @@ function SectionList({
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
       const from = dragIndexRef.current;
-      if (from !== null && from !== index) {
-        onMove(from, index);
-      }
+      if (from !== null && from !== index) moveSection(from, index);
       dragIndexRef.current = null;
     },
-    onDragEnd: () => {
-      dragIndexRef.current = null;
-    },
+    onDragEnd: () => { dragIndexRef.current = null; },
   });
 
-  return (
-    <div className="flex flex-col gap-2">
-      {sections.map((section, i) => (
-        <SectionListItem
-          key={section.id}
-          section={section}
-          index={i}
-          total={sections.length}
-          isSelected={selectedIndex === i}
-          onSelect={() => onSelect(i)}
-          onMoveUp={() => {
-            if (i > 0) onMove(i, i - 1);
-          }}
-          onMoveDown={() => {
-            if (i < sections.length - 1) onMove(i, i + 1);
-          }}
-          onDelete={() => onDelete(i)}
-          dragHandlers={makeDragHandlers(i)}
-        />
-      ))}
+  // -- mode toggle --
+  const switchToJson = useCallback(() => {
+    setSectionJson(JSON.stringify(sections, null, 2));
+    setEditorMode("json");
+  }, [sections]);
 
-      <button
-        onClick={onAdd}
-        className="mt-1 flex items-center justify-center gap-1 px-3 py-2 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-      >
-        <span className="text-lg leading-none">+</span> 添加区块
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SectionEditorPanel -- form fields driven by section schema
-// ---------------------------------------------------------------------------
-function SectionEditorPanel({
-  section,
-  onChange,
-}: {
-  section: SectionData;
-  onChange: (data: Record<string, unknown>) => void;
-}) {
-  const { metas } = useSectionRegistry();
-  const schema = getSectionSchema(section.type, metas);
-  const entries = Object.entries(schema);
-
-  if (entries.length === 0) {
-    return (
-      <div className="text-sm text-gray-500 italic py-4">
-        此区块类型尚无可编辑字段。
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {entries.map(([key, descriptor]) => (
-        <FieldRenderer
-          key={key}
-          descriptor={descriptor}
-          value={section.data[key]}
-          onChange={(val) => {
-            onChange({ ...section.data, [key]: val });
-          }}
-          path={key}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// PreviewPanel -- renders sections through SectionRenderer
-// ---------------------------------------------------------------------------
-function PreviewPanel({ sections }: { sections: SectionData[] }) {
-  if (sections.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400 py-12">
-        暂无区块，请在左侧添加。
-      </div>
-    );
-  }
-
-  return (
-    <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
-      <div
-        className="origin-top-left"
-        style={{ transform: "scale(0.5)", transformOrigin: "top left", width: "200%" }}
-      >
-        {sections.map((s) => (
-          <SectionRenderer key={s.id} section={s} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main page component
-// ---------------------------------------------------------------------------
-export default function PageEditorPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const isNew = !id;
-  const { metas: sectionMetas } = useSectionRegistry();
-
-  // -- basic page fields --
-  const [slug, setSlug] = useState("");
-  const [titleZh, setTitleZh] = useState("");
-  const [titleEn, setTitleEn] = useState("");
-  const [template, setTemplate] = useState("default");
-  const [seoTitleZh, setSeoTitleZh] = useState("");
-  const [seoDescZh, setSeoDescZh] = useState("");
-
-  // -- new page fields --
-  const [coverImage, setCoverImage] = useState("");
-  const [pageVisibility, setPageVisibility] = useState("public");
-  const [pagePinned, setPagePinned] = useState(false);
-  const [pageAllowComments, setPageAllowComments] = useState(false);
-  const [pageAutoSummary, setPageAutoSummary] = useState(false);
-  const [pageMetadata, setPageMetadata] = useState<Record<string, unknown>>({});
-
-  // -- section visual editor state --
-  const [sections, setSections] = useState<SectionData[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
-
-  // -- mode toggle: visual vs JSON --
-  const [editorMode, setEditorMode] = useState<"visual" | "json">("visual");
-  const [configJson, setConfigJson] = useState("{\n  \"sections\": []\n}");
-
-  // -- save state --
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  // -- load existing page --
-  useEffect(() => {
-    if (!id) return;
-    getPage(Number(id)).then((page) => {
-      setSlug(page.slug);
-      setTitleZh(page.title?.zh || "");
-      setTitleEn(page.title?.en || "");
-      setTemplate(page.template || "default");
-      setSeoTitleZh(page.seoTitle?.zh || "");
-      setSeoDescZh(page.seoDescription?.zh || "");
-      setCoverImage(page.coverImage || "");
-      setPageVisibility(page.visibility || "public");
-      setPagePinned(page.pinned || false);
-      setPageAllowComments(page.allowComments || false);
-      setPageAutoSummary(page.autoSummary || false);
-      setPageMetadata(page.metadata || {});
-
-      const config = page.config as { sections?: SectionData[] } | null;
-      const loadedSections = config?.sections || [];
-      setSections(loadedSections);
-      setConfigJson(JSON.stringify(page.config, null, 2) || "{}");
-    });
-  }, [id]);
-
-  // -- keep configJson in sync when sections change (visual -> json) --
-  useEffect(() => {
-    if (editorMode === "visual") {
-      setConfigJson(JSON.stringify({ sections }, null, 2));
-    }
-  }, [sections, editorMode]);
-
-  // -- section helpers --
-  const addSection = useCallback(
-    (type: string) => {
-      const newSection: SectionData = {
-        id: crypto.randomUUID(),
-        type,
-        data: {},
-        settings: {},
-      };
-      setSections((prev) => [...prev, newSection]);
-      setSelectedIndex(sections.length); // select the newly added one
-      setShowPicker(false);
-      setActiveTab("edit");
-    },
-    [sections.length],
-  );
-
-  const moveSection = useCallback(
-    (from: number, to: number) => {
-      setSections((prev) => {
-        const next = [...prev];
-        const [item] = next.splice(from, 1);
-        next.splice(to, 0, item);
-        return next;
-      });
-      setSelectedIndex(to);
-    },
-    [],
-  );
-
-  const deleteSection = useCallback(
-    (index: number) => {
-      if (!window.confirm("确定要删除此区块吗？")) return;
-      setSections((prev) => prev.filter((_, i) => i !== index));
-      setSelectedIndex((prev) => {
-        if (prev === null) return null;
-        if (prev === index) return null;
-        if (prev > index) return prev - 1;
-        return prev;
-      });
-    },
-    [],
-  );
-
-  const updateSectionData = useCallback(
-    (index: number, data: Record<string, unknown>) => {
-      setSections((prev) =>
-        prev.map((s, i) => (i === index ? { ...s, data } : s)),
-      );
-    },
-    [],
-  );
-
-  // -- switch to visual mode: parse JSON into sections --
   const switchToVisual = useCallback(() => {
     try {
-      const parsed = JSON.parse(configJson);
-      const parsedSections: SectionData[] = parsed?.sections || [];
+      const parsed = JSON.parse(sectionJson);
+      const parsedSections: SectionData[] = Array.isArray(parsed) ? parsed : [];
       setSections(parsedSections);
       setSelectedIndex(null);
       setEditorMode("visual");
     } catch {
       setError("JSON 格式错误，无法切换到可视化模式");
     }
-  }, [configJson]);
+  }, [sectionJson]);
 
-  const switchToJson = useCallback(() => {
-    setConfigJson(JSON.stringify({ sections }, null, 2));
-    setEditorMode("json");
-  }, [sections]);
+  // -- clear messages --
+  const clearMessages = () => { setError(""); setSuccessMsg(""); };
 
-  // -- save handler --
-  const handleSave = async () => {
-    setError("");
+  // -- create new page --
+  const handleCreate = async () => {
+    clearMessages();
+    if (!slug.trim()) { setError("请输入 URL 路径"); return; }
     setSaving(true);
     try {
-      let config: unknown;
+      const result = await createUnifiedPage({
+        slug,
+        zhTitle,
+        enTitle,
+        mode,
+        showInNav,
+        sortOrder,
+        draftConfig: { sections },
+      });
+      navigate(`/admin/pages/edit/${result.id}`, { replace: true });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "创建失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // -- save draft --
+  const handleSave = async () => {
+    clearMessages();
+    setSaving(true);
+    try {
+      let sectionsToSave = sections;
       if (editorMode === "json") {
         try {
-          config = JSON.parse(configJson);
+          const parsed = JSON.parse(sectionJson);
+          sectionsToSave = Array.isArray(parsed) ? parsed : [];
         } catch {
-          setError("JSON 配置格式错误");
+          setError("JSON 格式错误");
           setSaving(false);
           return;
         }
-      } else {
-        config = { sections };
       }
-
-      const data: CreatePageRequest = {
-        slug,
-        title: { zh: titleZh, en: titleEn },
-        template,
-        config,
-        seoTitle: { zh: seoTitleZh },
-        seoDescription: { zh: seoDescZh },
-        coverImage,
-        visibility: pageVisibility,
-        pinned: pagePinned,
-        allowComments: pageAllowComments,
-        autoSummary: pageAutoSummary,
-        metadata: pageMetadata,
-      };
-
-      if (isNew) {
-        await createPage(data);
+      const result: any = await updateUnifiedPageDraft(pageId, draftVersion, {
+        sections: sectionsToSave,
+      });
+      setDraftVersion(result.version ?? draftVersion + 1);
+      setSuccessMsg("草稿已保存");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        const serverVersion = err.response?.data?.currentVersion ?? err.response?.data?.version;
+        setConflictVersion(serverVersion ?? 0);
       } else {
-        await updatePage(Number(id), data);
+        setError(err?.response?.data?.error || err?.message || "保存失败");
       }
-      navigate("/admin/pages");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "保存失败";
-      setError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // -- publish --
+  const handlePublish = async () => {
+    clearMessages();
+    setPublishing(true);
+    try {
+      await publishUnifiedPage(pageId, draftVersion);
+      setStatus("published");
+      setPublishedVersion(draftVersion);
+      setSuccessMsg("已发布");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "发布失败");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // -- unpublish --
+  const handleUnpublish = async () => {
+    clearMessages();
+    try {
+      await unpublishUnifiedPage(pageId);
+      setStatus("draft");
+      setPublishedVersion(0);
+      setSuccessMsg("已下线");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "下线失败");
+    }
+  };
+
+  // -- rollback --
+  const handleRollback = async (version: number) => {
+    if (!window.confirm(`确定回滚到版本 ${version}？`)) return;
+    clearMessages();
+    try {
+      await rollbackUnifiedPage(pageId, version);
+      setShowHistory(false);
+      await loadPage();
+      setSuccessMsg(`已回滚到版本 ${version}`);
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "回滚失败");
     }
   };
 
@@ -489,349 +535,351 @@ export default function PageEditorPage() {
     ? sectionMetas.find((m) => m.type === selectedSection.type)
     : null;
 
+  if (loading) {
+    return <div className="text-center py-12 text-gray-500">加载中...</div>;
+  }
+
   return (
-    <div>
-      {/* -- header -- */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
-          {isNew ? "新建页面" : "编辑页面"}
-        </h2>
-        <button
-          onClick={() => navigate("/admin/pages")}
-          className="text-sm text-gray-600 hover:text-gray-900"
-        >
-          返回列表
-        </button>
+    <div className="flex flex-col h-full min-h-0">
+      {/* -- top bar -- */}
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/admin/pages")}
+            className="text-sm text-gray-500 hover:text-gray-800"
+          >
+            &larr; 返回
+          </button>
+          <h2 className="text-xl font-bold text-gray-900">
+            {isNew ? "新建页面" : (zhTitle || slug || "编辑页面")}
+          </h2>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            mode === "template"
+              ? "bg-purple-100 text-purple-700"
+              : "bg-blue-100 text-blue-700"
+          }`}>
+            {mode === "template" ? "模板" : "自由组合"}
+          </span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            status === "published"
+              ? "bg-green-100 text-green-700"
+              : "bg-yellow-100 text-yellow-700"
+          }`}>
+            {status === "published" ? "已发布" : "草稿"}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* mode toggle */}
+          <button
+            onClick={() => editorMode === "visual" ? switchToJson() : switchToVisual()}
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            {editorMode === "visual" ? "JSON 模式" : "可视化模式"}
+          </button>
+
+          {!isNew && (
+            <button
+              onClick={() => setShowHistory(true)}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              版本历史
+            </button>
+          )}
+
+          {isNew ? (
+            <button
+              onClick={handleCreate}
+              disabled={saving || !slug.trim()}
+              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? "创建中..." : "创建"}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? "保存中..." : "保存草稿"}
+              </button>
+              {status === "published" ? (
+                <button
+                  onClick={handleUnpublish}
+                  className="px-4 py-1.5 text-sm border border-orange-400 text-orange-600 rounded-md hover:bg-orange-50"
+                >
+                  下线
+                </button>
+              ) : (
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {publishing ? "发布中..." : "发布"}
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* -- error banner -- */}
+      {/* -- messages -- */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+        <div className="mb-3 p-3 bg-red-50 text-red-700 rounded-md text-sm flex-shrink-0">
           {error}
+          <button onClick={() => setError("")} className="ml-2 text-red-500">&times;</button>
+        </div>
+      )}
+      {successMsg && (
+        <div className="mb-3 p-3 bg-green-50 text-green-700 rounded-md text-sm flex-shrink-0">
+          {successMsg}
         </div>
       )}
 
-      {/* -- basic fields card -- */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL 路径 (slug)
-            </label>
-            <div className="flex items-center">
-              <span className="text-gray-400 text-sm mr-1">/</span>
+      {/* -- metadata section (collapsed for existing, expanded for new) -- */}
+      {isNew && (
+        <div className="bg-white rounded-lg shadow p-5 mb-4 flex-shrink-0">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">页面信息</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">URL 路径 (slug)</label>
+              <div className="flex items-center">
+                <span className="text-gray-400 text-sm mr-1">/</span>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="about-us"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">标题 (中文)</label>
               <input
                 type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="about-us"
-                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                value={zhTitle}
+                onChange={(e) => setZhTitle(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">标题 (English)</label>
+              <input
+                type="text"
+                value={enTitle}
+                onChange={(e) => setEnTitle(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              布局模板
-            </label>
-            <select
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="default">默认 (Default)</option>
-              <option value="fullwidth">全宽 (Fullwidth)</option>
-              <option value="sidebar">侧边栏 (Sidebar)</option>
-              <option value="landing">落地页 (Landing)</option>
-              <option value="blank">空白 (Blank)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              页面标题 (中文)
-            </label>
-            <input
-              type="text"
-              value={titleZh}
-              onChange={(e) => setTitleZh(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              页面标题 (English)
-            </label>
-            <input
-              type="text"
-              value={titleEn}
-              onChange={(e) => setTitleEn(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              SEO 标题
-            </label>
-            <input
-              type="text"
-              value={seoTitleZh}
-              onChange={(e) => setSeoTitleZh(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              SEO 描述
-            </label>
-            <input
-              type="text"
-              value={seoDescZh}
-              onChange={(e) => setSeoDescZh(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              封面图片 URL
-            </label>
-            <input
-              type="text"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://..."
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-            {coverImage && (
-              <img
-                src={coverImage}
-                alt="Cover preview"
-                className="mt-2 max-h-32 rounded border border-gray-200"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">页面模式</label>
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value as "template" | "composable")}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              >
+                <option value="composable">自由组合 (Composable)</option>
+                <option value="template">模板 (Template)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">排序</label>
+              <input
+                type="number"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
               />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              可见性 (Visibility)
-            </label>
-            <select
-              value={pageVisibility}
-              onChange={(e) => setPageVisibility(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="public">公开 (Public)</option>
-              <option value="private">私密 (Private)</option>
-              <option value="password_protected">密码保护 (Password Protected)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-6">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={pagePinned}
-              onChange={(e) => setPagePinned(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            置顶 (Pinned)
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={pageAllowComments}
-              onChange={(e) => setPageAllowComments(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            允许评论 (Allow Comments)
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={pageAutoSummary}
-              onChange={(e) => setPageAutoSummary(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            自动摘要 (Auto Summary)
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            元数据 (Metadata)
-          </label>
-          <MetadataEditor value={pageMetadata} onChange={setPageMetadata} />
-        </div>
-      </div>
-
-      {/* -- mode toggle bar -- */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">页面内容</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">编辑器模式:</span>
-          <button
-            onClick={() =>
-              editorMode === "visual" ? switchToJson() : switchToVisual()
-            }
-            className={`px-3 py-1 text-xs rounded-md border transition-colors ${
-              editorMode === "json"
-                ? "bg-gray-800 text-white border-gray-800"
-                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-            }`}
-          >
-            JSON
-          </button>
-          <button
-            onClick={() =>
-              editorMode === "json" ? switchToVisual() : undefined
-            }
-            className={`px-3 py-1 text-xs rounded-md border transition-colors ${
-              editorMode === "visual"
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-            }`}
-          >
-            可视化
-          </button>
-        </div>
-      </div>
-
-      {/* -- JSON mode -- */}
-      {editorMode === "json" && (
-        <div className="bg-white rounded-lg shadow p-6 space-y-5">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">
-                页面配置 (JSON)
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm text-gray-700 pb-1">
+                <input
+                  type="checkbox"
+                  checked={showInNav}
+                  onChange={(e) => setShowInNav(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                显示在导航
               </label>
-              <span className="text-xs text-gray-400">
-                可用 Section 类型：
-                {sectionMetas.map((m) => m.type).join(", ")}
-              </span>
             </div>
-            <textarea
-              value={configJson}
-              onChange={(e) => setConfigJson(e.target.value)}
-              rows={16}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"
-              spellCheck={false}
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving || !slug}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? "保存中..." : "保存"}
-            </button>
           </div>
         </div>
       )}
 
-      {/* -- Visual mode -- */}
-      {editorMode === "visual" && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[400px]">
-            {/* Left panel: section list */}
-            <div className="lg:col-span-1 border-r border-gray-200 p-4">
-              <SectionList
-                sections={sections}
-                selectedIndex={selectedIndex}
-                onSelect={setSelectedIndex}
-                onMove={moveSection}
-                onDelete={deleteSection}
-                onAdd={() => setShowPicker(true)}
-              />
+      {/* -- editor body -- */}
+      {editorMode === "json" ? (
+        /* JSON mode */
+        <div className="bg-white rounded-lg shadow p-5 flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">
+              区块配置 (JSON 数组)
+            </label>
+            <span className="text-xs text-gray-400">
+              可用类型: {sectionMetas.map((m) => m.type).join(", ")}
+            </span>
+          </div>
+          <textarea
+            value={sectionJson}
+            onChange={(e) => setSectionJson(e.target.value)}
+            rows={20}
+            className="flex-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono resize-none"
+            spellCheck={false}
+          />
+        </div>
+      ) : (
+        /* Visual mode — three-column layout */
+        <div className="flex-1 flex min-h-0 bg-white rounded-lg shadow overflow-hidden">
+          {/* Left sidebar: section list */}
+          <div className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col">
+            <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-600 uppercase">区块列表</span>
+              <span className="text-xs text-gray-400">{sections.length} 个</span>
             </div>
-
-            {/* Right panel: editor / preview */}
-            <div className="lg:col-span-2 p-4 flex flex-col">
-              {/* Tab bar */}
-              <div className="flex items-center border-b border-gray-200 mb-4">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {sections.map((section, i) => (
+                <SectionListItem
+                  key={section.id}
+                  section={section}
+                  index={i}
+                  total={sections.length}
+                  isSelected={selectedIndex === i}
+                  isComposable={isComposable}
+                  onSelect={() => setSelectedIndex(i)}
+                  onMoveUp={() => { if (i > 0) moveSection(i, i - 1); }}
+                  onMoveDown={() => { if (i < sections.length - 1) moveSection(i, i + 1); }}
+                  onDelete={() => deleteSection(i)}
+                  dragHandlers={makeDragHandlers(i)}
+                />
+              ))}
+              {sections.length === 0 && (
+                <div className="text-xs text-gray-400 text-center py-4">暂无区块</div>
+              )}
+            </div>
+            {isComposable && (
+              <div className="p-3 border-t border-gray-200">
                 <button
-                  onClick={() => setActiveTab("edit")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                    activeTab === "edit"
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
+                  onClick={() => setShowPicker(true)}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-2 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
                 >
-                  编辑
-                </button>
-                <button
-                  onClick={() => setActiveTab("preview")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                    activeTab === "preview"
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  预览
+                  <span className="text-lg leading-none">+</span> 添加区块
                 </button>
               </div>
+            )}
+          </div>
 
-              {/* Tab content */}
-              {activeTab === "edit" && (
-                <div className="flex-1 overflow-y-auto">
-                  {selectedSection ? (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                        {selectedMeta?.labelZh || selectedSection.type}
-                        <span className="text-xs text-gray-400 ml-2">
-                          {selectedMeta?.label}
-                        </span>
-                      </h4>
-                      <SectionEditorPanel
-                        section={selectedSection}
-                        onChange={(data) =>
-                          updateSectionData(selectedIndex!, data)
-                        }
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-sm text-gray-400 py-12">
-                      {sections.length === 0
-                        ? "点击「+ 添加区块」开始构建页面。"
-                        : "请在左侧选择一个区块进行编辑。"}
-                    </div>
-                  )}
+          {/* Center: preview */}
+          <div className="flex-1 overflow-y-auto bg-gray-50">
+            {sections.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-sm text-gray-400">
+                {isComposable ? "点击左侧「+ 添加区块」开始构建页面" : "暂无内容"}
+              </div>
+            ) : (
+              <div className="border-l border-r border-gray-100">
+                {sections.map((s, i) => (
+                  <div
+                    key={s.id}
+                    onClick={() => setSelectedIndex(i)}
+                    className={`relative cursor-pointer transition-all ${
+                      selectedIndex === i
+                        ? "ring-2 ring-blue-400 ring-inset"
+                        : "hover:ring-1 hover:ring-gray-300 hover:ring-inset"
+                    }`}
+                  >
+                    <SectionRenderer section={s} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right sidebar: section data editor */}
+          <div className="w-80 flex-shrink-0 border-l border-gray-200 flex flex-col">
+            <div className="px-3 py-2 border-b border-gray-200">
+              <span className="text-xs font-semibold text-gray-600 uppercase">
+                {selectedSection ? (selectedMeta?.labelZh || selectedSection.type) : "属性编辑"}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {selectedSection ? (
+                <div>
+                  <div className="mb-3">
+                    <span className="text-xs text-gray-500">
+                      类型: {selectedSection.type}
+                      {selectedSection.variant ? ` / ${selectedSection.variant}` : ""}
+                      {selectedSection.locked ? " (锁定)" : ""}
+                    </span>
+                  </div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    数据 (JSON)
+                  </label>
+                  <textarea
+                    value={JSON.stringify(selectedSection.data, null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value);
+                        updateSectionData(selectedIndex!, parsed);
+                      } catch {
+                        // Allow invalid intermediate JSON while typing
+                      }
+                    }}
+                    onBlur={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value);
+                        updateSectionData(selectedIndex!, parsed);
+                      } catch {
+                        // Revert on blur if invalid
+                      }
+                    }}
+                    rows={12}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs font-mono resize-none"
+                    spellCheck={false}
+                  />
                 </div>
-              )}
-
-              {activeTab === "preview" && (
-                <div className="flex-1 overflow-y-auto">
-                  <PreviewPanel sections={sections} />
+              ) : (
+                <div className="text-xs text-gray-400 text-center py-8">
+                  选择左侧区块以编辑属性
                 </div>
               )}
             </div>
           </div>
-
-          {/* Save button */}
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving || !slug}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? "保存中..." : "保存"}
-            </button>
-          </div>
         </div>
       )}
 
-      {/* -- Section picker modal -- */}
+      {/* -- bottom version info -- */}
+      {!isNew && (
+        <div className="flex items-center justify-between mt-3 text-xs text-gray-500 flex-shrink-0">
+          <div>
+            草稿版本: <strong>{draftVersion}</strong>
+            {publishedVersion > 0 && (
+              <span className="ml-3">已发布版本: <strong>{publishedVersion}</strong></span>
+            )}
+          </div>
+          <div>/{slug}</div>
+        </div>
+      )}
+
+      {/* -- modals -- */}
       {showPicker && (
         <SectionPicker onSelect={addSection} onClose={() => setShowPicker(false)} />
+      )}
+      {showHistory && !isNew && (
+        <VersionHistoryPanel
+          pageId={pageId}
+          onClose={() => setShowHistory(false)}
+          onRollback={handleRollback}
+        />
+      )}
+      {conflictVersion !== null && (
+        <ConflictDialog
+          currentVersion={conflictVersion}
+          onReload={() => { setConflictVersion(null); loadPage(); }}
+          onDismiss={() => setConflictVersion(null)}
+        />
       )}
     </div>
   );
