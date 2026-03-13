@@ -32,9 +32,9 @@ import (
 	backupHandler "blotting-consultancy/internal/handler/backup"
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	commentHandler "blotting-consultancy/internal/handler/comment"
-	contentHandler "blotting-consultancy/internal/handler/content"
+	// contentHandler removed — replaced by unified page handler
 	mediaHandler "blotting-consultancy/internal/handler/media"
-	pageHandler "blotting-consultancy/internal/handler/page"
+	// pageHandler removed — replaced by unified page handler
 	publicHandler "blotting-consultancy/internal/handler/public"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
@@ -229,7 +229,7 @@ func main() {
 	userRepo := repository.NewGormUserRepository(database.DB)
 	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
 	contentDocRepo := repository.NewGormContentDocumentRepository(database.DB)
-	contentVersionRepo := repository.NewGormContentVersionRepository(database.DB)
+	// contentVersionRepo removed — old content version system replaced by page versions
 	mediaRepo := repository.NewGormMediaRepository(database.DB)
 	pageViewRepo := repository.NewGormPageViewRepository(database.DB)
 	categoryRepo := repository.NewGormCategoryRepository(database.DB)
@@ -273,24 +273,16 @@ func main() {
 	}
 	log.Info("Seed data initialized")
 
-	// Initialize services
-	validationService := service.NewValidationService()
-	contentService := service.NewContentService(
-		database.DB,
-		contentDocRepo,
-		contentVersionRepo,
-		validationService,
-	)
+	// (old validationService + contentService removed — replaced by UnifiedPageService)
 	log.Info("Services initialized")
 
 	// Start scheduler for auto-publishing scheduled content
 	schedulerService := service.NewSchedulerService(database.DB)
 	schedulerService.Start()
 
-	// Initialize audit logger
-	auditLog := audit.NewLogger(log)
+	// Initialize audit logger (kept for future use)
 	auditDbWriter := audit.NewDbWriter(auditEventRepo)
-	_ = auditDbWriter // available for future use alongside auditLog
+	_ = auditDbWriter // available for future use
 
 	// Initialize backup service
 	backupSvc := backup.NewService(database.DB, "./backups", 10, cfg.UploadDir, Version)
@@ -344,14 +336,7 @@ func main() {
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
-	contentHandlerInst := contentHandler.NewHandler(
-		database.DB,
-		contentDocRepo,
-		contentVersionRepo,
-		validationService,
-		contentService,
-		auditLog,
-	)
+	// (old contentHandlerInst removed — replaced by unified page handler)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo)
 	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
@@ -362,7 +347,7 @@ func main() {
 	backupHandlerInst := backupHandler.NewHandler(backupSvc)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
-	pageHandlerInst := pageHandler.NewHandler(pageRepo, installedThemeRepo)
+	// (old pageHandlerInst removed — replaced by unified page handler)
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
@@ -504,9 +489,7 @@ func main() {
 		publicGroup.GET("/articles", articleHandlerInst.PublicList)
 		publicGroup.GET("/articles/:slug", articleHandlerInst.PublicGetBySlug)
 
-		// Public page routes
-		publicGroup.GET("/pages", pageHandlerInst.PublicList)
-		publicGroup.GET("/pages/:slug", pageHandlerInst.PublicGetBySlug)
+		// (old page routes removed — replaced by unified pages below)
 
 		// Public category routes
 		publicGroup.GET("/categories", categoryHandlerInst.PublicList)
@@ -525,12 +508,11 @@ func main() {
 		// Public active theme route
 		publicGroup.GET("/active-theme", installedThemeHandlerInst.PublicGetActive)
 
-		// Public theme pages route
-		publicGroup.GET("/theme-pages", pageHandlerInst.PublicListThemePages)
+		// (old theme-pages route removed — theme pages are now part of unified pages)
 
-		// Public unified pages (new)
-		publicGroup.GET("/unified-pages", unifiedPageHdl.PublicList)
-		publicGroup.GET("/unified-pages/:slug", unifiedPageHdl.PublicGetBySlug)
+		// Unified pages (replaces old page routes)
+		publicGroup.GET("/pages", unifiedPageHdl.PublicList)
+		publicGroup.GET("/pages/:slug", unifiedPageHdl.PublicGetBySlug)
 	}
 
 	// Public Q&A (knowledge base ask)
@@ -590,22 +572,7 @@ func main() {
 	// New RBAC permission checks are applied at the route-group level.
 	adminGroup.Use(middleware.RequireAdminOrEditor())
 	{
-		// Content draft management (requires pages:read / pages:update)
-		adminGroup.GET("/content/:pageKey/draft", contentHandlerInst.GetDraft)
-		adminGroup.PUT("/content/:pageKey/draft", contentHandlerInst.UpdateDraft)
-		adminGroup.POST("/content/:pageKey/validate", contentHandlerInst.Validate)
-
-		// Publishing (requires pages:publish via RBAC)
-		adminPublish := adminGroup.Group("")
-		adminPublish.Use(middleware.RequirePermission("pages", "publish", userRepo))
-		{
-			adminPublish.POST("/content/:pageKey/publish", contentHandlerInst.Publish)
-			adminPublish.POST("/content/:pageKey/rollback/:version", contentHandlerInst.Rollback)
-		}
-
-		// Version history
-		adminGroup.GET("/content/:pageKey/versions", contentHandlerInst.GetVersions)
-		adminGroup.GET("/content/:pageKey/versions/:version", contentHandlerInst.GetVersionDetail)
+		// (old content handler routes removed — replaced by unified page draft/publish/version routes)
 
 		// Media management
 		adminGroup.POST("/media/upload", mediaHandlerInst.Upload)
@@ -678,14 +645,7 @@ func main() {
 			adminAudit.GET("/audit-logs", auditlogHandlerInst.List)
 		}
 
-		// Page management
-		adminGroup.GET("/pages", pageHandlerInst.AdminList)
-		adminGroup.GET("/pages/:id", pageHandlerInst.AdminGetByID)
-		adminGroup.POST("/pages", pageHandlerInst.AdminCreate)
-		adminGroup.PUT("/pages/:id", pageHandlerInst.AdminUpdate)
-		adminGroup.DELETE("/pages/:id", pageHandlerInst.AdminDelete)
-		adminGroup.PUT("/pages/:id/publish", pageHandlerInst.AdminPublish)
-		adminGroup.PUT("/pages/:id/unpublish", pageHandlerInst.AdminUnpublish)
+		// (old page management routes removed — replaced by unified page routes below)
 
 		// Theme token management (existing)
 		adminGroup.GET("/theme", themeHandlerInst.AdminGet)
@@ -812,18 +772,18 @@ func main() {
 		adminGroup.PUT("/glossary/:id", translationHandlerInst.GlossaryUpdate)
 		adminGroup.DELETE("/glossary/:id", translationHandlerInst.GlossaryDelete)
 
-		// Unified page management
-		adminGroup.GET("/unified-pages", unifiedPageHdl.AdminList)
-		adminGroup.GET("/unified-pages/:id", unifiedPageHdl.AdminGetByID)
-		adminGroup.POST("/unified-pages", unifiedPageHdl.AdminCreate)
-		adminGroup.GET("/unified-pages/:id/draft", unifiedPageHdl.AdminGetDraft)
-		adminGroup.PUT("/unified-pages/:id/draft", unifiedPageHdl.AdminUpdateDraft)
-		adminGroup.POST("/unified-pages/:id/publish", unifiedPageHdl.AdminPublish)
-		adminGroup.POST("/unified-pages/:id/unpublish", unifiedPageHdl.AdminUnpublish)
-		adminGroup.POST("/unified-pages/:id/rollback", unifiedPageHdl.AdminRollback)
-		adminGroup.GET("/unified-pages/:id/versions", unifiedPageHdl.AdminListVersions)
-		adminGroup.GET("/unified-pages/:id/versions/:version", unifiedPageHdl.AdminGetVersionDetail)
-		adminGroup.DELETE("/unified-pages/:id", unifiedPageHdl.AdminDelete)
+		// Page management (unified page system)
+		adminGroup.GET("/pages", unifiedPageHdl.AdminList)
+		adminGroup.GET("/pages/:id", unifiedPageHdl.AdminGetByID)
+		adminGroup.POST("/pages", unifiedPageHdl.AdminCreate)
+		adminGroup.GET("/pages/:id/draft", unifiedPageHdl.AdminGetDraft)
+		adminGroup.PUT("/pages/:id/draft", unifiedPageHdl.AdminUpdateDraft)
+		adminGroup.POST("/pages/:id/publish", unifiedPageHdl.AdminPublish)
+		adminGroup.POST("/pages/:id/unpublish", unifiedPageHdl.AdminUnpublish)
+		adminGroup.POST("/pages/:id/rollback", unifiedPageHdl.AdminRollback)
+		adminGroup.GET("/pages/:id/versions", unifiedPageHdl.AdminListVersions)
+		adminGroup.GET("/pages/:id/versions/:version", unifiedPageHdl.AdminGetVersionDetail)
+		adminGroup.DELETE("/pages/:id", unifiedPageHdl.AdminDelete)
 
 		// Page template management
 		adminGroup.GET("/templates", pageTemplateHdl.List)
