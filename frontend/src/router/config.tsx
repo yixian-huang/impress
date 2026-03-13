@@ -4,8 +4,7 @@ import { RouteObject } from 'react-router-dom';
 // Admin routes
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
 const AdminLoginPage = lazy(() => import('../pages/admin/login/page'));
-const AdminContentPage = lazy(() => import('../pages/admin/content/page'));
-const AdminContentEditorPage = lazy(() => import('../pages/admin/content/editor/page'));
+// AdminContentPage and AdminContentEditorPage removed — replaced by unified page editor
 const AdminMediaPage = lazy(() => import('../pages/admin/media/page'));
 const AdminAnalyticsPage = lazy(() => import('../pages/admin/analytics/page'));
 const AdminArticlesPage = lazy(() => import('../pages/admin/articles/page'));
@@ -83,14 +82,7 @@ export const staticRoutes: RouteObject[] = [
         path: 'login',
         element: <AdminLoginPage />,
       },
-      {
-        path: 'content',
-        element: <AdminContentPage />,
-      },
-      {
-        path: 'content/editor/:pageKey',
-        element: <AdminContentEditorPage />,
-      },
+      // Old content editor routes removed — replaced by unified page editor at /admin/pages
       {
         path: 'media',
         element: <AdminMediaPage />,
