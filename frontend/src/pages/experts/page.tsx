@@ -41,7 +41,7 @@ export default function ExpertsPage() {
 
   const pageConfig = (config as ExpertsPageConfig) || {};
   const hero = pageConfig.hero || {};
-  const experts = pageConfig.experts || [];
+  const experts = Array.isArray(pageConfig.experts) ? pageConfig.experts : [];
 
   const [activeId, setActiveId] = useState<string>(experts[0]?.id || '');
 

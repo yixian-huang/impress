@@ -56,7 +56,7 @@ export default function CasesPage() {
 
   const pageConfig = (config as CasesPageConfig) || {};
   const hero = pageConfig.hero || {};
-  const categories = pageConfig.cases || [];
+  const categories = Array.isArray(pageConfig.cases) ? pageConfig.cases : [];
 
   return (
     <PublicLayout>

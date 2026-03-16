@@ -107,7 +107,7 @@ export default function AdvantagesPage() {
 
   const pageConfig = (config as AdvantagesPageConfig) || {};
   const hero = pageConfig.hero || {};
-  const blocks = pageConfig.blocks || [];
+  const blocks = Array.isArray(pageConfig.blocks) ? pageConfig.blocks : [];
 
   return (
     <PublicLayout>

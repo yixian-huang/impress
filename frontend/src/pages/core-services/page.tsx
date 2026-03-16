@@ -104,7 +104,7 @@ export default function CoreServicesPage() {
 
   const pageConfig = (config as CoreServicesPageConfig) || {};
   const hero = pageConfig.hero || {};
-  const services = pageConfig.services || [];
+  const services = Array.isArray(pageConfig.services) ? pageConfig.services : [];
 
   return (
     <PublicLayout>

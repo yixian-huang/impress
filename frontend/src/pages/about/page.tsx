@@ -65,7 +65,7 @@ export default function AboutPage() {
   const pageConfig = (config as AboutPageConfig) || {};
   const hero = pageConfig.hero || {};
   const companyProfile = pageConfig.companyProfile || {};
-  const blocks = pageConfig.blocks || [];
+  const blocks = Array.isArray(pageConfig.blocks) ? pageConfig.blocks : [];
 
   return (
     <PublicLayout>
