@@ -5,7 +5,6 @@ import AdminSidebar from "./components/AdminSidebar";
 
 // Map admin route prefixes to permission keys
 const routePermissions: Record<string, string> = {
-  "/admin/content": "content",
   "/admin/pages": "pages",
   "/admin/articles": "articles",
   "/admin/media": "media",
