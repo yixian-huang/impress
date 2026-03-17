@@ -31,3 +31,29 @@ export interface PageConfig {
   layout?: string;
   sections: SectionData[];
 }
+
+// --- Field schema types (used by section schemas and dynamic form) ---
+
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "bilingual"
+  | "bilingual-textarea"
+  | "media"
+  | "color"
+  | "select"
+  | "number"
+  | "boolean"
+  | "array"
+  | "string-array";
+
+export interface FieldSchema {
+  key: string;
+  type: FieldType;
+  label: string;
+  placeholder?: string;
+  defaultValue?: unknown;
+  hidden?: boolean;
+  options?: { label: string; value: string | number }[];
+  itemSchema?: FieldSchema[];
+}
