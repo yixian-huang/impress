@@ -54,3 +54,4 @@ backend/version.json
 
 # Worktrees
 .worktrees/
+.superpowers/
