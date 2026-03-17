@@ -8,5 +8,6 @@ export { default as SelectField } from "./SelectField";
 export { default as NumberField } from "./NumberField";
 export { default as BooleanField } from "./BooleanField";
 export { default as StringArrayField } from "./StringArrayField";
-export { default as ArrayField } from "./ArrayField";
+// ArrayField is NOT exported here — FieldRenderer lazy-imports it to break circular dep.
+// Import ArrayField directly from "./fields/ArrayField" if needed outside FieldRenderer.
 export type { FieldSchema, FieldType, FieldProps } from "./types";

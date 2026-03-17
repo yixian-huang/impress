@@ -27,7 +27,9 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
   };
 
   const addItem = () => {
-    const newItem: Record<string, unknown> = {};
+    const newItem: Record<string, unknown> = {
+      _key: crypto.randomUUID(), // Stable React key for all array items
+    };
     for (const field of itemSchema) {
       if (field.hidden && field.key === "id") {
         newItem[field.key] = crypto.randomUUID();
@@ -63,9 +65,10 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
       </label>
       {items.map((item, index) => {
         const summary = getSummary(item);
+        const itemKey = (item.id as string) ?? (item._key as string) ?? String(index);
         return (
           <div
-            key={index}
+            key={itemKey}
             className="border border-gray-200 rounded-lg p-3 mb-2"
           >
             <div className="flex items-center justify-between mb-2">
