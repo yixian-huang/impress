@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { html } from "@codemirror/lang-html";
 import { oneDark } from "@codemirror/theme-one-dark";
