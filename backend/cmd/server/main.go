@@ -39,6 +39,7 @@ import (
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
+	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
 	formSubmissionHandler "blotting-consultancy/internal/handler/form_submission"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
 	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
@@ -356,7 +357,9 @@ func main() {
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo)
-	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo)
+	emailSvc := service.NewEmailService(siteConfigRepo)
+	formSubmissionHandlerInst := formSubmissionHandler.NewHandler(formSubmissionRepo, emailSvc)
+	emailSettingsHandlerInst := emailSettingsHandler.NewHandler(siteConfigRepo, emailSvc)
 	userHandlerInst := userHandler.NewHandler(userRepo)
 	seoHandlerInst := seoHandler.NewHandler(database.DB)
 	captchaProvider := &provider.NoopCaptchaProvider{}
@@ -671,6 +674,11 @@ func main() {
 		adminGroup.PATCH("/form-submissions/:id/status", formSubmissionHandlerInst.HandleAdminUpdateStatus)
 		adminGroup.POST("/form-submissions/bulk-status", formSubmissionHandlerInst.HandleAdminBulkUpdateStatus)
 		adminGroup.DELETE("/form-submissions/:id", formSubmissionHandlerInst.HandleAdminDelete)
+
+		// Email settings management
+		adminGroup.GET("/email-settings", emailSettingsHandlerInst.HandleGet)
+		adminGroup.PUT("/email-settings", emailSettingsHandlerInst.HandleUpdate)
+		adminGroup.POST("/email-settings/test", emailSettingsHandlerInst.HandleTest)
 
 		// User management (requires users:manage via RBAC)
 		adminUsers := adminGroup.Group("/users")
