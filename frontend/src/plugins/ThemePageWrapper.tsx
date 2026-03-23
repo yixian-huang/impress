@@ -43,7 +43,7 @@ export default function ThemePageWrapper({ pageDef }: ThemePageWrapperProps) {
 
   return (
     <Suspense fallback={<Loading />}>
-      <Component />
+      <Component slug={pageDef.slug} />
     </Suspense>
   );
 }

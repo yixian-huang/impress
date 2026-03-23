@@ -6,8 +6,13 @@ import type { Locale } from "@/api/publicContent";
 import type { PageConfig } from "./types";
 import { SectionRenderer } from "./sections";
 
-export default function DynamicPage() {
-  const { "*": slug } = useParams();
+interface DynamicPageProps {
+  slug?: string;
+}
+
+export default function DynamicPage({ slug: slugProp }: DynamicPageProps = {}) {
+  const { "*": paramSlug } = useParams();
+  const slug = slugProp || paramSlug;
   const { i18n } = useTranslation("common");
   const locale = (i18n.language === "zh" || i18n.language.startsWith("zh") ? "zh" : "en") as Locale;
 
@@ -28,7 +33,15 @@ export default function DynamicPage() {
     http
       .get(`/public/pages/${slug}`, { params: { locale } })
       .then((res) => {
-        setConfig(res.data.publishedConfig ?? res.data.config ?? res.data);
+        const raw = res.data.publishedConfig ?? res.data.config ?? res.data;
+        // Normalize sections: backend uses "props", frontend SectionData uses "data"
+        if (raw?.sections) {
+          raw.sections = raw.sections.map((s: any) => ({
+            ...s,
+            data: s.data || s.props || {},
+          }));
+        }
+        setConfig(raw);
         setLoading(false);
       })
       .catch((e) => {
