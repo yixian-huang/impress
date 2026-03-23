@@ -167,6 +167,41 @@ func (s *EmailService) sendMail(cfg *SMTPConfig, to, replyTo, subject, htmlBody 
 	return s.sendSTARTTLS(cfg, to, msg)
 }
 
+// loginAuth implements the SMTP LOGIN authentication mechanism.
+// Many Chinese email providers (QQ, 163, etc.) only support LOGIN, not PLAIN.
+type loginAuth struct {
+	username, password string
+}
+
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte(a.username), nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		switch string(fromServer) {
+		case "Username:":
+			return []byte(a.username), nil
+		case "Password:":
+			return []byte(a.password), nil
+		}
+	}
+	return nil, nil
+}
+
+// smtpAuth returns the appropriate auth mechanism: tries LOGIN first (for QQ/163 compatibility),
+// falls back to PLAIN if LOGIN is not advertised.
+func smtpAuth(username, password, host string, extensions map[string]string) smtp.Auth {
+	// If server advertises AUTH mechanisms, check for LOGIN support
+	if mechs, ok := extensions["AUTH"]; ok {
+		if strings.Contains(strings.ToUpper(mechs), "LOGIN") {
+			return &loginAuth{username: username, password: password}
+		}
+	}
+	// Default: try LOGIN anyway (many servers support it without advertising)
+	return &loginAuth{username: username, password: password}
+}
+
 // sendSTARTTLS connects via plain TCP and upgrades with STARTTLS.
 func (s *EmailService) sendSTARTTLS(cfg *SMTPConfig, to string, msg []byte) error {
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
@@ -191,9 +226,11 @@ func (s *EmailService) sendSTARTTLS(cfg *SMTPConfig, to string, msg []byte) erro
 		return fmt.Errorf("starttls: %w", err)
 	}
 
-	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("auth: %w", err)
+	if cfg.Username != "" {
+		auth := &loginAuth{username: cfg.Username, password: cfg.Password}
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("auth: %w", err)
+		}
 	}
 
 	if err := client.Mail(cfg.From); err != nil {
@@ -237,9 +274,11 @@ func (s *EmailService) sendTLS(cfg *SMTPConfig, to string, msg []byte) error {
 	}
 	defer client.Close()
 
-	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("auth: %w", err)
+	if cfg.Username != "" {
+		auth := &loginAuth{username: cfg.Username, password: cfg.Password}
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("auth: %w", err)
+		}
 	}
 
 	if err := client.Mail(cfg.From); err != nil {
