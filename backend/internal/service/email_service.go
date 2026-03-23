@@ -42,10 +42,10 @@ func (s *SMTPConfig) IsConfigured() bool {
 	return s.Host != "" && s.Port > 0 && s.From != ""
 }
 
-// ReceiverConfig controls forwarding to admin inbox.
+// ReceiverConfig controls forwarding to admin inbox(es).
 type ReceiverConfig struct {
 	Enabled bool   `json:"enabled"`
-	Email   string `json:"email"`
+	Emails  string `json:"emails"`
 }
 
 // AutoReplyConfig controls the auto-reply feature.
@@ -284,9 +284,9 @@ func (s *EmailService) SendAutoReply(ctx context.Context, submission *model.Form
 	return s.sendMail(&cfg.SMTP, submission.Email, "", subject, body)
 }
 
-// SendForward sends the form submission to the configured receiver, with Reply-To set to the submitter's email.
+// SendForward sends the form submission to all configured receivers, with Reply-To set to the submitter's email.
 func (s *EmailService) SendForward(ctx context.Context, submission *model.FormSubmission, cfg *EmailConfig) error {
-	if !cfg.Receiver.Enabled || cfg.Receiver.Email == "" {
+	if !cfg.Receiver.Enabled || cfg.Receiver.Emails == "" {
 		return nil
 	}
 
@@ -297,7 +297,19 @@ func (s *EmailService) SendForward(ctx context.Context, submission *model.FormSu
 
 	subject := s.renderTemplate(tmpl.Subject, submission)
 	body := s.renderTemplate(tmpl.Body, submission)
-	return s.sendMail(&cfg.SMTP, cfg.Receiver.Email, submission.Email, subject, body)
+
+	var lastErr error
+	for _, raw := range strings.Split(cfg.Receiver.Emails, ",") {
+		to := strings.TrimSpace(raw)
+		if to == "" {
+			continue
+		}
+		if err := s.sendMail(&cfg.SMTP, to, submission.Email, subject, body); err != nil {
+			slog.Error("forward email failed", "to", to, "error", err)
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // SendTest sends a test email to verify SMTP configuration.

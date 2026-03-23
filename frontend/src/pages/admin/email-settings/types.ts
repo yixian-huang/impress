@@ -11,7 +11,7 @@ export interface SMTPConfig {
 
 export interface ReceiverConfig {
   enabled: boolean;
-  email: string;
+  emails: string;
 }
 
 export interface AutoReplyConfig {

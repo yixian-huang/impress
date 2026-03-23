@@ -168,14 +168,14 @@ export default function SmtpConfigTab({
               接收邮箱 <span className="text-red-500">*</span>
             </label>
             <input
-              type="email"
-              value={receiver.email}
-              onChange={(e) => updateReceiver("email", e.target.value)}
+              type="text"
+              value={receiver.emails}
+              onChange={(e) => updateReceiver("emails", e.target.value)}
               className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-              placeholder="admin@example.com"
+              placeholder="admin@example.com, support@example.com"
             />
             <p className="mt-1 text-xs text-gray-500">
-              新的表单提交将通知到此邮箱
+              多个邮箱用逗号分隔，表单提交将通知到所有邮箱
             </p>
           </div>
         )}

@@ -161,7 +161,7 @@ export const defaultEmailConfig: EmailConfig = {
   },
   receiver: {
     enabled: true,
-    email: "",
+    emails: "",
   },
   autoReply: {
     enabled: true,
