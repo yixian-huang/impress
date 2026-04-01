@@ -172,10 +172,10 @@ export default function AdminQAPage() {
                           {item.locale || "—"}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                          {item.ip_address || "—"}
+                          {item.ipAddress || "—"}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                          {new Date(item.created_at).toLocaleString("zh-CN")}
+                          {new Date(item.createdAt).toLocaleString("zh-CN")}
                         </td>
                         <td className="px-4 py-4 text-sm" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">

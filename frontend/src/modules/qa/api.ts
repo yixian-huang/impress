@@ -6,9 +6,9 @@ export interface QALog {
   answer: string;
   sources: unknown[];
   locale: string;
-  ip_address: string;
+  ipAddress: string;
   rating: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface QALogsResponse {

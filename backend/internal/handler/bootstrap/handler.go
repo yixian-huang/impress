@@ -139,7 +139,7 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 	// 5. Features config
 	var features interface{}
 	featuresCfg, err := h.siteCfgRepo.FindByKey(ctx, model.SiteConfigKeyFeatures)
-	if err != nil || featuresCfg.PublishedConfig == nil {
+	if err != nil || featuresCfg == nil || featuresCfg.PublishedConfig == nil {
 		features = gin.H{}
 	} else {
 		features = featuresCfg.PublishedConfig
