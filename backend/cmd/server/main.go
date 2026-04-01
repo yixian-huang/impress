@@ -52,7 +52,8 @@ import (
 	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
 	mediaFolderHandler "blotting-consultancy/internal/handler/media_folder"
 	migrationHandler "blotting-consultancy/internal/handler/migration"
-	qaHandler "blotting-consultancy/internal/handler/qa"
+	"blotting-consultancy/internal/module"
+	qa "blotting-consultancy/internal/modules/qa"
 	siteHandler "blotting-consultancy/internal/handler/site"
 	storageHandler "blotting-consultancy/internal/handler/storage"
 	systemHandler "blotting-consultancy/internal/handler/system"
@@ -179,7 +180,6 @@ func main() {
 		&model.MarketplaceVersion{},
 		&model.MediaFolder{},
 		&model.ChunkedUpload{},
-		&model.QALog{},
 		&model.Glossary{},
 		&model.StorageConfig{},
 		&model.Site{},
@@ -251,7 +251,6 @@ func main() {
 	marketplaceRepo := repository.NewGormMarketplaceRepository(database.DB)
 	mediaFolderRepo := repository.NewGormMediaFolderRepository(database.DB)
 	chunkedUploadRepo := repository.NewGormChunkedUploadRepository(database.DB)
-	qaLogRepo := repository.NewGormQALogRepository(database.DB)
 	glossaryRepo := repository.NewGormGlossaryRepository(database.DB)
 	storageConfigRepo := repository.NewGormStorageConfigRepository(database.DB)
 	siteRepo := repository.NewGormSiteRepository(database.DB)
@@ -335,10 +334,21 @@ func main() {
 	registry.Register("storage", service.NewLocalStorage(cfg.UploadDir))
 	log.Info("Provider registry initialized", "providers", registry.List())
 
-	// Initialize QA / embedding services (depend on registry.AI())
-	vectorStore := service.NewMemoryVectorStore()
-	qaService := service.NewQAService(registry.AI(), vectorStore)
-	embeddingService := service.NewEmbeddingService(registry.AI(), vectorStore)
+	// Initialize feature modules
+	mgr := module.NewManager()
+	mgr.Register(qa.New())
+	if err := mgr.InitAll(module.Dependencies{
+		DB:       database.DB,
+		Registry: registry,
+		Repos: &module.SharedRepos{
+			ContentDoc: contentDocRepo,
+			Article:    articleRepo,
+		},
+		SiteCfg: siteConfigRepo,
+	}); err != nil {
+		log.Error("Failed to initialize modules", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
@@ -375,7 +385,6 @@ func main() {
 	chunkedUploadHandlerInst := chunkedUploadHandler.NewHandler(chunkedUploadSvc)
 	mediaFolderHandlerInst := mediaFolderHandler.NewHandler(mediaFolderRepo, mediaRepo)
 	migrationHandlerInst := migrationHandler.NewHandler(migrationSvc)
-	qaHandlerInst := qaHandler.NewHandler(qaService, embeddingService, qaLogRepo, contentDocRepo, articleRepo)
 	siteHandlerInst := siteHandler.NewHandler(siteSvc, siteRepo)
 	storageHandlerInst := storageHandler.NewHandler(storageConfigRepo)
 	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir)
@@ -523,9 +532,6 @@ func main() {
 		publicGroup.GET("/pages/:slug", unifiedPageHdl.PublicGetBySlug)
 	}
 
-	// Public Q&A (knowledge base ask)
-	publicGroup.POST("/qa/ask", qaHandlerInst.PublicAsk)
-
 	// Form submission (public, with dedicated rate limit)
 	router.POST("/public/form-submissions", middleware.FormSubmitRateLimit(), formSubmissionHandlerInst.HandlePublicSubmit)
 
@@ -579,6 +585,10 @@ func main() {
 	// Legacy middleware kept for backward compatibility with existing JWT tokens.
 	// New RBAC permission checks are applied at the route-group level.
 	adminGroup.Use(middleware.RequireAdminOrEditor())
+
+	// Register module routes
+	mgr.RegisterAllRoutes(publicGroup, adminGroup)
+
 	{
 		// (old content handler routes removed — replaced by unified page draft/publish/version routes)
 
@@ -750,11 +760,6 @@ func main() {
 		adminGroup.GET("/migration/jobs", migrationHandlerInst.ListJobs)
 		adminGroup.GET("/migration/jobs/:jobId", migrationHandlerInst.GetJob)
 		adminGroup.GET("/migration/jobs/:jobId/stream", migrationHandlerInst.StreamProgress)
-
-		// Knowledge base Q&A (admin)
-		adminGroup.POST("/qa/index", qaHandlerInst.AdminIndex)
-		adminGroup.GET("/qa/logs", qaHandlerInst.AdminListLogs)
-		adminGroup.POST("/qa/logs/:id/feedback", qaHandlerInst.AdminFeedback)
 
 		// Site management
 		adminGroup.GET("/sites", siteHandlerInst.AdminList)
