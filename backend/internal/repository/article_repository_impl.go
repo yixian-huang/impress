@@ -103,19 +103,9 @@ func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, sta
 	var items []*model.Article
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&model.Article{})
+	scope := buildWhere(status, categoryID, tagID)
 
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	if categoryID != nil {
-		query = query.Where("category_id = ?", *categoryID)
-	}
-	if tagID != nil {
-		query = query.Where("id IN (SELECT article_id FROM article_tags WHERE tag_id = ?)", *tagID)
-	}
-
-	if err := query.Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.Article{}).Scopes(scope).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -123,7 +113,7 @@ func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, sta
 		Preload("Category").
 		Preload("Categories").
 		Preload("Tags").
-		Scopes(buildWhere(status, categoryID, tagID)).
+		Scopes(scope).
 		Offset(offset).
 		Limit(limit).
 		Order("created_at DESC").
@@ -140,10 +130,16 @@ func publishedScope(categorySlug, tagSlug string) func(db *gorm.DB) *gorm.DB {
 		db = db.Where("status = ?", model.ArticleStatusPublished).
 			Where("visibility = 'public' OR visibility = '' OR visibility IS NULL")
 		if categorySlug != "" {
-			db = db.Where("category_id IN (SELECT id FROM categories WHERE slug = ?) OR id IN (SELECT article_id FROM article_categories WHERE category_id IN (SELECT id FROM categories WHERE slug = ?))", categorySlug, categorySlug)
+			db = db.Where(
+				"category_id IN (SELECT id FROM categories WHERE slug = ?) OR id IN (SELECT article_id FROM article_categories ac JOIN categories c ON ac.category_id = c.id WHERE c.slug = ?)",
+				categorySlug, categorySlug,
+			)
 		}
 		if tagSlug != "" {
-			db = db.Where("id IN (SELECT article_id FROM article_tags WHERE tag_id IN (SELECT id FROM tags WHERE slug = ?))", tagSlug)
+			db = db.Where(
+				"id IN (SELECT article_id FROM article_tags at JOIN tags t ON at.tag_id = t.id WHERE t.slug = ?)",
+				tagSlug,
+			)
 		}
 		return db
 	}
