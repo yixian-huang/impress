@@ -1,4 +1,4 @@
-package service
+package comment
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"blotting-consultancy/internal/provider"
 )
 
+// AntiSpamService provides rate-limiting and keyword-based spam checks for comments.
 type AntiSpamService struct {
 	captcha    provider.CaptchaProvider
 	keywords   []string
@@ -19,7 +20,7 @@ type AntiSpamService struct {
 	done       chan struct{}
 }
 
-func NewAntiSpamService(captcha provider.CaptchaProvider) *AntiSpamService {
+func newAntiSpamService(captcha provider.CaptchaProvider) *AntiSpamService {
 	svc := &AntiSpamService{
 		captcha:    captcha,
 		keywords:   []string{},
@@ -114,6 +115,7 @@ func (s *AntiSpamService) cleanupTracker() {
 	}
 }
 
+// SpamError is returned when a submission is detected as spam.
 type SpamError struct {
 	Reason  string
 	Message string

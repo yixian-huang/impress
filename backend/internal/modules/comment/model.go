@@ -1,4 +1,4 @@
-package model
+package comment
 
 import (
 	"errors"

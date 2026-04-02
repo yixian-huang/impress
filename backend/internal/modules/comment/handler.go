@@ -8,16 +8,13 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
 )
 
+// Handler handles comment HTTP requests.
 type Handler struct {
-	repo     repository.CommentRepository
-	antispam *service.AntiSpamService
-}
-
-func NewHandler(repo repository.CommentRepository, antispam *service.AntiSpamService) *Handler {
-	return &Handler{repo: repo, antispam: antispam}
+	repo        Repository
+	antispam    *AntiSpamService
+	siteCfgRepo repository.SiteConfigRepository
 }
 
 type createInput struct {
@@ -29,6 +26,32 @@ type createInput struct {
 	ContentID    uint   `json:"contentId" binding:"required"`
 	ParentID     *uint  `json:"parentId"`
 	CaptchaToken string `json:"captchaToken"`
+}
+
+// featureEnabled checks if the comment feature is enabled in SiteConfig.
+func (h *Handler) featureEnabled(c *gin.Context) bool {
+	cfg, err := h.siteCfgRepo.FindByKey(c.Request.Context(), model.SiteConfigKeyFeatures)
+	if err != nil || cfg == nil {
+		// Default to enabled if no config exists
+		return true
+	}
+	if cfg.PublishedConfig == nil {
+		return true
+	}
+	commentVal, ok := cfg.PublishedConfig["comment"]
+	if !ok {
+		return true
+	}
+	commentMap, ok := commentVal.(map[string]interface{})
+	if !ok {
+		return true
+	}
+	enabled, ok := commentMap["enabled"]
+	if !ok {
+		return true
+	}
+	b, ok := enabled.(bool)
+	return !ok || b
 }
 
 // PublicCreate creates a new comment.
@@ -43,6 +66,11 @@ type createInput struct {
 // @Failure      429 {object} object{error=string}
 // @Router       /public/comments [post]
 func (h *Handler) PublicCreate(c *gin.Context) {
+	if !h.featureEnabled(c) {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "not found"}})
+		return
+	}
+
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -53,7 +81,7 @@ func (h *Handler) PublicCreate(c *gin.Context) {
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
 		return
 	}
-	comment := &model.Comment{
+	comment := &Comment{
 		Content:     input.Content,
 		AuthorName:  input.AuthorName,
 		AuthorEmail: input.AuthorEmail,
@@ -62,7 +90,7 @@ func (h *Handler) PublicCreate(c *gin.Context) {
 		ContentType: input.ContentType,
 		ContentID:   input.ContentID,
 		ParentID:    input.ParentID,
-		Status:      model.CommentStatusPending,
+		Status:      CommentStatusPending,
 	}
 	if err := comment.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -95,7 +123,7 @@ func (h *Handler) PublicList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "contentType and contentId required"})
 		return
 	}
-	comments, total, err := h.repo.ListByContent(c.Request.Context(), contentType, uint(contentID), model.CommentStatusApproved, page, pageSize)
+	comments, total, err := h.repo.ListByContent(c.Request.Context(), contentType, uint(contentID), CommentStatusApproved, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list comments"})
 		return
@@ -147,7 +175,7 @@ func (h *Handler) AdminUpdateStatus(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Status model.CommentStatus `json:"status" binding:"required"`
+		Status CommentStatus `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -211,13 +239,4 @@ func (h *Handler) AdminPin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
-}
-
-func (h *Handler) RegisterRoutes(public, admin *gin.RouterGroup) {
-	public.POST("/comments", h.PublicCreate)
-	public.GET("/comments", h.PublicList)
-	admin.GET("/comments", h.AdminList)
-	admin.PATCH("/comments/:id/status", h.AdminUpdateStatus)
-	admin.DELETE("/comments/:id", h.AdminDelete)
-	admin.PUT("/comments/:id/pin", h.AdminPin)
 }
