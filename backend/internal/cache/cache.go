@@ -36,11 +36,13 @@ func New(ttl time.Duration) *Cache {
 func (c *Cache) Get(key string) (interface{}, bool) {
 	c.mu.RLock()
 	e, ok := c.entries[key]
-	c.mu.RUnlock()
 	if !ok || time.Now().After(e.expiresAt) {
+		c.mu.RUnlock()
 		return nil, false
 	}
-	return e.value, true
+	val := e.value
+	c.mu.RUnlock()
+	return val, true
 }
 
 // Set stores a value with the default TTL.

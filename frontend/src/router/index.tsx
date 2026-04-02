@@ -22,7 +22,7 @@ export function AppRoutes() {
   useEffect(() => {
     window.REACT_APP_NAVIGATE = navigate;
     resolveNavigate(navigate);
-  });
+  }, [navigate]);
 
   // Build contentKey → ThemePageDefinition lookup from the active theme's pages array
   const componentMap = useMemo(() => {
