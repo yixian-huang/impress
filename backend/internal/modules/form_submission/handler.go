@@ -10,24 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/service"
 )
 
-// Handler handles form submission HTTP requests
+// Handler handles form submission HTTP requests.
 type Handler struct {
-	repo         repository.FormSubmissionRepository
+	repo         Repository
 	emailService *service.EmailService
 }
 
-// NewHandler creates a new form submission handler
-func NewHandler(repo repository.FormSubmissionRepository, emailService *service.EmailService) *Handler {
-	return &Handler{repo: repo, emailService: emailService}
-}
-
-// --- Public endpoint ---
-
-// submitInput is the JSON body for public form submission
+// submitInput is the JSON body for public form submission.
 type submitInput struct {
 	FormType  string        `json:"formType"`
 	Name      string        `json:"name"`
@@ -99,8 +91,6 @@ func (h *Handler) HandlePublicSubmit(c *gin.Context) {
 		}(submission)
 	}
 }
-
-// --- Admin endpoints ---
 
 // HandleAdminList returns paginated form submissions.
 // @Summary      List form submissions (admin)
@@ -197,7 +187,7 @@ func (h *Handler) HandleAdminGetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, submission)
 }
 
-// statusUpdateInput is the JSON body for updating submission status
+// statusUpdateInput is the JSON body for updating submission status.
 type statusUpdateInput struct {
 	Status string `json:"status"`
 }
@@ -243,7 +233,7 @@ func (h *Handler) HandleAdminUpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, submission)
 }
 
-// bulkStatusInput is the JSON body for bulk status update
+// bulkStatusInput is the JSON body for bulk status update.
 type bulkStatusInput struct {
 	IDs    []uint `json:"ids"`
 	Status string `json:"status"`
@@ -278,7 +268,7 @@ func (h *Handler) HandleAdminBulkUpdateStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "已更新",
+		"message": "\u5df2\u66f4\u65b0",
 		"count":   len(input.IDs),
 	})
 }
@@ -305,5 +295,5 @@ func (h *Handler) HandleAdminDelete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+	c.JSON(http.StatusOK, gin.H{"message": "\u5df2\u5220\u9664"})
 }

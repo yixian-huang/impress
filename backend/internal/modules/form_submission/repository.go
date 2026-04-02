@@ -1,4 +1,4 @@
-package repository
+package form_submission
 
 import (
 	"context"
@@ -9,26 +9,33 @@ import (
 	"gorm.io/gorm"
 )
 
-// GormFormSubmissionRepository implements FormSubmissionRepository using GORM
-type GormFormSubmissionRepository struct {
+// Repository defines the interface for form submission data access.
+type Repository interface {
+	Create(ctx context.Context, submission *model.FormSubmission) error
+	FindByID(ctx context.Context, id uint) (*model.FormSubmission, error)
+	List(ctx context.Context, offset, limit int, formType string, status string) ([]*model.FormSubmission, int64, error)
+	Update(ctx context.Context, submission *model.FormSubmission) error
+	Delete(ctx context.Context, id uint) error
+	BulkUpdateStatus(ctx context.Context, ids []uint, status model.SubmissionStatus) error
+	CountByStatus(ctx context.Context, formType string) (map[string]int64, error)
+}
+
+type gormRepository struct {
 	db *gorm.DB
 }
 
-// NewGormFormSubmissionRepository creates a new GormFormSubmissionRepository
-func NewGormFormSubmissionRepository(db *gorm.DB) FormSubmissionRepository {
-	return &GormFormSubmissionRepository{db: db}
+func newGormRepository(db *gorm.DB) Repository {
+	return &gormRepository{db: db}
 }
 
-// Create creates a new form submission
-func (r *GormFormSubmissionRepository) Create(ctx context.Context, submission *model.FormSubmission) error {
+func (r *gormRepository) Create(ctx context.Context, submission *model.FormSubmission) error {
 	if err := submission.Validate(); err != nil {
 		return err
 	}
 	return r.db.WithContext(ctx).Create(submission).Error
 }
 
-// FindByID finds a form submission by ID
-func (r *GormFormSubmissionRepository) FindByID(ctx context.Context, id uint) (*model.FormSubmission, error) {
+func (r *gormRepository) FindByID(ctx context.Context, id uint) (*model.FormSubmission, error) {
 	var submission model.FormSubmission
 	err := r.db.WithContext(ctx).First(&submission, id).Error
 	if err != nil {
@@ -40,8 +47,7 @@ func (r *GormFormSubmissionRepository) FindByID(ctx context.Context, id uint) (*
 	return &submission, nil
 }
 
-// List returns form submissions with optional filters, ordered by created_at DESC
-func (r *GormFormSubmissionRepository) List(ctx context.Context, offset, limit int, formType string, status string) ([]*model.FormSubmission, int64, error) {
+func (r *gormRepository) List(ctx context.Context, offset, limit int, formType string, status string) ([]*model.FormSubmission, int64, error) {
 	var submissions []*model.FormSubmission
 	var total int64
 
@@ -65,16 +71,14 @@ func (r *GormFormSubmissionRepository) List(ctx context.Context, offset, limit i
 	return submissions, total, nil
 }
 
-// Update updates an existing form submission
-func (r *GormFormSubmissionRepository) Update(ctx context.Context, submission *model.FormSubmission) error {
+func (r *gormRepository) Update(ctx context.Context, submission *model.FormSubmission) error {
 	if err := submission.Validate(); err != nil {
 		return err
 	}
 	return r.db.WithContext(ctx).Save(submission).Error
 }
 
-// Delete soft-deletes a form submission by ID
-func (r *GormFormSubmissionRepository) Delete(ctx context.Context, id uint) error {
+func (r *gormRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&model.FormSubmission{}, id)
 	if result.Error != nil {
 		return result.Error
@@ -85,8 +89,7 @@ func (r *GormFormSubmissionRepository) Delete(ctx context.Context, id uint) erro
 	return nil
 }
 
-// BulkUpdateStatus updates the status of multiple form submissions
-func (r *GormFormSubmissionRepository) BulkUpdateStatus(ctx context.Context, ids []uint, status model.SubmissionStatus) error {
+func (r *gormRepository) BulkUpdateStatus(ctx context.Context, ids []uint, status model.SubmissionStatus) error {
 	if status != model.SubmissionStatusUnread && status != model.SubmissionStatusRead && status != model.SubmissionStatusArchived {
 		return errors.New("status must be unread, read, or archived")
 	}
@@ -96,8 +99,7 @@ func (r *GormFormSubmissionRepository) BulkUpdateStatus(ctx context.Context, ids
 		Update("status", status).Error
 }
 
-// CountByStatus returns a map of status to count, optionally filtered by formType
-func (r *GormFormSubmissionRepository) CountByStatus(ctx context.Context, formType string) (map[string]int64, error) {
+func (r *gormRepository) CountByStatus(ctx context.Context, formType string) (map[string]int64, error) {
 	type statusCount struct {
 		Status string
 		Count  int64
