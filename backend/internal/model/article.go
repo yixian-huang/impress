@@ -50,11 +50,11 @@ func (a *Article) Validate() error {
 	if a.Slug == "" {
 		return errors.New("slug is required")
 	}
-	if a.ZhTitle == "" {
-		return errors.New("zhTitle is required")
-	}
 	if a.Status != ArticleStatusDraft && a.Status != ArticleStatusPublished && a.Status != ArticleStatusScheduled {
 		return errors.New("status must be draft, published, or scheduled")
+	}
+	if a.Status == ArticleStatusPublished && a.ZhTitle == "" {
+		return errors.New("zhTitle is required")
 	}
 	return nil
 }

@@ -351,8 +351,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize in-memory TTL cache for public endpoints
+	// Initialize in-memory TTL caches
 	publicCache := cache.New(60 * time.Second)
+	rbacCache := cache.New(30 * time.Second)
 
 	// Cache invalidation on content changes
 	bus.Subscribe(eventbus.ContentCreated, eventbus.AsyncHandler(func(e eventbus.Event) {
@@ -619,7 +620,7 @@ func main() {
 
 		// Analytics (requires analytics:read via RBAC)
 		adminAnalytics := adminGroup.Group("")
-		adminAnalytics.Use(middleware.RequirePermission("analytics", "read", userRepo))
+		adminAnalytics.Use(middleware.RequirePermission("analytics", "read", userRepo, rbacCache))
 		{
 			adminAnalytics.GET("/analytics/summary", analyticsHandlerInst.GetSummary)
 		}
@@ -665,7 +666,7 @@ func main() {
 
 		// Site export/import (requires backups:manage via RBAC)
 		adminBackup := adminGroup.Group("/backups")
-		adminBackup.Use(middleware.RequirePermission("backups", "manage", userRepo))
+		adminBackup.Use(middleware.RequirePermission("backups", "manage", userRepo, rbacCache))
 		{
 			adminBackup.POST("/export", backupHandlerInst.Export)
 			adminBackup.GET("/export/:filename", backupHandlerInst.DownloadExport)
@@ -675,7 +676,7 @@ func main() {
 
 		// Audit logs (requires audit_logs:read via RBAC)
 		adminAudit := adminGroup.Group("")
-		adminAudit.Use(middleware.RequirePermission("audit_logs", "read", userRepo))
+		adminAudit.Use(middleware.RequirePermission("audit_logs", "read", userRepo, rbacCache))
 		{
 			adminAudit.GET("/audit-logs", auditlogHandlerInst.List)
 		}
@@ -709,7 +710,7 @@ func main() {
 
 		// User management (requires users:manage via RBAC)
 		adminUsers := adminGroup.Group("/users")
-		adminUsers.Use(middleware.RequirePermission("users", "manage", userRepo))
+		adminUsers.Use(middleware.RequirePermission("users", "manage", userRepo, rbacCache))
 		{
 			adminUsers.GET("", userHandlerInst.List)
 			adminUsers.GET("/:id", userHandlerInst.GetByID)
@@ -720,7 +721,7 @@ func main() {
 
 		// RBAC Role management (requires roles:manage via RBAC)
 		adminRoles := adminGroup.Group("/roles")
-		adminRoles.Use(middleware.RequirePermission("roles", "manage", userRepo))
+		adminRoles.Use(middleware.RequirePermission("roles", "manage", userRepo, rbacCache))
 		{
 			adminRoles.GET("", roleHandlerInst.List)
 			adminRoles.GET("/:id", roleHandlerInst.GetByID)

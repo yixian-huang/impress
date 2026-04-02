@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# Bypass local proxy (Privoxy) for all deploy network calls
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORKFLOW_FILE="$SCRIPT_DIR/deploy-workflow.json"
@@ -228,6 +231,16 @@ job_deploy_frontend() {
   step_info "重载 Nginx..."
   remote_exec "nginx -t && systemctl reload nginx" 2>/dev/null
   step_ok "Nginx 已重载"
+
+  step_info "重启后端（刷新 index.html 模板缓存）..."
+  remote_exec "systemctl restart impress-backend" 2>/dev/null
+  sleep 3
+  if remote_exec "curl -sf http://127.0.0.1:8088/public/pages > /dev/null" 2>/dev/null; then
+    step_ok "后端已重启"
+  else
+    step_fail "后端重启后健康检查失败"
+    exit 1
+  fi
 }
 
 # ── Main ──────────────────────────────────────────
