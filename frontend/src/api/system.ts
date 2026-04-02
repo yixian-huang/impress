@@ -7,12 +7,7 @@ export interface SystemStatus {
   disk?: { totalMB: number; usedMB: number; freeMB: number };
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function getSystemStatus(): Promise<SystemStatus> {
-  const resp = await http.get<SystemStatus>("/admin/system/status", { headers: getAuthHeaders() });
+  const resp = await http.get<SystemStatus>("/admin/system/status", {});
   return resp.data;
 }

@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { PublicLayout } from '@/theme/layouts';
 import { usePublicContent } from '@/hooks/usePublicContent';
-import type { Locale } from '@/api/publicContent';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { resolveLocale } from '@/utils/locale';
 
 /** After normalizeConfigForLocale, mediaRef becomes {url, alt} with alt as locale-selected string */
 interface MediaRef {
@@ -63,7 +63,7 @@ interface HomePageConfig {
 export default function HomePage() {
   useDocumentTitle("首页", "印迹法规咨询");
   const { i18n } = useTranslation('common');
-  const locale = (i18n.language === 'zh' || i18n.language.startsWith('zh') ? 'zh' : 'en') as Locale;
+  const locale = resolveLocale(i18n.language);
   const isZh = locale === 'zh';
 
   const { loading, error, config } = usePublicContent('home', {

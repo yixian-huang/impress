@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { SectionData, SectionSettings } from "../types";
 import { useSectionRegistry } from "@/plugins/hooks";
+import { resolveLocale } from "@/utils/locale";
 
 interface SectionWrapperProps {
   settings?: SectionSettings;
@@ -38,11 +39,11 @@ function SectionWrapper({ settings, children }: SectionWrapperProps) {
  * Recursively resolve bilingual {zh, en} objects to plain strings for a locale.
  * Leaves non-bilingual values untouched.
  */
-function resolveLocale(value: unknown, locale: string): unknown {
+function resolveBilingualValue(value: unknown, locale: string): unknown {
   if (value === null || value === undefined) return value;
 
   if (Array.isArray(value)) {
-    return value.map((item) => resolveLocale(item, locale));
+    return value.map((item) => resolveBilingualValue(item, locale));
   }
 
   if (typeof value === "object") {
@@ -59,7 +60,7 @@ function resolveLocale(value: unknown, locale: string): unknown {
     // Recursively resolve nested bilingual fields
     const result: Record<string, unknown> = {};
     for (const key of Object.keys(obj)) {
-      result[key] = resolveLocale(obj[key], locale);
+      result[key] = resolveBilingualValue(obj[key], locale);
     }
     // Collapse MediaRef-like objects ({url, alt}) to plain URL string
     if ("url" in result && typeof result.url === "string") {
@@ -81,12 +82,12 @@ interface SectionRendererProps {
 export default function SectionRenderer({ section }: SectionRendererProps) {
   const { registry } = useSectionRegistry();
   const { i18n } = useTranslation("common");
-  const locale = i18n.language === "en" ? "en" : "zh";
+  const locale = resolveLocale(i18n.language);
   const Component = registry[section.type];
 
   const resolvedData = useMemo(() => {
     const raw = section.data || (section as any).props || {};
-    return resolveLocale(raw, locale) as Record<string, unknown>;
+    return resolveBilingualValue(raw, locale) as Record<string, unknown>;
   }, [section, locale]);
 
   if (!Component) {

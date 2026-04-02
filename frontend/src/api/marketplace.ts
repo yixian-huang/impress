@@ -36,11 +36,6 @@ export interface MarketplaceItemDetail extends MarketplaceItem {
   readme: string;
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function getMarketplaceItems(params: {
   type?: string;
   category?: string;
@@ -49,7 +44,7 @@ export async function getMarketplaceItems(params: {
   pageSize?: number;
 }): Promise<MarketplaceListResponse> {
   const response = await http.get<MarketplaceListResponse>("/admin/marketplace/items", {
-    headers: getAuthHeaders(),
+
     params,
   });
   return response.data;
@@ -57,7 +52,7 @@ export async function getMarketplaceItems(params: {
 
 export async function getInstalledItems(): Promise<InstalledItem[]> {
   const response = await http.get<{ items: InstalledItem[] }>("/admin/marketplace/installed", {
-    headers: getAuthHeaders(),
+
   });
   return response.data.items || [];
 }
@@ -66,7 +61,6 @@ export async function installItem(slug: string): Promise<{ message: string }> {
   const response = await http.post<{ message: string }>(
     `/admin/marketplace/items/${slug}/install`,
     null,
-    { headers: getAuthHeaders() }
   );
   return response.data;
 }
@@ -74,7 +68,6 @@ export async function installItem(slug: string): Promise<{ message: string }> {
 export async function uninstallItem(slug: string): Promise<{ message: string }> {
   const response = await http.delete<{ message: string }>(
     `/admin/marketplace/items/${slug}`,
-    { headers: getAuthHeaders() }
   );
   return response.data;
 }
@@ -82,7 +75,6 @@ export async function uninstallItem(slug: string): Promise<{ message: string }> 
 export async function getMarketplaceItemDetail(slug: string): Promise<MarketplaceItemDetail> {
   const response = await http.get<MarketplaceItemDetail>(
     `/admin/marketplace/items/${slug}`,
-    { headers: getAuthHeaders() }
   );
   return response.data;
 }

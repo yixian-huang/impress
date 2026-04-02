@@ -77,22 +77,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       try {
-        const response = await http.get<User>("/auth/me", {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-          },
-        });
+        const response = await http.get<User>("/auth/me");
         setUser(response.data);
       } catch (error) {
         const refreshTokenValue = localStorage.getItem("refreshToken");
         if (refreshTokenValue) {
           try {
             await refreshTokenInternal();
-            const retryResponse = await http.get<User>("/auth/me", {
-              headers: {
-                "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            });
+            const retryResponse = await http.get<User>("/auth/me");
             setUser(retryResponse.data);
           } catch (retryError) {
             console.error("Session restore failed:", retryError);

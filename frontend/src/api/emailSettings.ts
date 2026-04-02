@@ -1,28 +1,23 @@
 import { http } from "./http";
 import type { EmailConfig } from "@/pages/admin/email-settings/types";
 
-function authHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function getEmailSettings(): Promise<EmailConfig> {
   const res = await http.get<EmailConfig>("/admin/email-settings", {
-    headers: authHeaders(),
+
   });
   return res.data;
 }
 
 export async function updateEmailSettings(config: EmailConfig): Promise<EmailConfig> {
   const res = await http.put<EmailConfig>("/admin/email-settings", config, {
-    headers: authHeaders(),
+
   });
   return res.data;
 }
 
 export async function sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
   const res = await http.post<{ success: boolean; message: string }>("/admin/email-settings/test", { to }, {
-    headers: authHeaders(),
+
   });
   return res.data;
 }

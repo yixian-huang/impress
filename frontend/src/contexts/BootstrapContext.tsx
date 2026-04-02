@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchBootstrap, type BootstrapData } from "@/api/bootstrap";
+import { resolveLocale } from "@/utils/locale";
 
 interface BootstrapContextValue {
   data: BootstrapData | null;
@@ -21,7 +22,7 @@ export function useBootstrap() {
 
 export function BootstrapProvider({ children }: { children: ReactNode }) {
   const { i18n } = useTranslation("common");
-  const locale = i18n.language === "en" ? "en" : "zh";
+  const locale = resolveLocale(i18n.language);
   const [data, setData] = useState<BootstrapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

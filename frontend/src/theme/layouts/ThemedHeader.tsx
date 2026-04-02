@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import { useThemePages } from "@/contexts/ThemePagesContext";
+import { resolveLocale } from "@/utils/locale";
 import type { HeaderConfig } from "./types";
 
 interface NavItemData {
@@ -207,7 +208,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
   }, [style]);
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === "zh" ? "en" : "zh";
+    const newLang = resolveLocale(i18n.language) === "zh" ? "en" : "zh";
     i18n.changeLanguage(newLang);
   };
 
@@ -231,7 +232,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
               onClick={toggleLanguage}
               className="text-xs hover:opacity-80 transition-opacity cursor-pointer"
             >
-              {i18n.language === "zh" ? "English" : "\u4E2D\u6587"}
+              {resolveLocale(i18n.language) === "zh" ? "English" : "\u4E2D\u6587"}
             </button>
           </div>
         </div>
@@ -291,7 +292,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
                     onClick={() => { toggleLanguage(); setIsMobileMenuOpen(false); }}
                     className="text-sm text-gray-500 hover:text-blue-600 transition-colors cursor-pointer"
                   >
-                    {i18n.language === "zh" ? "Switch to English" : "切换到中文"}
+                    {resolveLocale(i18n.language) === "zh" ? "Switch to English" : "切换到中文"}
                   </button>
                 </div>
               )}

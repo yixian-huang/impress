@@ -16,14 +16,9 @@ export interface AnalyticsSummary {
   };
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
   const response = await http.get<AnalyticsSummary>("/admin/analytics/summary", {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }

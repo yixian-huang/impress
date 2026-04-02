@@ -6,6 +6,7 @@ import {
   type Locale,
 } from "@/api/publicContent";
 import { useBootstrap } from "@/contexts/BootstrapContext";
+import { resolveLocale } from "@/utils/locale";
 
 interface MediaRef {
   url?: string;
@@ -56,9 +57,7 @@ const GlobalConfigContext = createContext<GlobalConfigContextValue>({
 
 export function GlobalConfigProvider({ children }: { children: ReactNode }) {
   const { i18n } = useTranslation("common");
-  const locale = (
-    i18n.language === "zh" || i18n.language.startsWith("zh") ? "zh" : "en"
-  ) as Locale;
+  const locale = resolveLocale(i18n.language);
 
   const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
   const [config, setConfig] = useState<GlobalConfig>({});

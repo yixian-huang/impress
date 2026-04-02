@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { SectionProps } from "../types";
+import { resolveLocale } from "@/utils/locale";
 
 export interface CardGridCard {
   title?: string;
@@ -22,7 +23,7 @@ const columnClasses: Record<number, string> = {
 
 export default function CardGridSection({ data }: SectionProps<CardGridSectionData>) {
   const { i18n } = useTranslation("common");
-  const isZh = i18n.language === "zh" || i18n.language.startsWith("zh");
+  const isZh = resolveLocale(i18n.language) === "zh";
 
   const { title, cards, columns = 4 } = data;
   const gridClass = columnClasses[columns] || columnClasses[4];

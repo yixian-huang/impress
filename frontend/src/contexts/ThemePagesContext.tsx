@@ -4,6 +4,7 @@ import type { ThemePageItem } from "@/api/themePages";
 import { useBootstrap } from "@/contexts/BootstrapContext";
 import { getPublicMenu } from "@/api/menus";
 import type { MenuGroup, MenuItem } from "@/api/menus";
+import { resolveLocale } from "@/utils/locale";
 
 interface NavItem {
   label: string;
@@ -70,7 +71,7 @@ export function ThemePagesProvider({ children }: { children: ReactNode }) {
 
   const pages = useMemo(() => bootstrapData?.themePages ?? [], [bootstrapData]);
   const isLoading = bootstrapLoading;
-  const locale = i18n.language === "en" ? "en" : "zh";
+  const locale = resolveLocale(i18n.language);
 
   const menuNavItems = useMemo(() => {
     if (!menuGroup?.items?.length) return [];

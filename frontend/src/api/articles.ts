@@ -73,13 +73,6 @@ interface PublicArticleListResponse {
   pageSize: number;
 }
 
-// ---------- Auth ----------
-
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 // ---------- Public APIs ----------
 
 export async function getPublicArticles(
@@ -139,35 +132,35 @@ export async function getAdminArticles(
 
   const response = await http.get<ArticleListResponse>("/admin/articles", {
     params,
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function getAdminArticle(id: number): Promise<Article> {
   const response = await http.get<Article>(`/admin/articles/${id}`, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function createArticle(data: Partial<Article>): Promise<Article> {
   const response = await http.post<Article>("/admin/articles", data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function updateArticle(id: number, data: Partial<Article>): Promise<Article> {
   const response = await http.put<Article>(`/admin/articles/${id}`, data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function deleteArticle(id: number): Promise<void> {
   await http.delete(`/admin/articles/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }
 
@@ -175,35 +168,35 @@ export async function deleteArticle(id: number): Promise<void> {
 
 export async function getCategories(): Promise<Category[]> {
   const response = await http.get<{ items: Category[] }>("/admin/categories", {
-    headers: getAuthHeaders(),
+
   });
   return response.data.items || [];
 }
 
 export async function getCategoryTree(): Promise<Category[]> {
   const response = await http.get<{ items: Category[] }>("/admin/categories/tree", {
-    headers: getAuthHeaders(),
+
   });
   return response.data.items || [];
 }
 
 export async function createCategory(data: Partial<Category>): Promise<Category> {
   const response = await http.post<Category>("/admin/categories", data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function updateCategory(id: number, data: Partial<Category>): Promise<Category> {
   const response = await http.put<Category>(`/admin/categories/${id}`, data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function deleteCategory(id: number): Promise<void> {
   await http.delete(`/admin/categories/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }
 
@@ -211,27 +204,27 @@ export async function deleteCategory(id: number): Promise<void> {
 
 export async function getTags(): Promise<Tag[]> {
   const response = await http.get<{ items: Tag[] }>("/admin/tags", {
-    headers: getAuthHeaders(),
+
   });
   return response.data.items || [];
 }
 
 export async function createTag(data: Partial<Tag>): Promise<Tag> {
   const response = await http.post<Tag>("/admin/tags", data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function updateTag(id: number, data: Partial<Tag>): Promise<Tag> {
   const response = await http.put<Tag>(`/admin/tags/${id}`, data, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function deleteTag(id: number): Promise<void> {
   await http.delete(`/admin/tags/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useGlobalConfig } from '@/contexts/GlobalConfigContext';
 import { useThemePages } from '@/contexts/ThemePagesContext';
+import { resolveLocale } from '@/utils/locale';
 
 interface NavItem {
   label?: string;
@@ -34,7 +35,7 @@ export default function Header() {
   }, []);
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'zh' ? 'en' : 'zh';
+    const newLang = resolveLocale(i18n.language) === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(newLang);
   };
 
@@ -51,7 +52,7 @@ export default function Header() {
             onClick={toggleLanguage}
             className="text-sm hover:opacity-80 transition-opacity whitespace-nowrap cursor-pointer"
           >
-            {i18n.language === 'zh' ? 'English' : '中文'}
+            {resolveLocale(i18n.language) === 'zh' ? 'English' : '中文'}
           </button>
         </div>
       </div>

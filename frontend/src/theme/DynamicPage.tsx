@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { http } from "@/api/http";
-import type { Locale } from "@/api/publicContent";
 import type { PageConfig } from "./types";
+import { resolveLocale } from "@/utils/locale";
 import { SectionRenderer } from "./sections";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -15,7 +15,7 @@ export default function DynamicPage({ slug: slugProp }: DynamicPageProps = {}) {
   const { "*": paramSlug } = useParams();
   const slug = slugProp || paramSlug;
   const { i18n } = useTranslation("common");
-  const locale = (i18n.language === "zh" || i18n.language.startsWith("zh") ? "zh" : "en") as Locale;
+  const locale = resolveLocale(i18n.language);
 
   const [config, setConfig] = useState<PageConfig | null>(null);
   const [loading, setLoading] = useState(true);

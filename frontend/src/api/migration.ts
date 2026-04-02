@@ -20,11 +20,6 @@ export interface MigrationJobsResponse {
   jobs: MigrationJob[];
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function importData(
   file: File,
   format: MigrationFormat
@@ -35,22 +30,18 @@ export async function importData(
   const response = await http.post<{ jobId: string; message: string; totalArticles: number; parseErrors: string[] }>(
     "/admin/migration/import",
     formData,
-    { headers: getAuthHeaders() }
+    {}
   );
   return response.data;
 }
 
 export async function getMigrationJobs(): Promise<MigrationJob[]> {
-  const response = await http.get<MigrationJobsResponse>("/admin/migration/jobs", {
-    headers: getAuthHeaders(),
-  });
+  const response = await http.get<MigrationJobsResponse>("/admin/migration/jobs");
   return response.data.jobs || [];
 }
 
 export async function getMigrationJob(jobId: string): Promise<MigrationJob> {
-  const response = await http.get<MigrationJob>(`/admin/migration/jobs/${jobId}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await http.get<MigrationJob>(`/admin/migration/jobs/${jobId}`);
   return response.data;
 }
 

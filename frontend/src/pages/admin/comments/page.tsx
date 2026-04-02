@@ -48,33 +48,22 @@ async function getAdminComments(
     pageSize: String(pageSize),
   });
   if (status) params.set("status", status);
-  const accessToken = localStorage.getItem("accessToken");
   const { data } = await http.get<AdminCommentListResponse>(
     `/admin/comments?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   return data;
 }
 
 async function approveComment(id: number): Promise<void> {
-  const accessToken = localStorage.getItem("accessToken");
-  await http.patch(`/admin/comments/${id}/status`, { status: "approved" }, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  await http.patch(`/admin/comments/${id}/status`, { status: "approved" });
 }
 
 async function rejectComment(id: number): Promise<void> {
-  const accessToken = localStorage.getItem("accessToken");
-  await http.patch(`/admin/comments/${id}/status`, { status: "rejected" }, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  await http.patch(`/admin/comments/${id}/status`, { status: "rejected" });
 }
 
 async function deleteComment(id: number): Promise<void> {
-  const accessToken = localStorage.getItem("accessToken");
-  await http.delete(`/admin/comments/${id}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  await http.delete(`/admin/comments/${id}`);
 }
 
 export default function AdminCommentsPage() {

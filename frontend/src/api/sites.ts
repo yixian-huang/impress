@@ -35,41 +35,36 @@ export interface UpdateSiteRequest {
   status?: string;
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function listSites() {
   const res = await http.get<SiteListResponse>("/admin/sites", {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function createSite(data: CreateSiteRequest) {
   const res = await http.post<SiteDTO>("/admin/sites", data, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function updateSite(id: number, data: UpdateSiteRequest) {
   const res = await http.put<SiteDTO>(`/admin/sites/${id}`, data, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function deleteSite(id: number) {
   await http.delete(`/admin/sites/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }
 
 export async function exportSite(id: number) {
   const res = await http.get(`/admin/sites/${id}/export`, {
-    headers: getAuthHeaders(),
+
     responseType: "blob",
   });
   return res.data;
@@ -80,7 +75,6 @@ export async function importSite(file: File) {
   formData.append("file", file);
   const res = await http.post("/admin/sites/import", formData, {
     headers: {
-      ...getAuthHeaders(),
       "Content-Type": "multipart/form-data",
     },
   });

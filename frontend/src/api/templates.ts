@@ -29,4 +29,4 @@ export const deleteTemplate = (id: number) =>
   http.delete(`/admin/templates/${id}`);
 
 export const duplicateTemplate = (id: number) =>
-  http.post<PageTemplate>(`/admin/templates/${id}/duplicate`).then((r) => r.data);
+  http.post<PageTemplate>(`/admin/templates/${id}/duplicate`, {}).then((r) => r.data);

@@ -29,14 +29,9 @@ export interface GlossaryListResponse {
   total: number;
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function translateText(req: TranslateRequest): Promise<TranslateResponse> {
   const response = await http.post<TranslateResponse>("/admin/translate", req, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
@@ -44,20 +39,20 @@ export async function translateText(req: TranslateRequest): Promise<TranslateRes
 export async function getGlossary(page = 1, pageSize = 20): Promise<GlossaryListResponse> {
   const response = await http.get<GlossaryListResponse>("/admin/glossary", {
     params: { page, pageSize },
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function addGlossaryTerm(term: Omit<GlossaryTerm, "id">): Promise<GlossaryTerm> {
   const response = await http.post<GlossaryTerm>("/admin/glossary", term, {
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
 
 export async function deleteGlossaryTerm(id: number): Promise<void> {
   await http.delete(`/admin/glossary/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }

@@ -39,55 +39,50 @@ export interface UpdateRoleRequest {
   permissions?: string[];
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function listRoles() {
   const res = await http.get<RoleListResponse>("/admin/roles", {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function createRole(data: CreateRoleRequest) {
   const res = await http.post<RoleDTO>("/admin/roles", data, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function updateRole(id: number, data: UpdateRoleRequest) {
   const res = await http.put<RoleDTO>(`/admin/roles/${id}`, data, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function deleteRole(id: number) {
   await http.delete(`/admin/roles/${id}`, {
-    headers: getAuthHeaders(),
+
   });
 }
 
 export async function listPermissions() {
   const res = await http.get<PermissionListResponse>("/admin/permissions", {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function assignRole(user_id: number, role_id: number) {
   const res = await http.post("/admin/roles/assign", { user_id, role_id }, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }
 
 export async function unassignRole(user_id: number, role_id: number) {
   const res = await http.post("/admin/roles/unassign", { user_id, role_id }, {
-    headers: getAuthHeaders(),
+
   });
   return res.data;
 }

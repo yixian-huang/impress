@@ -75,14 +75,11 @@ export async function fetchDraftContent(
   locale: Locale = "zh"
 ): Promise<PublicPageResponse> {
   try {
-    const accessToken = localStorage.getItem("accessToken");
     const response = await http.get<{
       pageKey: string;
       config: Record<string, unknown>;
       version: number;
-    }>(`/admin/content/${pageKey}/draft`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
+    }>(`/admin/content/${pageKey}/draft`);
     return {
       pageKey: response.data.pageKey as PageKey,
       version: response.data.version,

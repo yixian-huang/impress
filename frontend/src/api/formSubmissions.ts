@@ -47,10 +47,6 @@ export async function submitForm(data: SubmitFormData) {
 }
 
 // Admin endpoints
-const token = () => localStorage.getItem("accessToken") || "";
-const authHeaders = () => ({
-  headers: { Authorization: `Bearer ${token()}` },
-});
 
 export async function getFormSubmissions(
   page = 1,
@@ -66,7 +62,7 @@ export async function getFormSubmissions(
   if (status) params.status = status;
   const res = await http.get<FormSubmissionListResponse>(
     "/admin/form-submissions",
-    { params, ...authHeaders() }
+    { params }
   );
   return res.data;
 }
@@ -74,7 +70,6 @@ export async function getFormSubmissions(
 export async function getFormSubmission(id: number) {
   const res = await http.get<FormSubmission>(
     `/admin/form-submissions/${id}`,
-    authHeaders()
   );
   return res.data;
 }
@@ -86,7 +81,6 @@ export async function updateSubmissionStatus(
   const res = await http.patch<FormSubmission>(
     `/admin/form-submissions/${id}/status`,
     { status },
-    authHeaders()
   );
   return res.data;
 }
@@ -98,13 +92,12 @@ export async function bulkUpdateStatus(
   const res = await http.post<{ message: string; count: number }>(
     "/admin/form-submissions/bulk-status",
     { ids, status },
-    authHeaders()
   );
   return res.data;
 }
 
 export async function deleteFormSubmission(id: number) {
-  await http.delete(`/admin/form-submissions/${id}`, authHeaders());
+  await http.delete(`/admin/form-submissions/${id}`);
 }
 
 export async function getSubmissionCounts(formType?: string) {
@@ -112,7 +105,7 @@ export async function getSubmissionCounts(formType?: string) {
   if (formType) params.formType = formType;
   const res = await http.get<SubmissionCounts>(
     "/admin/form-submissions/counts",
-    { params, ...authHeaders() }
+    { params }
   );
   return res.data;
 }

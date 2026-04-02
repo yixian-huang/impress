@@ -24,11 +24,6 @@ export interface AuditLogFilters {
   to?: string;
 }
 
-function getAuthHeaders() {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-}
-
 export async function getAuditLogs(
   page: number = 1,
   pageSize: number = 20,
@@ -36,7 +31,7 @@ export async function getAuditLogs(
 ): Promise<AuditLogListResponse> {
   const response = await http.get<AuditLogListResponse>("/admin/audit-logs", {
     params: { page, pageSize, ...filters },
-    headers: getAuthHeaders(),
+
   });
   return response.data;
 }
