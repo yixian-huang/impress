@@ -31,7 +31,7 @@ const modernDarkTheme: ThemePackage = {
   id: "modern-dark",
   name: "现代暗色",
   description: "深色专业主题，适合科技、创新类网站",
-  author: "Blotting Consultancy",
+  author: "impress",
   version: "1.0.0",
   preview: "linear-gradient(135deg, #6366f1 0%, #22d3ee 100%)",
   tokens,
