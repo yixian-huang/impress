@@ -1,0 +1,42 @@
+# Local artifacts (rebuilt during multi-stage build)
+node_modules
+**/node_modules
+frontend/out
+backend/server
+backend/data
+backend/uploads
+backend/backups
+
+# VCS + local tooling
+.git
+.gitignore
+.long-agent
+.claude
+.cursor
+.cursorrules
+.editorconfig
+
+# Logs & temp
+*.log
+/tmp
+.DS_Store
+
+# Test / dev artifacts not needed at runtime
+**/*.test.ts
+**/*.test.tsx
+**/coverage
+**/__snapshots__
+
+# Local env / secrets — must not enter the image
+.env
+.env.*
+
+# Documentation + planning files not needed in image
+docs
+README.md
+OPS.md
+CLAUDE.md
+
+# Compose files (host orchestration, not for inside-image)
+docker-compose*.yml
+Dockerfile.bak
