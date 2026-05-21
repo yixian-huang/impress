@@ -1,4 +1,5 @@
 import { useBranding } from "@/hooks/useBranding";
+import { pickLocaleValue } from "@/lib/locale";
 
 export default function Footer() {
   const branding = useBranding();
@@ -22,7 +23,12 @@ export default function Footer() {
                       href={link.url || '#'}
                       className="text-gray-300 hover:text-accent transition-colors cursor-pointer"
                     >
-                      {link.label.zh || link.label.en || ''}
+                      {pickLocaleValue({
+                        value: link.label,
+                        mode: branding.localeMode,
+                        defaultLocale: branding.defaultLocale,
+                        currentLocale: branding.currentLocale,
+                      })}
                     </a>
                   </li>
                 ))}

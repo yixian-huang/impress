@@ -71,13 +71,12 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
 
     const globalData = bootstrapData?.globalConfig;
     if (globalData?.config) {
-      const normalized = normalizeConfigForLocale(
-        globalData.config as Record<string, unknown>,
-        locale
-      ) as GlobalConfig;
-      // If the published config matches the new schema, expose it typed as siteConfig.
-      if (normalized && typeof normalized === "object" && "identity" in normalized) {
-        normalized.siteConfig = normalized as unknown as SiteConfigGlobal;
+      const rawConfig = globalData.config as Record<string, unknown>;
+      const normalized = normalizeConfigForLocale(rawConfig, locale) as GlobalConfig;
+      // For the new SiteConfigGlobal shape, attach the RAW config (pre-normalization) so
+      // LocalizedString values like { zh, en } stay intact for pickLocaleValue downstream.
+      if (rawConfig && typeof rawConfig === "object" && "identity" in rawConfig) {
+        normalized.siteConfig = rawConfig as unknown as SiteConfigGlobal;
       }
       setConfig(normalized);
     }
@@ -88,10 +87,12 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
   const doFetch = useCallback(async () => {
     try {
       const data = await fetchPublicContent("global", locale);
-      const normalized = normalizeConfigForLocale(data.config, locale) as GlobalConfig;
-      // If the published config matches the new schema, expose it typed as siteConfig.
-      if (normalized && typeof normalized === "object" && "identity" in normalized) {
-        normalized.siteConfig = normalized as unknown as SiteConfigGlobal;
+      const rawConfig = data.config as Record<string, unknown>;
+      const normalized = normalizeConfigForLocale(rawConfig, locale) as GlobalConfig;
+      // For the new SiteConfigGlobal shape, attach the RAW config (pre-normalization) so
+      // LocalizedString values like { zh, en } stay intact for pickLocaleValue downstream.
+      if (rawConfig && typeof rawConfig === "object" && "identity" in rawConfig) {
+        normalized.siteConfig = rawConfig as unknown as SiteConfigGlobal;
       }
       setConfig(normalized);
     } catch {
