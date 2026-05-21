@@ -4,9 +4,11 @@
 # ────────────────────────────────────────────────────────────────────────────
 # Stage 1: build frontend (Vite → frontend/out)
 # ────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# pnpm 9 matches lockfileVersion 9.0 in pnpm-lock.yaml; avoids surprise
+# upgrades (pnpm@latest is currently 11 and needs Node 22+ + can rewrite the lock).
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /src
 
