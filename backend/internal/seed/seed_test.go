@@ -281,6 +281,8 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&model.ContentVersion{},
 		&model.InstalledTheme{},
 		&model.Page{},
+		&model.UnifiedPage{},
+		&model.PageTemplate{},
 	)
 	require.NoError(t, err)
 

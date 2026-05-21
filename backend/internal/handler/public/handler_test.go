@@ -141,7 +141,7 @@ func TestGetPublicContent_DefaultLocale(t *testing.T) {
 		FindByPageKeyFunc: func(ctx context.Context, pageKey model.PageKey) (*model.ContentDocument, error) {
 			return &model.ContentDocument{
 				PageKey:          model.PageKeyHome,
-				PublishedConfig:  model.JSONMap{},
+				PublishedConfig:  model.JSONMap{"hero": map[string]interface{}{"title": "Home"}},
 				PublishedVersion: 1,
 			}, nil
 		},

@@ -78,7 +78,7 @@ describe("Public Pages Regression Suite - Chinese Locale", () => {
         expect(screen.getByText(mockHomeConfig.about.title)).toBeInTheDocument();
       });
 
-      expect(screen.getByText(mockHomeConfig.about.description)).toBeInTheDocument();
+      expect(screen.getByText(mockHomeConfig.about.descriptions[0])).toBeInTheDocument();
     });
 
     it("should render advantages section from config", async () => {
@@ -93,8 +93,8 @@ describe("Public Pages Regression Suite - Chinese Locale", () => {
       });
 
       expect(
-        screen.getByText(mockHomeConfig.advantages.cards[0].title)
-      ).toBeInTheDocument();
+        screen.getAllByText(mockHomeConfig.advantages.cards[0].title).length
+      ).toBeGreaterThan(0);
     });
 
     it("should render core services section from config", async () => {
@@ -108,9 +108,8 @@ describe("Public Pages Regression Suite - Chinese Locale", () => {
         ).toBeInTheDocument();
       });
 
-      // Services array has services, not cards
       expect(
-        screen.getByText(mockHomeConfig.coreServices.services[0].title)
+        screen.getByText(mockHomeConfig.coreServices.items[0].title)
       ).toBeInTheDocument();
     });
 
@@ -237,7 +236,7 @@ describe("Public Pages Regression Suite - Chinese Locale", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(mockCasesConfig.categories![0].title!)
+          screen.getByText(mockCasesConfig.cases![0].title!)
         ).toBeInTheDocument();
       });
     });
@@ -288,7 +287,7 @@ describe("Public Pages Regression Suite - Chinese Locale", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(mockContactConfig.contact.phone!)
+          screen.getByText(mockContactConfig.contactInfo.phone!)
         ).toBeInTheDocument();
       });
     });

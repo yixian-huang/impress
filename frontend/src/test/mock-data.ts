@@ -11,9 +11,11 @@ export const mockHomeConfig = {
   },
   about: {
     title: "Test About Title",
-    description: "Test About Description",
-    description2: "Test About Description 2",
-    description3: "Test About Description 3",
+    descriptions: [
+      "Test About Description",
+      "Test About Description 2",
+      "Test About Description 3",
+    ],
     button: "Learn More",
     image: "/images/about-img.png",
   },
@@ -36,7 +38,7 @@ export const mockHomeConfig = {
   coreServices: {
     title: "Test Services Title",
     subtitle: "Test Services Subtitle",
-    services: [
+    items: [
       {
         title: "Service 1",
         description: "Service 1 Description",
@@ -103,7 +105,7 @@ export const mockCasesConfig = {
     label: "Cases",
     title: "Test Cases Hero",
   },
-  categories: [
+  cases: [
     {
       title: "Category 1",
       items: ["Case Item 1", "Case Item 2"],
@@ -144,7 +146,7 @@ export const mockContactConfig = {
     title: "Test Contact Hero",
     subtitle: "Test Contact Hero Subtitle",
   },
-  contact: {
+  contactInfo: {
     phone: "+86 123 4567 8901",
     address: "Test Address, Beijing, China",
   },
