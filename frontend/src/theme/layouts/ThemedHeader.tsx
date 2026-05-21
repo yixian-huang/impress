@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import { useThemePages } from "@/contexts/ThemePagesContext";
 import { resolveLocale } from "@/utils/locale";
+import { useLocaleMode } from "@/hooks/useLocaleMode";
 import type { HeaderConfig } from "./types";
 
 interface NavItemData {
@@ -173,6 +174,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
   const location = useLocation();
 
   const { config: globalConfig } = useGlobalConfig();
+  const { isMono, currentLocale } = useLocaleMode();
   const { headerNavItems, menuNavItems } = useThemePages();
 
   // Close mobile menu on route change
@@ -190,6 +192,12 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
   const logoAlt = globalConfig.branding?.companyName || "Site Logo";
   const showLanguageToggle = config?.showLanguageToggle ?? true;
   const style = config?.style ?? "sticky";
+
+  useEffect(() => {
+    if (isMono && i18n.language !== currentLocale) {
+      i18n.changeLanguage(currentLocale);
+    }
+  }, [isMono, currentLocale, i18n]);
 
   useEffect(() => {
     if (style === "static") return;
@@ -223,7 +231,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
       }`}
     >
       {/* Language bar */}
-      {showLanguageToggle && (
+      {showLanguageToggle && !isMono && (
         <div className={`py-1.5 transition-colors duration-300 ${
           scrolled ? "bg-primary text-white" : "bg-transparent text-white/80"
         }`}>
@@ -286,7 +294,7 @@ export default function ThemedHeader({ config }: ThemedHeaderProps) {
                   />
                 ))}
               </div>
-              {showLanguageToggle && (
+              {showLanguageToggle && !isMono && (
                 <div className="pt-3">
                   <button
                     onClick={() => { toggleLanguage(); setIsMobileMenuOpen(false); }}
