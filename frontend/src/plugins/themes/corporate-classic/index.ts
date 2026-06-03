@@ -1,6 +1,9 @@
 import type { ThemePlugin } from "@/plugins/types";
 import { defaultTokens } from "@/theme/tokens";
+import { CORPORATE_DEFAULT_LAYOUT } from "@/theme/layouts/defaults";
 import StatsCounterSection from "./StatsCounterSection";
+import CorporateHeader from "./chrome/CorporateHeader";
+import CorporateFooter from "./chrome/CorporateFooter";
 
 export const corporateClassicTheme: ThemePlugin = {
   manifest: {
@@ -161,9 +164,9 @@ export const corporateClassicTheme: ThemePlugin = {
       nav: { label: "Contact", labelZh: "联系我们", order: 6, showInHeader: true, showInFooter: true },
     },
   ],
-  defaultLayout: {
-    type: "default",
-    header: { style: "sticky" },
-    footer: { style: "full" },
+  defaultLayout: CORPORATE_DEFAULT_LAYOUT,
+  layoutChrome: {
+    Header: CorporateHeader,
+    Footer: CorporateFooter,
   },
 };

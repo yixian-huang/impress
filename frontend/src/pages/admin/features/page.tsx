@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   fetchAdminFeatures,
   putAdminFeaturesDraft,
@@ -9,7 +10,6 @@ import { normalizeFeatures } from "@/lib/normalizeFeatures";
 import {
   SITE_CONFIG_FEATURES_DEFAULT,
   type SiteConfigFeatures,
-  type SiteMode,
 } from "@/types/siteConfig";
 
 const PUBLIC_PAGE_KEYS: Array<keyof SiteConfigFeatures["publicPages"]> = [
@@ -25,7 +25,6 @@ function normalizeDraft(raw: SiteConfigFeatures): SiteConfigFeatures {
   return {
     ...SITE_CONFIG_FEATURES_DEFAULT,
     ...raw,
-    siteMode: raw.siteMode === "blog" ? "blog" : "corporate",
     publicPages: { ...SITE_CONFIG_FEATURES_DEFAULT.publicPages, ...raw.publicPages },
     blog: { ...SITE_CONFIG_FEATURES_DEFAULT.blog, ...raw.blog },
   };
@@ -56,10 +55,6 @@ export default function AdminFeaturesPage() {
       ...d,
       publicPages: { ...d.publicPages, [key]: !d.publicPages[key] },
     }));
-  }
-
-  function setSiteMode(mode: SiteMode) {
-    setDraft((d) => ({ ...d, siteMode: mode }));
   }
 
   function toggleBlog(key: keyof SiteConfigFeatures["blog"]) {
@@ -93,36 +88,19 @@ export default function AdminFeaturesPage() {
 
   if (loading) return <div className="p-4">Loading…</div>;
 
-  const siteMode = draft.siteMode ?? "corporate";
-
   return (
     <div className="p-4 max-w-2xl">
       <h1 className="text-xl font-semibold mb-4">Features</h1>
       <p className="text-sm text-gray-500 mb-4">Draft v{draftVersion}</p>
 
-      <section className="mb-6">
-        <h2 className="text-sm font-medium text-gray-600 mb-2">Site mode</h2>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="siteMode"
-              checked={siteMode === "corporate"}
-              onChange={() => setSiteMode("corporate")}
-            />
-            Corporate — marketing home at /
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="siteMode"
-              checked={siteMode === "blog"}
-              onChange={() => setSiteMode("blog")}
-            />
-            Blog-first — intro + recent posts at /
-          </label>
-        </div>
-      </section>
+      <p className="text-sm text-gray-600 mb-6">
+        首页布局与 Header/Footer 样式由{" "}
+        <Link to="/admin/theme" className="text-blue-600 underline">
+          主题
+        </Link>
+        {" "}决定（例如 <strong>blog-first</strong> 或 <strong>corporate-classic</strong>）。
+        本页仅控制公开路由开关与博客功能。
+      </p>
 
       <section className="mb-6">
         <h2 className="text-sm font-medium text-gray-600 mb-2">Blog</h2>

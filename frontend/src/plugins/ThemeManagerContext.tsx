@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { themeManager } from "./ThemeManager";
 import { ThemeManagerContext } from "./ThemeManagerContextDef";
 import { corporateClassicTheme } from "./themes/corporate-classic";
+import { blogFirstTheme } from "./themes/blog-first";
 import { useBootstrap } from "@/contexts/BootstrapContext";
 import "@/plugins/externals";
 
@@ -10,6 +11,7 @@ export { ThemeManagerContext } from "./ThemeManagerContextDef";
 
 // Register built-in themes immediately
 themeManager.registerBuiltIn(corporateClassicTheme);
+themeManager.registerBuiltIn(blogFirstTheme);
 
 interface ThemeManagerProviderProps {
   children: ReactNode;

@@ -55,19 +55,24 @@ export interface SiteConfigSEO {
   twitterHandle?: string;
 }
 
+export type HeaderBrandMode = "text" | "logo" | "avatar" | "none";
+
+export interface SiteConfigHeader {
+  brandMode?: HeaderBrandMode;
+  showRssLink?: boolean;
+  showSocials?: boolean;
+}
+
 export interface SiteConfigGlobal {
   identity: SiteConfigIdentity;
   brand: SiteConfigBrand;
   author: SiteConfigAuthor;
   footer: SiteConfigFooter;
   seo: SiteConfigSEO;
+  header?: SiteConfigHeader;
 }
 
-export type SiteMode = "corporate" | "blog";
-
 export interface SiteConfigFeatures {
-  /** corporate = marketing home; blog = intro + latest posts at / */
-  siteMode?: SiteMode;
   publicPages: {
     home: boolean;
     blog: boolean;
@@ -104,7 +109,6 @@ export const SITE_CONFIG_GLOBAL_DEFAULT: SiteConfigGlobal = {
 };
 
 export const SITE_CONFIG_FEATURES_DEFAULT: SiteConfigFeatures = {
-  siteMode: "corporate",
   publicPages: {
     home: true,
     blog: true,

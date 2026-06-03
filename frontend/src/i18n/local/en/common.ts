@@ -47,4 +47,20 @@ export const common = {
     submitting: 'Submitting…',
     submit: 'Submit',
   },
+  blog: {
+    homeTitle: 'Home',
+    recentPosts: 'Recent posts',
+    viewAll: 'View all',
+    archive: 'Archive',
+    noPosts: 'No posts yet.',
+    archiveTitle: 'Blog',
+    archiveDescription: 'All posts',
+    filters: 'Filters',
+    notFound: 'Article not found',
+    backToArchive: 'Back to blog',
+  },
+  pagination: {
+    prev: 'Previous',
+    next: 'Next',
+  },
 };

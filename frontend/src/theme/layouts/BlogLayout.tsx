@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
-import PublicLayout from "./PublicLayout";
+import SiteLayout from "./PublicLayout";
 import RssHeadLink from "@/components/feature/RssHeadLink";
 
-/** Blog-first public pages: same chrome as PublicLayout without corporate PageHero blocks. */
+/** Blog public pages shell; chrome comes from active blog-first theme. */
 export default function BlogLayout({ children }: { children: ReactNode }) {
   return (
-    <PublicLayout>
+    <SiteLayout>
       <RssHeadLink />
       {children}
-    </PublicLayout>
+    </SiteLayout>
   );
 }

@@ -78,36 +78,36 @@ export default function BlogDetailPage() {
           canonicalUrl={`/blog/${article.slug}`}
         />
       )}
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-3xl mx-auto px-4 md:px-content py-section-sm flex-1 w-full">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-600">{t("loading", "Loading...")}</div>
+            <div className="text-on-surface-muted">{t("status.loading")}</div>
           </div>
         ) : error || !article ? (
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || t("blog.notFound", "Article not found")}</p>
+            <p className="text-red-600 mb-4">{error || t("blog.notFound")}</p>
             <button
               type="button"
               onClick={() => navigate("/blog")}
-              className="text-blue-600 hover:text-blue-800"
+              className="text-primary hover:text-accent transition-colors"
             >
-              {t("blog.backToArchive", "Back to blog")}
+              {t("blog.backToArchive")}
             </button>
           </div>
         ) : (
           <>
             <header className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl md:text-4xl font-heading font-bold text-on-surface leading-tight">
                 {title}
               </h1>
               {article.coverImage && (
                 <img
                   src={article.coverImage}
                   alt={title}
-                  className="mt-6 w-full rounded-lg object-cover max-h-[420px]"
+                  className="mt-6 w-full rounded-card object-cover max-h-[420px]"
                 />
               )}
-              <div className="mt-4 flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+              <div className="mt-4 flex items-center gap-3 text-sm text-on-surface-muted flex-wrap">
                 <time dateTime={article.publishedAt || article.createdAt}>
                   {formatArticleDate(article.publishedAt || article.createdAt, currentLocale)}
                 </time>
@@ -117,7 +117,7 @@ export default function BlogDetailPage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/blog?category=${article.category!.slug}`)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-primary hover:text-accent transition-colors"
                     >
                       {article.category.zhName || article.category.enName}
                     </button>
@@ -131,7 +131,7 @@ export default function BlogDetailPage() {
                         key={tag.id}
                         type="button"
                         onClick={() => navigate(`/blog?tag=${tag.slug}`)}
-                        className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                        className="text-xs px-2.5 py-1 bg-surface-alt text-on-surface-muted rounded-full border border-border hover:bg-surface"
                       >
                         {tag.zhName || tag.enName}
                       </button>

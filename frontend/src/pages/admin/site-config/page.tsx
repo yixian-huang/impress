@@ -4,14 +4,15 @@ import {
   putAdminGlobalConfigDraft,
   publishAdminGlobalConfig,
 } from "@/api/globalConfig";
-import { SITE_CONFIG_GLOBAL_DEFAULT, type SiteConfigGlobal } from "@/types/siteConfig";
+import { SITE_CONFIG_GLOBAL_DEFAULT, type SiteConfigGlobal, type HeaderBrandMode } from "@/types/siteConfig";
 
-type TabKey = "identity" | "brand" | "author" | "footer" | "seo";
+type TabKey = "identity" | "brand" | "author" | "header" | "footer" | "seo";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "identity", label: "Identity" },
   { key: "brand",    label: "Brand" },
   { key: "author",   label: "Author" },
+  { key: "header",   label: "Header" },
   { key: "footer",   label: "Footer" },
   { key: "seo",      label: "SEO" },
 ];
@@ -77,6 +78,7 @@ export default function AdminSiteConfigPage() {
       {tab === "identity" && <IdentityTab cfg={cfg} setCfg={setCfg} />}
       {tab === "brand"    && <BrandTab cfg={cfg} setCfg={setCfg} />}
       {tab === "author"   && <AuthorTab cfg={cfg} setCfg={setCfg} />}
+      {tab === "header"   && <HeaderTab cfg={cfg} setCfg={setCfg} />}
       {tab === "footer"   && <FooterTab cfg={cfg} setCfg={setCfg} />}
       {tab === "seo"      && <SEOTab cfg={cfg} setCfg={setCfg} />}
       <div className="mt-6 flex gap-2 items-center">
@@ -196,6 +198,52 @@ function AuthorTab({ cfg, setCfg }: TabProps) {
           className="text-sm text-blue-600"
         >+ Add social</button>
       </div>
+    </div>
+  );
+}
+
+function HeaderTab({ cfg, setCfg }: TabProps) {
+  const header = cfg.header ?? {};
+  const setHeader = (patch: Partial<NonNullable<SiteConfigGlobal["header"]>>) => {
+    setCfg({ ...cfg, header: { ...header, ...patch } });
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-500">
+        Overrides active theme header defaults (blog-first: text brand uses Author name or Identity site name;
+        logo mode uses Brand → Logo URL). Navigation comes from Menus or theme pages.
+      </p>
+      <div>
+        <label className="block text-sm font-medium">Brand mark mode</label>
+        <select
+          value={header.brandMode ?? ""}
+          onChange={(e) => setHeader({ brandMode: (e.target.value || undefined) as HeaderBrandMode | undefined })}
+          className="border rounded px-2 py-1 w-full"
+        >
+          <option value="">Use theme default</option>
+          <option value="text">Text (site / author name)</option>
+          <option value="logo">Logo image</option>
+          <option value="avatar">Avatar + name</option>
+          <option value="none">Hidden</option>
+        </select>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={header.showRssLink ?? false}
+          onChange={(e) => setHeader({ showRssLink: e.target.checked })}
+        />
+        Show RSS link in header (requires Features → Blog → RSS)
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={header.showSocials ?? false}
+          onChange={(e) => setHeader({ showSocials: e.target.checked })}
+        />
+        Show author social links in header
+      </label>
     </div>
   );
 }

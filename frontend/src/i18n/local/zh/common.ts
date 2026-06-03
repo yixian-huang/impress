@@ -47,4 +47,20 @@ export const common = {
     submitting: '提交中…',
     submit: '提交',
   },
+  blog: {
+    homeTitle: '首页',
+    recentPosts: '最近文章',
+    viewAll: '查看全部',
+    archive: '归档',
+    noPosts: '暂无文章。',
+    archiveTitle: '博客',
+    archiveDescription: '全部文章',
+    filters: '筛选',
+    notFound: '文章不存在',
+    backToArchive: '返回博客',
+  },
+  pagination: {
+    prev: '上一页',
+    next: '下一页',
+  },
 };

@@ -10,6 +10,12 @@ export function useThemeManager(): ThemeManagerContextValue {
   return useContext(ThemeManagerContext);
 }
 
+/** Whether the active built-in theme is blog-first (author intro + posts at /). */
+export function useIsBlogTheme(): boolean {
+  const { activeThemeId } = useThemeManager();
+  return activeThemeId === "blog-first";
+}
+
 /** Merge base section registry with active theme's section overrides */
 export function useSectionRegistry(): {
   registry: Record<string, ComponentType<SectionProps<any>>>;

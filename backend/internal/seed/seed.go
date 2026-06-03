@@ -236,19 +236,9 @@ func (s *Seeder) SeedUnifiedPages(ctx context.Context) error {
 	return nil
 }
 
-// SeedInstalledThemes creates the default corporate-classic theme if it doesn't exist
+// SeedInstalledThemes creates built-in themes if they don't exist
 func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
-	existing, err := s.installedThemeRepo.FindByThemeID(ctx, "corporate-classic")
-	if err != nil && !strings.Contains(err.Error(), "not found") {
-		return err
-	}
-
-	if existing != nil {
-		log.Println("InstalledTheme corporate-classic already exists, skipping")
-		return nil
-	}
-
-	theme := &model.InstalledTheme{
+	if err := s.ensureInstalledTheme(ctx, &model.InstalledTheme{
 		ThemeID:     "corporate-classic",
 		Name:        "Corporate Classic",
 		NameZh:      "企业经典",
@@ -258,13 +248,39 @@ func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
 		Source:      "built-in",
 		IsActive:    true,
 		Preview:     "linear-gradient(135deg, #1a5f8f 0%, #8bc34a 100%)",
+	}); err != nil {
+		return err
+	}
+
+	return s.ensureInstalledTheme(ctx, &model.InstalledTheme{
+		ThemeID:     "blog-first",
+		Name:        "Blog First",
+		NameZh:      "博客优先",
+		Description: "极简个人博客，首页展示作者介绍与最近文章",
+		Author:      "Impress CMS",
+		Version:     "1.0.0",
+		Source:      "built-in",
+		IsActive:    false,
+		Preview:     "linear-gradient(135deg, #1e40af 0%, #64748b 100%)",
+	})
+}
+
+func (s *Seeder) ensureInstalledTheme(ctx context.Context, theme *model.InstalledTheme) error {
+	existing, err := s.installedThemeRepo.FindByThemeID(ctx, theme.ThemeID)
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		return err
+	}
+
+	if existing != nil {
+		log.Printf("InstalledTheme %s already exists, skipping", theme.ThemeID)
+		return nil
 	}
 
 	if err := s.installedThemeRepo.Create(ctx, theme); err != nil {
 		return err
 	}
 
-	log.Println("Created InstalledTheme: corporate-classic (active)")
+	log.Printf("Created InstalledTheme: %s (active=%v)", theme.ThemeID, theme.IsActive)
 	return nil
 }
 
@@ -340,6 +356,18 @@ func (s *Seeder) BlankSiteSeed(ctx context.Context) error {
 				return err
 			}
 			log.Println("Created blank features site_config")
+			if s.installedThemeRepo != nil {
+				if err := s.installedThemeRepo.SetActive(ctx, "blog-first"); err != nil {
+					log.Printf("Warning: could not activate blog-first theme: %v", err)
+				} else {
+					log.Println("Activated blog-first theme for blank site")
+					if s.themePageService != nil {
+						if err := s.themePageService.SeedThemePages(ctx, "blog-first"); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -363,7 +391,6 @@ func blankGlobalConfig() model.JSONMap {
 
 func blankFeaturesConfig() model.JSONMap {
 	return model.JSONMap{
-		"siteMode": "blog",
 		"publicPages": model.JSONMap{
 			"home":         true,
 			"blog":         true,

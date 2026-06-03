@@ -1,45 +1,54 @@
 import type { ReactNode } from "react";
-import ThemedHeader from "./ThemedHeader";
-import ThemedFooter from "./ThemedFooter";
 import Sidebar from "./Sidebar";
 import type { LayoutConfig } from "./types";
+import { CORPORATE_DEFAULT_LAYOUT } from "./defaults";
 import { QAWidget } from "@/modules/qa";
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+import { useThemeManager } from "@/plugins/hooks";
+import CorporateHeader from "@/plugins/themes/corporate-classic/chrome/CorporateHeader";
+import CorporateFooter from "@/plugins/themes/corporate-classic/chrome/CorporateFooter";
 
-interface PublicLayoutProps {
+interface SiteLayoutProps {
   layout?: LayoutConfig;
   children: ReactNode;
 }
 
-export default function PublicLayout({ layout, children }: PublicLayoutProps) {
-  const layoutType = layout?.type ?? "default";
+/** Public site shell: active theme layoutChrome + defaultLayout, with sticky footer column. */
+export default function SiteLayout({ layout: layoutProp, children }: SiteLayoutProps) {
+  const { activeTheme } = useThemeManager();
   const { features } = useGlobalConfig();
 
-  return (
-    <div className="min-h-screen bg-surface">
-      {/* Header -- unless layout is "blank" */}
-      {layoutType !== "blank" && <ThemedHeader config={layout?.header} />}
+  const layout = layoutProp ?? activeTheme?.defaultLayout ?? CORPORATE_DEFAULT_LAYOUT;
+  const layoutType = layout.type ?? "default";
+  const hasHeader = layoutType !== "blank";
+  const mainClassName = "flex-1 min-w-0 flex flex-col";
 
-      {/* Main content area -- varies by layout type */}
+  const HeaderComponent = activeTheme?.layoutChrome?.Header ?? CorporateHeader;
+  const FooterComponent = activeTheme?.layoutChrome?.Footer ?? CorporateFooter;
+
+  return (
+    <div className="min-h-screen bg-surface flex flex-col">
+      {hasHeader && <HeaderComponent config={layout.header} />}
+
       {layoutType === "sidebar" ? (
-        <div className="max-w-layout mx-auto px-4 md:px-content xl:px-8 py-8 flex gap-8">
-          {layout?.sidebar?.position === "left" && (
-            <Sidebar config={layout.sidebar} />
-          )}
-          <main className="flex-1 min-w-0">{children}</main>
-          {layout?.sidebar?.position !== "left" && (
-            <Sidebar config={layout?.sidebar} />
-          )}
+        <div className={`${mainClassName} max-w-layout mx-auto px-4 md:px-content xl:px-8 py-8 w-full`}>
+          <div className="flex flex-1 gap-8 min-h-0">
+            {layout.sidebar?.position === "left" && (
+              <Sidebar config={layout.sidebar} />
+            )}
+            <main className="flex-1 min-w-0">{children}</main>
+            {layout.sidebar?.position !== "left" && (
+              <Sidebar config={layout.sidebar} />
+            )}
+          </div>
         </div>
       ) : (
-        <main>{children}</main>
+        <main className={mainClassName}>{children}</main>
       )}
 
-      {/* Footer -- unless layout is "blank" */}
-      {layoutType !== "blank" && <ThemedFooter config={layout?.footer} />}
+      {layoutType !== "blank" && <FooterComponent config={layout.footer} />}
 
-      {/* Floating Q&A Widget -- only when QA feature is enabled */}
-      {(features as any)?.qa?.enabled && <QAWidget />}
+      {(features as { qa?: { enabled?: boolean } })?.qa?.enabled && <QAWidget />}
     </div>
   );
 }

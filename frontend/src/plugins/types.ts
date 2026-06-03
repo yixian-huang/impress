@@ -1,6 +1,17 @@
 import type { ComponentType } from "react";
 import type { ThemeTokens } from "@/theme/tokens";
 import type { SectionProps, SectionMeta } from "@/theme/types";
+import type {
+  LayoutConfig,
+  HeaderConfig,
+  FooterConfig,
+} from "@/theme/layouts/types";
+
+export type {
+  LayoutConfig,
+  HeaderConfig,
+  FooterConfig,
+} from "@/theme/layouts/types";
 
 // --- Plugin base types ---
 
@@ -15,7 +26,7 @@ export interface PluginManifest {
   author: string;
   version: string;
   type: PluginType;
-  preview?: string;         // CSS gradient or image URL
+  preview?: string;
   tags?: string[];
 }
 
@@ -45,10 +56,17 @@ export interface ThemePageDefinition {
   };
 }
 
-export interface LayoutConfig {
-  type: string;
-  header?: { style?: string };
-  footer?: { style?: string };
+export interface HeaderChromeProps {
+  config?: HeaderConfig;
+}
+
+export interface FooterChromeProps {
+  config?: FooterConfig;
+}
+
+export interface ThemeLayoutChrome {
+  Header: ComponentType<HeaderChromeProps>;
+  Footer: ComponentType<FooterChromeProps>;
 }
 
 export interface TokenPreset {
@@ -65,7 +83,7 @@ export interface ThemeSettingField {
   label: string;
   labelZh: string;
   description?: string;
-  defaultValue?: any;
+  defaultValue?: unknown;
   options?: { label: string; value: string }[];
 }
 
@@ -85,4 +103,5 @@ export interface ThemePlugin extends Plugin {
   sectionMetas?: SectionMeta[];
   settingSchema?: ThemeSettingGroup[];
   defaultLayout?: LayoutConfig;
+  layoutChrome?: ThemeLayoutChrome;
 }

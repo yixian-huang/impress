@@ -58,6 +58,13 @@ var BuiltInThemePages = map[string][]ThemePageSeedDef{
 			NavConfig: model.JSONMap{"showInHeader": true, "showInFooter": true},
 		},
 	},
+	"blog-first": {
+		{
+			Slug: "home", ContentKey: "home", RenderMode: "hardcoded", SortOrder: 0,
+			Title:     model.JSONMap{"zh": "首页", "en": "Home"},
+			NavConfig: model.JSONMap{"showInHeader": true, "showInFooter": false},
+		},
+	},
 }
 
 // ThemePageService handles seeding theme pages into the Page table
