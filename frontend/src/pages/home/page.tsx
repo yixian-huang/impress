@@ -3,6 +3,8 @@ import { PublicLayout } from '@/theme/layouts';
 import { usePublicContent } from '@/hooks/usePublicContent';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { resolveLocale } from '@/utils/locale';
+import { useSiteMode } from '@/hooks/useSiteMode';
+import BlogHomePage from '@/pages/blog-home/page';
 
 /** After normalizeConfigForLocale, mediaRef becomes {url, alt} with alt as locale-selected string */
 interface MediaRef {
@@ -61,6 +63,7 @@ interface HomePageConfig {
 }
 
 export default function HomePage() {
+  const siteMode = useSiteMode();
   useDocumentTitle("首页");
   const { i18n } = useTranslation('common');
   const locale = resolveLocale(i18n.language);
@@ -70,6 +73,10 @@ export default function HomePage() {
     locale,
     autoNormalize: true,
   });
+
+  if (siteMode === "blog") {
+    return <BlogHomePage />;
+  }
 
   if (loading) {
     return (

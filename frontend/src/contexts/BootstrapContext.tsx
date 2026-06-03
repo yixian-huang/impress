@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchBootstrap, type BootstrapData } from "@/api/bootstrap";
 import { resolveLocale } from "@/utils/locale";
@@ -7,12 +7,14 @@ interface BootstrapContextValue {
   data: BootstrapData | null;
   isLoading: boolean;
   locale: string;
+  refetch: () => Promise<void>;
 }
 
 const BootstrapContext = createContext<BootstrapContextValue>({
   data: null,
   isLoading: true,
   locale: "zh",
+  refetch: async () => {},
 });
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -26,29 +28,28 @@ export function BootstrapProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<BootstrapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-
+  const loadBootstrap = useCallback(async () => {
     setIsLoading(true);
-    fetchBootstrap(locale)
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch(() => {
-        // Keep null on error — individual providers will use defaults
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => { cancelled = true; };
+    try {
+      const result = await fetchBootstrap(locale);
+      setData(result);
+    } catch {
+      // Keep previous data on error
+    } finally {
+      setIsLoading(false);
+    }
   }, [locale]);
+
+  useEffect(() => {
+    loadBootstrap();
+  }, [loadBootstrap]);
 
   const value = useMemo(() => ({
     data,
     isLoading,
     locale,
-  }), [data, isLoading, locale]);
+    refetch: loadBootstrap,
+  }), [data, isLoading, locale, loadBootstrap]);
 
   return (
     <BootstrapContext.Provider value={value}>

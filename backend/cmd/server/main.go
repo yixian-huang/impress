@@ -30,6 +30,7 @@ import (
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	mediaHandler "blotting-consultancy/internal/handler/media"
 	publicHandler "blotting-consultancy/internal/handler/public"
+	feedHandler "blotting-consultancy/internal/handler/feed"
 	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
 	tagHandler "blotting-consultancy/internal/handler/tag"
 	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
@@ -397,6 +398,7 @@ func main() {
 	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, searchService, bus, publicCache)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
+	feedHandlerInst := feedHandler.NewHandler(articleRepo, siteConfigRepo, cfg.BaseURL, "Blog", "Latest posts")
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
@@ -465,6 +467,7 @@ func main() {
 		Menu:           menuHandlerInst,
 		AuditLog:       auditlogHandlerInst,
 		Sitemap:        sitemapHandlerInst,
+		Feed:           feedHandlerInst,
 		Theme:          themeHandlerInst,
 		InstalledTheme: installedThemeHandlerInst,
 		EmailSettings:  emailSettingsHandlerInst,

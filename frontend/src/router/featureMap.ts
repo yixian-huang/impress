@@ -2,6 +2,7 @@ import type { SiteConfigFeatures } from "@/types/siteConfig";
 
 /** Routes (kebab-case URLs) that are gated by a feature key. */
 export const routeFeatureMap: Record<string, keyof SiteConfigFeatures["publicPages"]> = {
+  "/blog": "blog",
   "/about": "about",
   "/experts": "experts",
   "/core-services": "coreServices",

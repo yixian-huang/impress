@@ -18,6 +18,7 @@ import (
 	categoryHandler "blotting-consultancy/internal/handler/category"
 	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
 	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
+	feedHandler "blotting-consultancy/internal/handler/feed"
 	featuresHandler "blotting-consultancy/internal/handler/features"
 	globalConfigHandler "blotting-consultancy/internal/handler/global_config"
 	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
@@ -70,6 +71,7 @@ type Handlers struct {
 	Menu            *menuHandler.Handler
 	AuditLog        *auditlogHandler.Handler
 	Sitemap         *sitemapHandler.Handler
+	Feed            *feedHandler.Handler
 	Theme           *themeHandler.Handler
 	InstalledTheme  *installedThemeHandler.Handler
 	EmailSettings   *emailSettingsHandler.Handler
@@ -180,6 +182,11 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 
 	// Sitemap (no auth required)
 	router.GET("/sitemap.xml", handlers.Sitemap.GetSitemap)
+
+	// RSS feed (no auth required)
+	if handlers.Feed != nil {
+		router.GET("/feed.xml", handlers.Feed.GetFeed)
+	}
 
 	// Robots.txt (no auth required)
 	router.GET("/robots.txt", handlers.SEO.GetRobotsTxt)

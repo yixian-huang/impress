@@ -76,7 +76,7 @@ func TestAdminPutDraft_CreatesIfMissing(t *testing.T) {
 		},
 	}
 	r := newRouter(repo)
-	body := `{"draftConfig":{"publicPages":{"home":true,"blog":true,"contact":true,"about":false,"experts":false,"coreServices":false,"advantages":false,"cases":false},"blog":{"comments":true,"rss":true}}}`
+	body := `{"draftConfig":{"siteMode":"blog","publicPages":{"home":true,"blog":true,"contact":true,"about":false,"experts":false,"coreServices":false,"advantages":false,"cases":false},"blog":{"comments":true,"rss":true}}}`
 	req := httptest.NewRequest(http.MethodPut, "/admin/features/draft", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

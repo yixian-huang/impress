@@ -1,20 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getPublicArticle } from "@/api/articles";
 import type { Article } from "@/api/articles";
-import { PublicLayout } from "@/theme/layouts";
-import PageHero from "@/components/feature/PageHero";
+import BlogLayout from "@/theme/layouts/BlogLayout";
 import SeoHead from "@/components/SeoHead";
+import CommentSection from "@/components/feature/CommentSection";
+import { BlogFeatureGate } from "@/components/feature/BlogFeatureGate";
+import { useLocaleMode } from "@/hooks/useLocaleMode";
+import {
+  articleTitle,
+  articleBody,
+  articleMetaDescription,
+  formatArticleDate,
+} from "@/utils/articleLocale";
 
 export default function BlogDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation("common");
+  const { localeMode, defaultLocale, currentLocale } = useLocaleMode();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Lightbox state
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const contentRef = useRef<HTMLElement>(null);
 
@@ -37,7 +47,6 @@ export default function BlogDetailPage() {
     load();
   }, [slug]);
 
-  // Delegate click on images inside rendered content to open lightbox
   const handleContentClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === "IMG") {
@@ -46,81 +55,91 @@ export default function BlogDetailPage() {
     }
   }, []);
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const title = article?.zhTitle || article?.enTitle || "";
-  const body = article?.zhBody || article?.enBody || "";
+  const title = article
+    ? articleTitle(article, localeMode, defaultLocale, currentLocale)
+    : "";
+  const body = article
+    ? articleBody(article, localeMode, defaultLocale, currentLocale)
+    : "";
+  const metaDesc = article
+    ? articleMetaDescription(article, localeMode, defaultLocale, currentLocale)
+    : "";
 
   return (
-    <PublicLayout>
+    <BlogLayout>
       {article && (
         <SeoHead
-          title={`${article.zhTitle || article.enTitle}`}
-          description={article.zhMetaDescription || article.enMetaDescription || ""}
-          ogTitle={article.zhSeoTitle || article.zhTitle || article.enTitle}
-          ogDescription={article.zhMetaDescription || article.enMetaDescription || ""}
+          title={title}
+          description={metaDesc}
+          ogTitle={article.zhSeoTitle || article.enSeoTitle || title}
+          ogDescription={metaDesc}
           ogImage={article.ogImage || article.coverImage || ""}
           ogType="article"
           canonicalUrl={`/blog/${article.slug}`}
         />
       )}
-      <PageHero
-        title={title || "Blog"}
-        label="Blog"
-        imageSrc={article?.coverImage || undefined}
-      />
       <div className="max-w-3xl mx-auto px-4 py-12">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-600">Loading...</div>
+            <div className="text-gray-600">{t("loading", "Loading...")}</div>
           </div>
         ) : error || !article ? (
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || "Article not found"}</p>
+            <p className="text-red-600 mb-4">{error || t("blog.notFound", "Article not found")}</p>
             <button
+              type="button"
               onClick={() => navigate("/blog")}
               className="text-blue-600 hover:text-blue-800"
             >
-              Back to Blog
+              {t("blog.backToArchive", "Back to blog")}
             </button>
           </div>
         ) : (
           <>
-            <div className="mb-8 flex items-center gap-3 text-sm text-gray-500 flex-wrap">
-              <span>{formatDate(article.publishedAt || article.createdAt)}</span>
-              {article.category && (
-                <>
-                  <span>&middot;</span>
-                  <button
-                    onClick={() => navigate(`/blog?category=${article.category!.slug}`)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    {article.category.zhName || article.category.enName}
-                  </button>
-                </>
+            <header className="mb-8">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+                {title}
+              </h1>
+              {article.coverImage && (
+                <img
+                  src={article.coverImage}
+                  alt={title}
+                  className="mt-6 w-full rounded-lg object-cover max-h-[420px]"
+                />
               )}
-              {article.tags && article.tags.length > 0 && (
-                <>
-                  <span>&middot;</span>
-                  {article.tags.map((tag) => (
+              <div className="mt-4 flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+                <time dateTime={article.publishedAt || article.createdAt}>
+                  {formatArticleDate(article.publishedAt || article.createdAt, currentLocale)}
+                </time>
+                {article.category && (
+                  <>
+                    <span>&middot;</span>
                     <button
-                      key={tag.id}
-                      onClick={() => navigate(`/blog?tag=${tag.slug}`)}
-                      className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                      type="button"
+                      onClick={() => navigate(`/blog?category=${article.category!.slug}`)}
+                      className="text-blue-600 hover:text-blue-800"
                     >
-                      {tag.zhName || tag.enName}
+                      {article.category.zhName || article.category.enName}
                     </button>
-                  ))}
-                </>
-              )}
-            </div>
+                  </>
+                )}
+                {article.tags && article.tags.length > 0 && (
+                  <>
+                    <span>&middot;</span>
+                    {article.tags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => navigate(`/blog?tag=${tag.slug}`)}
+                        className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                      >
+                        {tag.zhName || tag.enName}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </header>
 
             <article
               ref={contentRef}
@@ -128,15 +147,22 @@ export default function BlogDetailPage() {
               dangerouslySetInnerHTML={{ __html: body }}
               onClick={handleContentClick}
             />
+
+            {article.allowComments !== false && (
+              <BlogFeatureGate feature="comments">
+                <CommentSection contentType="article" contentId={article.id} />
+              </BlogFeatureGate>
+            )}
           </>
         )}
       </div>
 
-      {/* Lightbox */}
       {lightboxSrc && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 cursor-zoom-out"
           onClick={() => setLightboxSrc(null)}
+          onKeyDown={(e) => e.key === "Escape" && setLightboxSrc(null)}
+          role="presentation"
         >
           <img
             src={lightboxSrc}
@@ -145,6 +171,6 @@ export default function BlogDetailPage() {
           />
         </div>
       )}
-    </PublicLayout>
+    </BlogLayout>
   );
 }

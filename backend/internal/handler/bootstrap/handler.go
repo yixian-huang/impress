@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"blotting-consultancy/internal/cache"
+	featurespkg "blotting-consultancy/internal/handler/features"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 )
@@ -151,10 +152,10 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 	// 5. Features config
 	var features interface{}
 	featuresCfg, err := h.siteCfgRepo.FindByKey(ctx, model.SiteConfigKeyFeatures)
-	if err != nil || featuresCfg == nil || featuresCfg.PublishedConfig == nil {
+	if err != nil || featuresCfg == nil || featuresCfg.ID == 0 || featuresCfg.PublishedConfig == nil {
 		features = gin.H{}
 	} else {
-		features = featuresCfg.PublishedConfig
+		features = featurespkg.MergePublishedDefaults(featuresCfg.PublishedConfig)
 	}
 
 	// 6. Page content (optional, only if pageKey is provided)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   fetchPublicContent,
@@ -12,6 +12,7 @@ import type {
   SiteConfigFeatures,
 } from "@/types/siteConfig";
 import { SITE_CONFIG_GLOBAL_DEFAULT, SITE_CONFIG_FEATURES_DEFAULT } from "@/types/siteConfig";
+import { normalizeFeatures } from "@/lib/normalizeFeatures";
 
 interface MediaRef {
   url?: string;
@@ -63,7 +64,10 @@ export function GlobalConfigProvider({ children }: { children: ReactNode }) {
   const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
   const [config, setConfig] = useState<GlobalConfig>({});
   const [loading, setLoading] = useState(true);
-  const features = bootstrapData?.features ?? undefined;
+  const features = useMemo(
+    () => normalizeFeatures(bootstrapData?.features),
+    [bootstrapData?.features],
+  );
 
   // Use bootstrap data for initial load
   useEffect(() => {

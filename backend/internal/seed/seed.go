@@ -363,6 +363,7 @@ func blankGlobalConfig() model.JSONMap {
 
 func blankFeaturesConfig() model.JSONMap {
 	return model.JSONMap{
+		"siteMode": "blog",
 		"publicPages": model.JSONMap{
 			"home":         true,
 			"blog":         true,

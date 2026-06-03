@@ -24,6 +24,7 @@ type BlogFeatures struct {
 }
 
 type Features struct {
+	SiteMode    string       `json:"siteMode"`
 	PublicPages PublicPages  `json:"publicPages"`
 	Blog        BlogFeatures `json:"blog"`
 }
@@ -39,6 +40,13 @@ func validateFeatures(raw model.JSONMap) (*Features, error) {
 	var f Features
 	if err := json.Unmarshal(bytes, &f); err != nil {
 		return nil, err
+	}
+	switch f.SiteMode {
+	case "", "corporate":
+		f.SiteMode = "corporate"
+	case "blog":
+	default:
+		return nil, errors.New("siteMode must be corporate or blog")
 	}
 	return &f, nil
 }

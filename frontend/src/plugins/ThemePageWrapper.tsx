@@ -1,8 +1,11 @@
 import { lazy, Suspense, useMemo } from "react";
 import type { ComponentType } from "react";
 import type { ThemePageDefinition } from "./types";
+import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+import { isBlogSiteMode, isHomePageDef } from "@/hooks/useSiteMode";
 
 const DynamicPage = lazy(() => import("@/theme/DynamicPage"));
+const BlogHomePage = lazy(() => import("@/pages/blog-home/page"));
 
 function Loading() {
   return (
@@ -29,6 +32,8 @@ interface ThemePageWrapperProps {
 }
 
 export default function ThemePageWrapper({ pageDef }: ThemePageWrapperProps) {
+  const { features } = useGlobalConfig();
+
   const Component = useMemo(() => {
     if (pageDef.renderMode === "hardcoded") {
       if (pageDef.lazyComponent) {
@@ -40,6 +45,14 @@ export default function ThemePageWrapper({ pageDef }: ThemePageWrapperProps) {
     }
     return DynamicPage;
   }, [pageDef]);
+
+  if (isHomePageDef(pageDef) && isBlogSiteMode(features)) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <BlogHomePage />
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<Loading />}>

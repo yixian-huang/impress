@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
+import { FeatureGate } from '@/components/feature/FeatureGate';
 
 // Admin routes
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
@@ -54,11 +55,19 @@ const PublicLayout = lazy(() => import('../theme/layouts/PublicLayout'));
 export const staticRoutes: RouteObject[] = [
   {
     path: '/blog',
-    element: <BlogPage />,
+    element: (
+      <FeatureGate feature="blog">
+        <BlogPage />
+      </FeatureGate>
+    ),
   },
   {
     path: '/blog/:slug',
-    element: <BlogDetailPage />,
+    element: (
+      <FeatureGate feature="blog">
+        <BlogDetailPage />
+      </FeatureGate>
+    ),
   },
   {
     path: '/categories',
