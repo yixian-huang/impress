@@ -50,7 +50,8 @@ cd backend && go vet ./...                       # static analysis
 Or use the Makefile from the repo root:
 
 ```bash
-make dev            # starts backend (:8088) + frontend (:3000) concurrently
+make dev-up         # pnpm install + build-backend + dev (SQLite, recommended)
+make dev            # starts backend (:8088) + frontend (:3000); backend must be built
 make build-backend  # compile Go binary
 make check          # pnpm lint && pnpm type-check
 make stop           # kill processes on :8088 and :3000

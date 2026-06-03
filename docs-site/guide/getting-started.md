@@ -24,12 +24,22 @@ pnpm install
 ### 3. Start the development server
 
 ```bash
+make dev-up
+```
+
+Or: `pnpm dev:up`
+
+This runs `pnpm install`, compiles the backend (SQLite at `backend/data/blotting.db`), and starts:
+- Backend API at `http://localhost:8088`
+- Frontend dev server at `http://localhost:3000`
+
+To restart without reinstalling/rebuilding:
+
+```bash
 make dev
 ```
 
-This starts:
-- Backend API at `http://localhost:8088`
-- Frontend dev server at `http://localhost:3000`
+`frontend/index.html` uses static SEO tags for Vite dev. Production builds inject Go templates from `frontend/index.seo.tmpl` into `frontend/out/index.html` for server-side meta rendering.
 
 ### 4. Access the admin panel
 
@@ -75,7 +85,8 @@ impress/
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Start backend + frontend dev servers |
+| `make dev-up` | Install deps, build backend, start dev servers |
+| `make dev` | Start backend + frontend (backend must already be built) |
 | `make stop` | Stop dev servers |
 | `make build-backend` | Compile Go binary |
 | `make check` | Run lint + type-check |

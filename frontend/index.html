@@ -1,28 +1,20 @@
 
 <!doctype html>
-<html lang="{{.Locale}}">
+<html lang="zh">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{.Title}}</title>
-    <meta name="description" content="{{.Description}}" />
-    {{if .Keywords}}<meta name="keywords" content="{{.Keywords}}" />{{end}}
-    {{if .CanonicalURL}}<link rel="canonical" href="{{.CanonicalURL}}" />{{end}}
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="{{.OgTitle}}" />
-    <meta property="og:description" content="{{.OgDescription}}" />
-    <meta property="og:type" content="{{.OgType}}" />
-    {{if .OgURL}}<meta property="og:url" content="{{.OgURL}}" />{{end}}
-    {{if .OgImage}}<meta property="og:image" content="{{.OgImage}}" />{{end}}
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="{{.TwitterCard}}" />
-    <meta name="twitter:title" content="{{.OgTitle}}" />
-    <meta name="twitter:description" content="{{.OgDescription}}" />
-
-    {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
+    <!-- impress-seo-meta-start -->
+    <title>Impress</title>
+    <meta name="description" content="Impress CMS" />
+    <meta property="og:title" content="Impress" />
+    <meta property="og:description" content="Impress CMS" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Impress" />
+    <meta name="twitter:description" content="Impress CMS" />
+    <!-- impress-seo-meta-end -->
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />

@@ -1,7 +1,10 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-.PHONY: dev dev-backend dev-frontend build-backend build-cli stop help
+.PHONY: dev dev-up dev-backend dev-frontend build-backend build-cli stop help
+
+# Frontend dev server talks to the local API on this URL
+DEV_API_URL ?= http://localhost:8088
 
 # ── 版本信息 ─────────────────────────────────────────────
 GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -10,8 +13,15 @@ BUILD_TIME  := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 VERSION     := $(GIT_COMMIT)
 LDFLAGS     := -X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT) -X main.GitBranch=$(GIT_BRANCH)
 
-# ── 一键启动 ──────────────────────────────────────────────
-dev: ## 启动前后端（后端 :8088 + 前端 :3000）
+# ── 开发启动 ──────────────────────────────────────────────
+dev-up: ## 安装依赖、编译后端并启动前后端（SQLite，推荐首次/日常）
+	@echo "→ pnpm install"
+	@pnpm install
+	@$(MAKE) build-backend
+	@mkdir -p backend/data backend/uploads
+	@$(MAKE) dev
+
+dev: ## 启动前后端（需已 build-backend；完整流程用 dev-up）
 	@$(MAKE) -j2 dev-backend dev-frontend
 
 dev-backend: ## 启动后端（需先 build-backend）
@@ -25,7 +35,7 @@ dev-backend: ## 启动后端（需先 build-backend）
 	./server
 
 dev-frontend: ## 启动前端 dev server
-	@cd frontend && pnpm dev
+	@cd frontend && VITE_API_BASE_URL=$(DEV_API_URL) pnpm dev
 
 # ── 构建 ──────────────────────────────────────────────────
 build-backend: ## 编译后端（自动注入版本信息）

@@ -19,12 +19,11 @@ Thank you for your interest in contributing to Impress CMS! This guide will help
 git clone https://github.com/your-org/impress.git
 cd impress
 
-# Install frontend dependencies
-pnpm install
-
-# Start both backend and frontend in development mode
-make dev
+# Install deps, build backend (SQLite), and start dev servers
+make dev-up
 ```
+
+Or `pnpm dev:up`. To restart without reinstall/rebuild, use `make dev`.
 
 This starts:
 - Backend API at `http://localhost:8088`
