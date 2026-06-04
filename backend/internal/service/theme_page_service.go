@@ -22,12 +22,12 @@ type ThemePageSeedDef struct {
 }
 
 type builtinPageJSON struct {
-	Slug       string         `json:"slug"`
-	ContentKey string         `json:"contentKey"`
-	RenderMode string         `json:"renderMode"`
-	SortOrder  int            `json:"sortOrder"`
-	Title      model.JSONMap  `json:"title"`
-	NavConfig  model.JSONMap  `json:"navConfig"`
+	Slug       string        `json:"slug"`
+	ContentKey string        `json:"contentKey"`
+	RenderMode string        `json:"renderMode"`
+	SortOrder  int           `json:"sortOrder"`
+	Title      model.JSONMap `json:"title"`
+	NavConfig  model.JSONMap `json:"navConfig"`
 }
 
 // BuiltInThemePages maps theme IDs to their page definitions (loaded from embedded JSON).
@@ -71,7 +71,33 @@ func NewThemePageService(pageRepo repository.PageRepository) *ThemePageService {
 	return &ThemePageService{pageRepo: pageRepo}
 }
 
-// SeedThemePages creates page records for a theme, skipping already-existing ones (by contentKey)
+func pageFromDef(themeID string, def ThemePageSeedDef) *model.Page {
+	return &model.Page{
+		Slug:        def.Slug,
+		ThemeID:     themeID,
+		ContentKey:  def.ContentKey,
+		RenderMode:  def.RenderMode,
+		IsThemePage: true,
+		Title:       def.Title,
+		SortOrder:   def.SortOrder,
+		NavConfig:   def.NavConfig,
+		Status:      model.PageStatusPublished,
+	}
+}
+
+func applyDefToPage(page *model.Page, themeID string, def ThemePageSeedDef) {
+	page.ThemeID = themeID
+	page.ContentKey = def.ContentKey
+	page.RenderMode = def.RenderMode
+	page.IsThemePage = true
+	page.Title = def.Title
+	page.SortOrder = def.SortOrder
+	page.NavConfig = def.NavConfig
+	page.Status = model.PageStatusPublished
+}
+
+// SeedThemePages creates or updates page records for a theme.
+// Slugs are globally unique; activating a new theme reassigns shared slugs (e.g. home).
 func (s *ThemePageService) SeedThemePages(ctx context.Context, themeID string) error {
 	defs, ok := BuiltInThemePages[themeID]
 	if !ok {
@@ -80,7 +106,6 @@ func (s *ThemePageService) SeedThemePages(ctx context.Context, themeID string) e
 	}
 
 	for _, def := range defs {
-		// Check if already exists (dedup by themeID + contentKey)
 		existing, err := s.pageRepo.FindByThemeIDAndContentKey(ctx, themeID, def.ContentKey)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
 			return err
@@ -90,18 +115,20 @@ func (s *ThemePageService) SeedThemePages(ctx context.Context, themeID string) e
 			continue
 		}
 
-		page := &model.Page{
-			Slug:        def.Slug,
-			ThemeID:     themeID,
-			ContentKey:  def.ContentKey,
-			RenderMode:  def.RenderMode,
-			IsThemePage: true,
-			Title:       def.Title,
-			SortOrder:   def.SortOrder,
-			NavConfig:   def.NavConfig,
-			Status:      model.PageStatusPublished,
+		bySlug, slugErr := s.pageRepo.FindBySlug(ctx, def.Slug)
+		if slugErr != nil && !strings.Contains(slugErr.Error(), "not found") {
+			return slugErr
+		}
+		if bySlug != nil {
+			applyDefToPage(bySlug, themeID, def)
+			if err := s.pageRepo.Update(ctx, bySlug); err != nil {
+				return err
+			}
+			log.Printf("Reassigned theme page slug=%s to theme %s (contentKey=%s)", def.Slug, themeID, def.ContentKey)
+			continue
 		}
 
+		page := pageFromDef(themeID, def)
 		if err := s.pageRepo.Create(ctx, page); err != nil {
 			return err
 		}

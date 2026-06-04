@@ -6,8 +6,10 @@ import { staticRoutes } from "./config";
 import { resolveNavigate } from "./navigate";
 import { useThemeManager } from "@/plugins/hooks";
 import { useThemePages } from "@/contexts/ThemePagesContext";
+import { useBootstrap } from "@/contexts/BootstrapContext";
 import ThemePageWrapper from "@/plugins/ThemePageWrapper";
 import type { ThemePageDefinition } from "@/plugins/types";
+import type { ThemePageItem } from "@/api/themePages";
 import { FeatureGate } from "@/components/feature/FeatureGate";
 import { routeFeatureMap } from "@/router/featureMap";
 
@@ -20,7 +22,9 @@ declare global {
 export function AppRoutes() {
   const { activeTheme, isLoading: themeLoading } = useThemeManager();
   const { pages: themePages, isLoading: themePagesLoading } = useThemePages();
+  const { data: bootstrapData } = useBootstrap();
   const navigate = useNavigate();
+  const activeThemeId = bootstrapData?.activeTheme?.themeId ?? activeTheme?.manifest.id;
 
   useEffect(() => {
     window.REACT_APP_NAVIGATE = navigate;
@@ -38,6 +42,27 @@ export function AppRoutes() {
     return map;
   }, [activeTheme]);
 
+  const routingPages = useMemo((): ThemePageItem[] => {
+    const published = themePages.filter(
+      (p) => p.status === "published" && (!activeThemeId || p.themeId === activeThemeId),
+    );
+    if (published.length > 0) return published;
+
+    // Backend has no rows for this theme (e.g. seed not run yet) — use plugin manifest.
+    return (activeTheme?.pages ?? []).map((p, index) => ({
+      id: index,
+      slug: p.slug,
+      title: { zh: p.nav.labelZh, en: p.nav.label },
+      contentKey: p.contentKey ?? p.slug,
+      renderMode: p.renderMode,
+      isThemePage: true,
+      themeId: activeThemeId ?? "",
+      navConfig: { showInHeader: p.nav.showInHeader, showInFooter: p.nav.showInFooter },
+      sortOrder: p.nav.order,
+      status: "published",
+    }));
+  }, [themePages, activeTheme, activeThemeId]);
+
   const wrapWithFeatureGate = (path: string, element: ReactElement) => {
     const key = routeFeatureMap[path];
     if (!key) return element;
@@ -45,39 +70,23 @@ export function AppRoutes() {
   };
 
   const routes = useMemo(() => {
-    // If we have backend-driven theme pages, use them for routing
-    if (themePages.length > 0) {
-      const backendRoutes: RouteObject[] = themePages
-        .filter((p) => p.status === "published")
-        .map((page) => {
-          // For hardcoded pages, look up the component from the theme's pages array
-          const themeDef = componentMap.get(page.contentKey);
-          const pageDef: ThemePageDefinition = themeDef || {
-            slug: page.slug,
-            renderMode: page.renderMode as "hardcoded" | "dynamic",
-            contentKey: page.contentKey,
-            nav: { label: page.title.en || page.slug, labelZh: page.title.zh || page.slug, order: page.sortOrder },
-          };
+    const themeRoutes: RouteObject[] = routingPages.map((page) => {
+      const themeDef = componentMap.get(page.contentKey);
+      const pageDef: ThemePageDefinition = themeDef || {
+        slug: page.slug,
+        renderMode: page.renderMode as "hardcoded" | "dynamic",
+        contentKey: page.contentKey,
+        nav: { label: page.title.en || page.slug, labelZh: page.title.zh || page.slug, order: page.sortOrder },
+      };
 
-          const fullPath = page.slug === "home" ? "/" : `/${page.slug}`;
-          return {
-            path: fullPath,
-            element: wrapWithFeatureGate(fullPath, <ThemePageWrapper pageDef={pageDef} />),
-          };
-        });
-      return [...backendRoutes, ...staticRoutes];
-    }
-
-    // Fallback: use theme's hardcoded pages directly (before backend data loads)
-    const themeRoutes: RouteObject[] = (activeTheme?.pages || []).map((pageDef) => {
-      const fullPath = pageDef.slug === "home" ? "/" : `/${pageDef.slug}`;
+      const fullPath = page.slug === "home" ? "/" : `/${page.slug}`;
       return {
         path: fullPath,
         element: wrapWithFeatureGate(fullPath, <ThemePageWrapper pageDef={pageDef} />),
       };
     });
     return [...themeRoutes, ...staticRoutes];
-  }, [activeTheme, themePages, componentMap]);
+  }, [routingPages, componentMap]);
 
   const element = useRoutes(routes);
 

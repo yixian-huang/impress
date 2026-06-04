@@ -32,6 +32,7 @@ export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
     if (bootstrapLoading) return;
 
     let cancelled = false;
+    setIsLoading(true);
 
     async function init() {
       try {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"blotting-consultancy/internal/cache"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/service"
@@ -15,11 +16,22 @@ import (
 type Handler struct {
 	themeRepo        repository.InstalledThemeRepository
 	themePageService *service.ThemePageService
+	cache            *cache.Cache
 }
 
 // NewHandler creates a new installed theme handler
-func NewHandler(themeRepo repository.InstalledThemeRepository, themePageService *service.ThemePageService) *Handler {
-	return &Handler{themeRepo: themeRepo, themePageService: themePageService}
+func NewHandler(
+	themeRepo repository.InstalledThemeRepository,
+	themePageService *service.ThemePageService,
+	c *cache.Cache,
+) *Handler {
+	return &Handler{themeRepo: themeRepo, themePageService: themePageService, cache: c}
+}
+
+func (h *Handler) invalidateBootstrapCache() {
+	if h.cache != nil {
+		h.cache.DeletePrefix("bootstrap:")
+	}
 }
 
 // --- Public endpoints ---
@@ -253,6 +265,10 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		return
 	}
 
+	if existing.IsActive && input.Config != nil {
+		h.invalidateBootstrapCache()
+	}
+
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -351,6 +367,8 @@ func (h *Handler) AdminActivate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "激活主题失败"}})
 		return
 	}
+
+	h.invalidateBootstrapCache()
 
 	// Seed theme pages for the newly activated theme
 	if h.themePageService != nil {

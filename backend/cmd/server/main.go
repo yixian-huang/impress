@@ -400,7 +400,7 @@ func main() {
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	feedHandlerInst := feedHandler.NewHandler(articleRepo, siteConfigRepo, cfg.BaseURL, "Blog", "Latest posts")
 	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
-	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService)
+	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService, publicCache)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
 	globalConfigHandlerInst := globalConfigHandler.NewHandler(contentDocRepo, publicCache)
 	featuresHandlerInst := featuresHandler.NewHandler(siteConfigRepo, publicCache)

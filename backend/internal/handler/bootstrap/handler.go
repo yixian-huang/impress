@@ -80,7 +80,7 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 	cacheKey := "bootstrap:" + locale + ":" + pageKey
 	if cached, ok := h.cache.Get(cacheKey); ok {
 		c.Header("X-Cache", "HIT")
-		c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
+		c.Header("Cache-Control", "private, no-cache, must-revalidate")
 		c.JSON(http.StatusOK, cached)
 		return
 	}
@@ -189,6 +189,6 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 
 	h.cache.Set(cacheKey, result)
 	c.Header("X-Cache", "MISS")
-	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
+	c.Header("Cache-Control", "private, no-cache, must-revalidate")
 	c.JSON(http.StatusOK, result)
 }
