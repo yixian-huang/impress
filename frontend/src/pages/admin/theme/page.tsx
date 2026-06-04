@@ -6,7 +6,9 @@ import { defaultTokens, type ThemeTokens } from "@/theme";
 import { useThemeManager } from "@/plugins/hooks";
 import ThemeManagementModal from "./ThemeManagementModal";
 import ThemeSettingsForm from "./ThemeSettingsForm";
+import FontPresetSection from "./FontPresetSection";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useBootstrap } from "@/contexts/BootstrapContext";
 
 type TabId = "customize" | "presets" | "settings";
 
@@ -33,6 +35,7 @@ export default function AdminThemePage() {
   const [activeTab, setActiveTab] = useState<TabId>("customize");
   const [showThemeModal, setShowThemeModal] = useState(false);
   const { activeTheme } = useThemeManager();
+  const { refetch: refetchBootstrap } = useBootstrap();
 
   // --- Customize tab state ---
   const [tokens, setTokens] = useState<ThemeTokens>(defaultTokens);
@@ -119,9 +122,7 @@ export default function AdminThemePage() {
   const handleColorChange = (key: keyof ThemeTokens["colors"], value: string) => {
     setTokens((prev) => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   };
-  const handleFontChange = (key: keyof ThemeTokens["fonts"], value: string) => {
-    setTokens((prev) => ({ ...prev, fonts: { ...prev.fonts, [key]: value } }));
-  };
+
   const handleLayoutChange = (key: keyof ThemeTokens["layout"], value: string) => {
     setTokens((prev) => ({ ...prev, layout: { ...prev.layout, [key]: value } }));
   };
@@ -132,7 +133,8 @@ export default function AdminThemePage() {
     try {
       const res = await updateThemeSettings(tokens, draftVersion);
       setDraftVersion(res.draftVersion);
-      setCustomizeMsg("保存成功，刷新页面后生效");
+      await refetchBootstrap();
+      setCustomizeMsg("保存成功，前台已更新");
     } catch {
       setCustomizeMsg("保存失败");
     } finally {
@@ -151,7 +153,8 @@ export default function AdminThemePage() {
     setSettingsMsg("");
     try {
       await updateThemeConfig(themeDbId, settingsValues);
-      setSettingsMsg("保存成功，刷新页面后生效");
+      await refetchBootstrap();
+      setSettingsMsg("保存成功，前台已更新");
     } catch {
       setSettingsMsg("保存失败");
     }
@@ -313,30 +316,7 @@ export default function AdminThemePage() {
                 </div>
               </div>
 
-              {/* Fonts */}
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">字体</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">正文字体 (Sans)</label>
-                    <input
-                      type="text"
-                      value={tokens.fonts.sans}
-                      onChange={(e) => handleFontChange("sans", e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">标题字体 (Heading)</label>
-                    <input
-                      type="text"
-                      value={tokens.fonts.heading}
-                      onChange={(e) => handleFontChange("heading", e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
+              <FontPresetSection tokens={tokens} onChange={setTokens} />
 
               {/* Layout */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">

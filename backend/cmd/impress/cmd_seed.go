@@ -47,5 +47,6 @@ func seedCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN (default: DB_DSN env var or SQLite)")
+	cmd.AddCommand(seedBlogSamplesCmd())
 	return cmd
 }

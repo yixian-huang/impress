@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"blotting-consultancy/internal/cache"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
 )
@@ -12,11 +13,18 @@ import (
 // Handler handles theme-related HTTP requests
 type Handler struct {
 	siteConfigRepo repository.SiteConfigRepository
+	cache          *cache.Cache
 }
 
 // NewHandler creates a new theme handler
-func NewHandler(siteConfigRepo repository.SiteConfigRepository) *Handler {
-	return &Handler{siteConfigRepo: siteConfigRepo}
+func NewHandler(siteConfigRepo repository.SiteConfigRepository, c *cache.Cache) *Handler {
+	return &Handler{siteConfigRepo: siteConfigRepo, cache: c}
+}
+
+func (h *Handler) invalidateBootstrapCache() {
+	if h.cache != nil {
+		h.cache.DeletePrefix("bootstrap:")
+	}
 }
 
 // defaultThemeConfig returns the default theme token values
@@ -151,6 +159,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
 			return
 		}
+		h.invalidateBootstrapCache()
 		c.JSON(http.StatusOK, gin.H{
 			"draftConfig":  sc.DraftConfig,
 			"draftVersion": sc.DraftVersion,
@@ -174,6 +183,8 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
 		return
 	}
+
+	h.invalidateBootstrapCache()
 
 	c.JSON(http.StatusOK, gin.H{
 		"draftConfig":  existing.DraftConfig,

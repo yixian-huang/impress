@@ -86,6 +86,9 @@ export interface SiteConfigFeatures {
   blog: {
     comments: boolean;
     rss: boolean;
+    /** Word count + reading time on article detail */
+    readingMeta: boolean;
+    wordsPerMinute?: number;
   };
 }
 
@@ -119,5 +122,5 @@ export const SITE_CONFIG_FEATURES_DEFAULT: SiteConfigFeatures = {
     advantages: false,
     cases: false,
   },
-  blog: { comments: true, rss: true },
+  blog: { comments: true, rss: true, readingMeta: true, wordsPerMinute: 280 },
 };

@@ -72,8 +72,8 @@ func (h *Handler) Upload(c *gin.Context) {
 		}
 	}
 
-	if !strings.HasPrefix(mimeType, "image/") && !strings.HasPrefix(mimeType, "video/") && !strings.HasPrefix(mimeType, "audio/") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "仅支持上传图片、视频或音频文件"}})
+	if !strings.HasPrefix(mimeType, "image/") && !strings.HasPrefix(mimeType, "video/") && !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "font/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "仅支持上传图片、视频、音频或字体文件（woff2/woff）"}})
 		return
 	}
 
@@ -91,6 +91,12 @@ func (h *Handler) Upload(c *gin.Context) {
 			ext = ".mp4"
 		case strings.HasPrefix(mimeType, "audio/"):
 			ext = ".mp3"
+		case strings.HasPrefix(mimeType, "font/"):
+			if strings.Contains(mimeType, "woff2") {
+				ext = ".woff2"
+			} else {
+				ext = ".woff"
+			}
 		default:
 			ext = ".jpg"
 		}

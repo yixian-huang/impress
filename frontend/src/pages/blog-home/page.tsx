@@ -9,6 +9,7 @@ import ArticleList from "@/components/blog/ArticleList";
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import { useSEODefaults } from "@/hooks/useSEODefaults";
 import { useLocaleMode } from "@/hooks/useLocaleMode";
+import { useIsReadingLayout } from "@/plugins/hooks";
 import { pickLocaleValue } from "@/lib/locale";
 import { SITE_CONFIG_GLOBAL_DEFAULT } from "@/types/siteConfig";
 
@@ -20,6 +21,7 @@ export default function BlogHomePage() {
   const { config } = useGlobalConfig();
   const { buildTitle, defaultDescription, defaultOgImage } = useSEODefaults();
   const { localeMode, defaultLocale, currentLocale } = useLocaleMode();
+  const isReading = useIsReadingLayout();
 
   const siteConfig = config.siteConfig ?? SITE_CONFIG_GLOBAL_DEFAULT;
   const siteName = pickLocaleValue({
@@ -89,12 +91,31 @@ export default function BlogHomePage() {
         />
 
         <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-on-surface">
+          <div
+            className={
+              isReading
+                ? "flex items-baseline justify-between gap-4 mb-6"
+                : "flex items-center justify-between mb-6"
+            }
+          >
+            <h2
+              className={
+                isReading
+                  ? "text-xs font-sans font-medium uppercase tracking-[0.2em] text-on-surface-muted"
+                  : "text-xl font-semibold text-on-surface"
+              }
+            >
               {t("blog.recentPosts")}
             </h2>
             {total > HOME_RECENT_COUNT && (
-              <Link to="/blog" className="text-sm text-primary hover:text-accent transition-colors">
+              <Link
+                to="/blog"
+                className={
+                  isReading
+                    ? "text-sm font-sans text-on-surface-muted hover:text-primary transition-colors shrink-0"
+                    : "text-sm text-primary hover:text-accent transition-colors"
+                }
+              >
                 {t("blog.viewAll")} →
               </Link>
             )}
@@ -118,8 +139,15 @@ export default function BlogHomePage() {
           />
 
           {total > 0 && total <= HOME_RECENT_COUNT && (
-            <p className="mt-6">
-              <Link to="/blog" className="text-sm text-primary hover:text-accent transition-colors">
+            <p className={isReading ? "mt-10 text-center" : "mt-6"}>
+              <Link
+                to="/blog"
+                className={
+                  isReading
+                    ? "text-sm font-sans text-on-surface-muted hover:text-primary transition-colors"
+                    : "text-sm text-primary hover:text-accent transition-colors"
+                }
+              >
                 {t("blog.archive")} →
               </Link>
             </p>

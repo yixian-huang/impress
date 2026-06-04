@@ -4,15 +4,17 @@ import { useTranslation } from "react-i18next";
 import { getPublicArticle } from "@/api/articles";
 import type { Article } from "@/api/articles";
 import SeoHead from "@/components/SeoHead";
+import ArticlePostWithToc from "@/components/blog/ArticlePostWithToc";
+import ArticlePostHeader from "@/components/blog/ArticlePostHeader";
+import ArticlePostTaxonomy from "@/components/blog/ArticlePostTaxonomy";
 import BlogPageShell from "@/components/blog/BlogPageShell";
-import CommentSection from "@/components/feature/CommentSection";
-import { BlogFeatureGate } from "@/components/feature/BlogFeatureGate";
+import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
+import { CommentSlot } from "@/modules/comment";
 import { useLocaleMode } from "@/hooks/useLocaleMode";
 import {
   articleTitle,
   articleBody,
   articleMetaDescription,
-  formatArticleDate,
 } from "@/utils/articleLocale";
 
 export default function BlogDetailPage() {
@@ -20,7 +22,6 @@ export default function BlogDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation("common");
   const { localeMode, defaultLocale, currentLocale } = useLocaleMode();
-
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,16 @@ export default function BlogDetailPage() {
     ? articleMetaDescription(article, localeMode, defaultLocale, currentLocale)
     : "";
 
+  useEffect(() => {
+    if (loading || !article || !body) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [loading, article, body]);
+
   return (
     <>
       {article && (
@@ -96,63 +107,24 @@ export default function BlogDetailPage() {
           </div>
         ) : (
           <>
-            <header className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-heading font-bold text-on-surface leading-tight">
-                {title}
-              </h1>
-              {article.coverImage && (
-                <img
-                  src={article.coverImage}
-                  alt={title}
-                  className="mt-6 w-full rounded-card object-cover max-h-[420px]"
-                />
-              )}
-              <div className="mt-4 flex items-center gap-3 text-sm text-on-surface-muted flex-wrap">
-                <time dateTime={article.publishedAt || article.createdAt}>
-                  {formatArticleDate(article.publishedAt || article.createdAt, currentLocale)}
-                </time>
-                {article.category && (
-                  <>
-                    <span>&middot;</span>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/blog?category=${article.category!.slug}`)}
-                      className="text-primary hover:text-accent transition-colors"
-                    >
-                      {article.category.zhName || article.category.enName}
-                    </button>
-                  </>
-                )}
-                {article.tags && article.tags.length > 0 && (
-                  <>
-                    <span>&middot;</span>
-                    {article.tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => navigate(`/blog?tag=${tag.slug}`)}
-                        className="text-xs px-2.5 py-1 bg-surface-alt text-on-surface-muted rounded-full border border-border hover:bg-surface"
-                      >
-                        {tag.zhName || tag.enName}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            </header>
+            <ArticleTypographyRoot mode="reading" articleMetadata={article.metadata} className="article-public-view">
+              <ArticlePostHeader
+                title={title}
+                bodyHtml={body}
+                article={article}
+                currentLocale={currentLocale}
+              />
 
-            <article
-              ref={contentRef}
-              className="tiptap ProseMirror prose prose-gray max-w-none article-public-view"
-              dangerouslySetInnerHTML={{ __html: body }}
-              onClick={handleContentClick}
+              <ArticlePostTaxonomy article={article} />
+
+              <ArticlePostWithToc html={body} contentRef={contentRef} onClick={handleContentClick} />
+            </ArticleTypographyRoot>
+
+            <CommentSlot
+              contentType="article"
+              contentId={article.id}
+              contentAllowed={article.allowComments !== false}
             />
-
-            {article.allowComments !== false && (
-              <BlogFeatureGate feature="comments">
-                <CommentSection contentType="article" contentId={article.id} />
-              </BlogFeatureGate>
-            )}
           </>
         )}
       </BlogPageShell>

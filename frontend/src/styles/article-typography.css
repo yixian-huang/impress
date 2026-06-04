@@ -1,0 +1,172 @@
+/**
+ * Shared article typography contract — public reading + editor preview.
+ * Root: .article-typography with CSS vars from ArticleTypographyRoot.
+ */
+
+.article-typography .tiptap.ProseMirror {
+  font-family: var(--article-font-body);
+  font-size: var(--article-size-body, 1.0625rem);
+  line-height: var(--article-leading-body, 1.8);
+  color: var(--color-on-surface);
+}
+
+.article-typography .tiptap.ProseMirror > * + * {
+  margin-top: 0.85em;
+}
+
+.article-typography .tiptap.ProseMirror h1,
+.article-typography .tiptap.ProseMirror h2,
+.article-typography .tiptap.ProseMirror h3,
+.article-typography .tiptap.ProseMirror h4 {
+  font-family: var(--article-font-title, var(--article-font-body));
+  color: var(--color-on-surface);
+  font-weight: 600;
+  line-height: 1.35;
+  scroll-margin-top: 5rem;
+}
+
+.article-typography .tiptap.ProseMirror h1 { font-size: 1.5em; margin-top: 1.25em; }
+.article-typography .tiptap.ProseMirror h2 { font-size: 1.3em; margin-top: 1.1em; }
+.article-typography .tiptap.ProseMirror h3 { font-size: 1.15em; margin-top: 1em; }
+
+.article-typography .tiptap.ProseMirror p {
+  line-height: var(--article-leading-body, 1.8);
+}
+
+.article-typography .tiptap.ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+
+.article-typography .tiptap.ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+
+.article-typography .tiptap.ProseMirror li > p {
+  margin: 0;
+}
+
+.article-typography .tiptap.ProseMirror blockquote {
+  border-left: 2px solid var(--color-border);
+  padding-left: 1rem;
+  color: var(--color-on-surface-muted);
+  font-style: normal;
+}
+
+.article-typography .tiptap.ProseMirror a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+}
+
+.article-typography .tiptap.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-card, 0.25rem);
+  margin: 0.75rem 0;
+}
+
+.article-typography .tiptap.ProseMirror pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  font-family: var(--article-font-mono);
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+.article-typography .tiptap.ProseMirror code {
+  background: var(--color-surface-alt);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-family: var(--article-font-mono);
+  font-size: 0.875em;
+}
+
+.article-typography .tiptap.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.article-typography .tiptap.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+
+.article-typography .tiptap.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  font-family: var(--article-font-ui);
+  font-size: 0.9375rem;
+}
+
+.article-typography .tiptap.ProseMirror table td,
+.article-typography .tiptap.ProseMirror table th {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 0.75rem;
+}
+
+.article-typography .tiptap.ProseMirror table th {
+  background: var(--color-surface-alt);
+  font-weight: 600;
+}
+
+/* Editor preview — chrome stays admin-neutral, content uses contract */
+.article-editor-preview.article-typography {
+  background: var(--color-surface, #faf8f5);
+  min-height: 100%;
+}
+
+.article-editor-preview .tiptap.ProseMirror {
+  min-height: 300px;
+  padding: 0.75rem 1rem;
+  outline: none;
+}
+
+.article-editor-content.article-typography {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.article-editor-content.article-typography .tiptap.ProseMirror {
+  flex: 1;
+  min-height: unset;
+  padding-bottom: 40vh;
+}
+
+/* Public article page title (outside ProseMirror) */
+.article-typography .article-page-title {
+  font-family: var(--article-font-title, var(--font-heading));
+}
+
+.article-typography .article-page-ui {
+  font-family: var(--article-font-ui, var(--font-sans));
+}
+
+/* Public reading — align with header/comments (no editor padding) */
+.article-typography .article-public-view.tiptap.ProseMirror,
+.article-typography.article-public-view .tiptap.ProseMirror {
+  min-height: unset;
+  padding: 0;
+  outline: none;
+}
+
+/* Reading layout tweaks */
+.article-reading.article-typography .tiptap.ProseMirror {
+  margin-bottom: 3.5rem;
+}
+
+.article-public-view.article-typography div[data-type="column"] {
+  border: none;
+}
+
+.article-public-view.article-typography img {
+  cursor: zoom-in;
+}

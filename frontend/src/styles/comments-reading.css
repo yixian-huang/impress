@@ -1,0 +1,48 @@
+/**
+ * Blog / reading-layout comment block — sans-only, consistent scale.
+ * Scoped under .comment-reading so theme heading fonts do not leak in.
+ */
+.comment-reading {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+.comment-reading h2,
+.comment-reading .comment-reading__title {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.4;
+}
+
+.comment-reading label,
+.comment-reading input,
+.comment-reading textarea,
+.comment-reading button {
+  font-family: inherit;
+}
+
+.comment-reading .comment-reading__body {
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.comment-reading .comment-reading__meta {
+  font-size: 0.75rem;
+}
+
+.comment-reading .comment-reading__action {
+  font-size: 0.75rem;
+}
+
+.comment-reading .comment-reading__hint {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-on-surface-muted);
+}

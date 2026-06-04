@@ -19,8 +19,10 @@ type PublicPages struct {
 }
 
 type BlogFeatures struct {
-	Comments bool `json:"comments"`
-	RSS      bool `json:"rss"`
+	Comments         bool `json:"comments"`
+	RSS              bool `json:"rss"`
+	ReadingMeta      bool `json:"readingMeta"`
+	WordsPerMinute   int  `json:"wordsPerMinute,omitempty"`
 }
 
 type Features struct {

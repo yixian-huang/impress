@@ -114,7 +114,7 @@ export default function AdminFeaturesPage() {
               checked={draft.blog.comments}
               onChange={() => toggleBlog("comments")}
             />
-            <label htmlFor="blog-comments" className="text-sm">Comments on article pages</label>
+            <label htmlFor="blog-comments" className="text-sm">文章评论区（全站开关，发布后生效）</label>
           </li>
           <li className="flex items-center gap-3">
             <input
@@ -125,7 +125,36 @@ export default function AdminFeaturesPage() {
             />
             <label htmlFor="blog-rss" className="text-sm">RSS feed at /feed.xml</label>
           </li>
+          <li className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="blog-reading-meta"
+              checked={draft.blog.readingMeta}
+              onChange={() => toggleBlog("readingMeta")}
+            />
+            <label htmlFor="blog-reading-meta" className="text-sm">Word count & reading time on articles</label>
+          </li>
         </ul>
+        <div className="mt-3">
+          <label htmlFor="blog-wpm" className="text-sm text-gray-600 block mb-1">
+            Reading speed (words per minute)
+          </label>
+          <input
+            id="blog-wpm"
+            type="number"
+            min={100}
+            max={600}
+            className="border rounded px-2 py-1 text-sm w-28"
+            value={draft.blog.wordsPerMinute ?? 280}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setDraft((d) => ({
+                ...d,
+                blog: { ...d.blog, wordsPerMinute: Number.isFinite(n) && n > 0 ? n : 280 },
+              }));
+            }}
+          />
+        </div>
       </section>
 
       <section className="mb-6">

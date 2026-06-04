@@ -6,6 +6,7 @@ export interface ActiveThemeData {
   themeId?: string;
   source?: string;
   externalUrl?: string;
+  config?: Record<string, unknown>;
 }
 
 export interface GlobalConfigData {

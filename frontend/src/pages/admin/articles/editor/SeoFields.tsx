@@ -1,4 +1,5 @@
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import ArticleTypographySettings from "@/components/admin/articles/ArticleTypographySettings";
 
 // ── SEO fields panel ──
 
@@ -95,6 +96,7 @@ export function AdvancedSettingsPanel({
           <CheckboxField label="置顶" checked={pinned} onChange={setPinned} />
         </div>
       </div>
+      <ArticleTypographySettings metadata={metadata} onChange={setMetadata} />
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">元数据</label>
         <MetadataEditor value={metadata} onChange={setMetadata} />

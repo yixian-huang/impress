@@ -31,7 +31,9 @@ const AdminStoragePage = lazy(() => import('../pages/admin/storage/page'));
 const AdminEmailSettingsPage = lazy(() => import('../pages/admin/email-settings/page'));
 const AdminSiteConfigPage = lazy(() => import('../pages/admin/site-config/page'));
 const AdminFeaturesPage = lazy(() => import('../pages/admin/features/page'));
-const AdminCommentsPage = lazy(() => import('../pages/admin/comments/page'));
+import { commentModuleConfig } from '@/modules/comment';
+
+const AdminCommentsPage = lazy(() => import('../modules/comment/admin/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 // Public blog routes
@@ -172,7 +174,7 @@ export const staticRoutes: RouteObject[] = [
         element: <AdminWizardPage />,
       },
       {
-        path: 'comments',
+        path: commentModuleConfig.adminRoute.path,
         element: <AdminCommentsPage />,
       },
       {

@@ -12,9 +12,10 @@ import (
 
 // Handler handles comment HTTP requests.
 type Handler struct {
-	repo        Repository
-	antispam    *AntiSpamService
-	siteCfgRepo repository.SiteConfigRepository
+	repo           Repository
+	antispam       *AntiSpamService
+	siteCfgRepo    repository.SiteConfigRepository
+	contentDocRepo repository.ContentDocumentRepository
 }
 
 type createInput struct {
@@ -90,6 +91,7 @@ func (h *Handler) PublicCreate(c *gin.Context) {
 		ContentType: input.ContentType,
 		ContentID:   input.ContentID,
 		ParentID:    input.ParentID,
+		AuthorRole:  AuthorRoleGuest,
 		Status:      CommentStatusPending,
 	}
 	if err := comment.Validate(); err != nil {
@@ -239,4 +241,66 @@ func (h *Handler) AdminPin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+}
+
+type adminReplyInput struct {
+	Content     string `json:"content" binding:"required"`
+	ParentID    *uint  `json:"parentId"`
+	ContentType string `json:"contentType"`
+	ContentID   uint   `json:"contentId"`
+}
+
+// AdminReply creates an approved author comment or reply (admin JWT required).
+// @Summary      Reply as site author (admin)
+// @Tags         Comments (Admin)
+// @Security     BearerAuth
+// @Router       /admin/comments/reply [post]
+func (h *Handler) AdminReply(c *gin.Context) {
+	var input adminReplyInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	authorName := resolveSiteAuthorName(c.Request.Context(), h.contentDocRepo)
+
+	var contentType string
+	var contentID uint
+	var parentID *uint
+
+	if input.ParentID != nil && *input.ParentID > 0 {
+		parent, err := h.repo.FindByID(c.Request.Context(), *input.ParentID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "parent comment not found"})
+			return
+		}
+		contentType = parent.ContentType
+		contentID = parent.ContentID
+		parentID = &parent.ID
+	} else {
+		if input.ContentType == "" || input.ContentID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "contentType and contentId required without parentId"})
+			return
+		}
+		contentType = input.ContentType
+		contentID = input.ContentID
+	}
+
+	comment := &Comment{
+		Content:     input.Content,
+		AuthorName:  authorName,
+		ContentType: contentType,
+		ContentID:   contentID,
+		ParentID:    parentID,
+		AuthorRole:  AuthorRoleAuthor,
+		Status:      CommentStatusApproved,
+	}
+	if err := comment.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.repo.Create(c.Request.Context(), comment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create reply"})
+		return
+	}
+	c.JSON(http.StatusCreated, comment)
 }

@@ -1,3 +1,6 @@
+@import "./styles/article-typography.css";
+@import "./styles/comments-reading.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -202,6 +205,25 @@
 }
 .article-public-view img {
   cursor: zoom-in;
+}
+
+/* Reading-layout article prose — flatter, editorial */
+.article-reading.prose {
+  --tw-prose-body: var(--color-on-surface);
+  --tw-prose-headings: var(--color-on-surface);
+  --tw-prose-links: var(--color-primary);
+  --tw-prose-bold: var(--color-on-surface);
+  --tw-prose-quotes: var(--color-on-surface-muted);
+  --tw-prose-quote-borders: var(--color-border);
+}
+.article-reading.prose :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+}
+.article-reading.prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  border-left-width: 2px;
+  font-style: normal;
+  color: var(--color-on-surface-muted);
 }
 
 /* Details / Collapsible */

@@ -6,6 +6,8 @@ interface BrandMarkProps {
   brandMode: HeaderBrandMode;
   /** When true, omit default placeholder logo image */
   hideDefaultLogo?: boolean;
+  /** Show name beside avatar; set false for compact home header */
+  showLabel?: boolean;
   className?: string;
   textClassName?: string;
   logoClassName?: string;
@@ -15,6 +17,7 @@ interface BrandMarkProps {
 export default function BrandMark({
   brandMode,
   hideDefaultLogo = false,
+  showLabel = true,
   className = "",
   textClassName = "text-lg font-heading font-semibold text-on-surface",
   logoClassName = "h-8 w-auto",
@@ -40,7 +43,7 @@ export default function BrandMark({
       {brandMode === "avatar" && avatarSrc && (
         <img src={avatarSrc} alt={displayName} className={avatarClassName} />
       )}
-      {brandMode === "avatar" && (
+      {brandMode === "avatar" && showLabel && (
         <span className={textClassName}>{displayName}</span>
       )}
       {brandMode === "text" && (

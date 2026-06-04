@@ -1,18 +1,28 @@
 import type { ReactNode } from "react";
-import { useContentMaxWidth } from "@/plugins/hooks";
+import { useLocation } from "react-router-dom";
+import { useContentMaxWidth, useIsReadingLayout } from "@/plugins/hooks";
 
-interface ThemeContentShellProps {
+interface BlogPageShellProps {
   children: ReactNode;
   className?: string;
 }
 
 /** Content column width driven by active theme tokens. */
-export default function ThemeContentShell({ children, className = "" }: ThemeContentShellProps) {
+export default function BlogPageShell({ children, className = "" }: BlogPageShellProps) {
   const maxWidth = useContentMaxWidth();
+  const isReading = useIsReadingLayout();
+  const { pathname } = useLocation();
+  const isBlogRoute = /^\/(blog|categories|tags)(\/|$)/.test(pathname);
 
   return (
     <div
-      className={`mx-auto px-4 md:px-content py-section-sm flex-1 w-full ${className}`.trim()}
+      className={[
+        "mx-auto px-4 md:px-content flex-1 w-full",
+        isReading || isBlogRoute ? "py-section font-sans" : "py-section-sm",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={{ maxWidth }}
     >
       {children}

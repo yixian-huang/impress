@@ -1,4 +1,5 @@
 import { useContext, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { ThemeManagerContext, type ThemeManagerContextValue } from "./ThemeManagerContextDef";
 import { sectionRegistry, sectionMetas as baseSectionMetas } from "@/theme/sections";
 import { useBootstrap } from "@/contexts/BootstrapContext";
@@ -22,6 +23,16 @@ export function useIsReadingLayout(): boolean {
   if (!activeTheme) return false;
   if (activeTheme.defaultLayout?.contentProfile === "reading") return true;
   return activeTheme.manifest.tags?.includes("blog") ?? false;
+}
+
+/** True when the current route is the active theme's home page (`/`). */
+export function useIsThemeHomePath(): boolean {
+  const { pathname } = useLocation();
+  const { activeTheme } = useThemeManager();
+  const hasHomePage = activeTheme?.pages?.some((p) => p.slug === "home") ?? false;
+  if (!hasHomePage) return false;
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  return normalized === "/";
 }
 
 /** Merge base section registry with active theme's section overrides */

@@ -28,6 +28,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import EditorSidebar from "./EditorSidebar";
 import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
+import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -489,7 +490,13 @@ export default function ArticleEditorPage() {
                     <EditorBubbleMenu editor={entry.editor} />
                     <TableBubbleMenu editor={entry.editor} />
                     <EditorFloatingMenu editor={entry.editor} />
-                    <EditorContent editor={entry.editor} className="h-full article-editor-content" />
+                    <ArticleTypographyRoot
+                      mode="editor"
+                      articleMetadata={metadata}
+                      className="h-full article-editor-content"
+                    >
+                      <EditorContent editor={entry.editor} className="h-full" />
+                    </ArticleTypographyRoot>
                   </div>
                 );
               })

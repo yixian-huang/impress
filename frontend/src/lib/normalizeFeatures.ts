@@ -33,6 +33,11 @@ export function normalizeFeatures(raw: unknown): SiteConfigFeatures | undefined 
       ...SITE_CONFIG_FEATURES_DEFAULT.blog,
       comments: blogRaw.comments !== false,
       rss: blogRaw.rss !== false,
+      readingMeta: blogRaw.readingMeta !== false,
+      wordsPerMinute:
+        typeof blogRaw.wordsPerMinute === "number" && blogRaw.wordsPerMinute > 0
+          ? blogRaw.wordsPerMinute
+          : SITE_CONFIG_FEATURES_DEFAULT.blog.wordsPerMinute,
     },
   };
 }

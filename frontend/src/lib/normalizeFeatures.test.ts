@@ -18,10 +18,16 @@ describe("normalizeFeatures", () => {
         advantages: false,
         cases: false,
       },
-      blog: { comments: true, rss: true },
+      blog: { comments: true, rss: true, readingMeta: true },
     });
     expect(f?.publicPages.blog).toBe(true);
     expect(f?.blog.rss).toBe(true);
+    expect(f?.blog.readingMeta).toBe(true);
+  });
+
+  it("defaults readingMeta to true when omitted", () => {
+    const f = normalizeFeatures({ blog: { comments: true, rss: true } });
+    expect(f?.blog.readingMeta).toBe(true);
   });
 
   it("ignores legacy siteMode field", () => {

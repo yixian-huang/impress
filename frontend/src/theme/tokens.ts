@@ -1,3 +1,16 @@
+export interface ThemeTypographyArticle {
+  bodySize?: string;
+  bodyLineHeight?: number;
+}
+
+export interface ThemeFontSources {
+  sansPresetId?: string;
+  headingPresetId?: string;
+  monoPresetId?: string;
+  headingUpload?: { url: string; family: string; weight?: number; style?: "normal" | "italic" };
+  sansUpload?: { url: string; family: string; weight?: number; style?: "normal" | "italic" };
+}
+
 export interface ThemeTokens {
   colors: {
     primary: string;
@@ -14,6 +27,11 @@ export interface ThemeTokens {
   fonts: {
     sans: string;
     heading: string;
+    mono?: string;
+  };
+  fontSources?: ThemeFontSources;
+  typography?: {
+    article?: ThemeTypographyArticle;
   };
   layout: {
     maxWidth: string;
@@ -40,6 +58,13 @@ export const defaultTokens: ThemeTokens = {
   fonts: {
     sans: "system-ui, -apple-system, sans-serif",
     heading: "system-ui, -apple-system, sans-serif",
+    mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+  },
+  typography: {
+    article: {
+      bodySize: "1.0625rem",
+      bodyLineHeight: 1.8,
+    },
   },
   layout: {
     maxWidth: "1400px",

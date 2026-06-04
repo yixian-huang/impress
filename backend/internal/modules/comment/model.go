@@ -37,8 +37,9 @@ type Comment struct {
 	ParentID *uint      `gorm:"index" json:"parentId"`
 	Children []*Comment `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 
-	Status CommentStatus `gorm:"size:20;default:pending;index" json:"status"`
-	Pinned bool          `gorm:"default:false" json:"pinned"`
+	Status     CommentStatus `gorm:"size:20;default:pending;index" json:"status"`
+	AuthorRole string        `gorm:"size:20;default:guest" json:"authorRole"`
+	Pinned     bool          `gorm:"default:false" json:"pinned"`
 
 	SiteID *uint `gorm:"index" json:"-"`
 }

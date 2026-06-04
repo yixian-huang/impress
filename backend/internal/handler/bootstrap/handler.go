@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -101,14 +102,8 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 		}
 	}
 
-	// 2. Theme tokens
-	var themeTokens interface{}
-	doc, err := h.contentDocRepo.FindByPageKey(ctx, model.PageKeyTheme)
-	if err != nil || len(doc.PublishedConfig) == 0 {
-		themeTokens = defaultThemeConfig()
-	} else {
-		themeTokens = doc.PublishedConfig
-	}
+	// 2. Theme tokens — site_configs "theme" is canonical; content_documents "theme" is legacy fallback
+	themeTokens := h.loadPublishedThemeTokens(ctx)
 
 	// 3. Theme pages (only if we have an active theme)
 	var themePages []gin.H
@@ -191,4 +186,15 @@ func (h *Handler) PublicBootstrap(c *gin.Context) {
 	c.Header("X-Cache", "MISS")
 	c.Header("Cache-Control", "private, no-cache, must-revalidate")
 	c.JSON(http.StatusOK, result)
+}
+
+// loadPublishedThemeTokens reads design tokens from site_configs, with legacy fallback.
+func (h *Handler) loadPublishedThemeTokens(ctx context.Context) interface{} {
+	if sc, err := h.siteCfgRepo.FindByKey(ctx, model.SiteConfigKeyTheme); err == nil && sc != nil && len(sc.PublishedConfig) > 0 {
+		return sc.PublishedConfig
+	}
+	if doc, err := h.contentDocRepo.FindByPageKey(ctx, model.PageKeyTheme); err == nil && len(doc.PublishedConfig) > 0 {
+		return doc.PublishedConfig
+	}
+	return defaultThemeConfig()
 }

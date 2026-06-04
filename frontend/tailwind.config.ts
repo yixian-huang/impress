@@ -29,6 +29,7 @@ export default {
         fontFamily: {
           sans: "var(--font-sans)",
           heading: "var(--font-heading)",
+          mono: "var(--font-mono, ui-monospace, monospace)",
         },
         maxWidth: {
           layout: "var(--layout-max-width)",

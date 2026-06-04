@@ -1,25 +1,15 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import { http } from "@/api/http";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-
-interface AdminComment {
-  id: number;
-  content: string;
-  author_name: string;
-  author_email?: string;
-  article_id?: number;
-  article_title?: string;
-  parent_id?: number | null;
-  status: string;
-  created_at: string;
-}
-
-interface AdminCommentListResponse {
-  comments: AdminComment[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+import AdminCommentReplyPanel from "./AdminCommentReplyPanel";
+import {
+  adminCommentAuthorName,
+  adminCommentCreatedAt,
+  approveComment,
+  deleteComment,
+  getAdminComments,
+  rejectComment,
+  type AdminComment,
+} from "./api";
 
 type StatusFilter = "" | "pending" | "approved" | "rejected";
 
@@ -38,43 +28,16 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 
 const PAGE_SIZE = 20;
 
-async function getAdminComments(
-  page: number,
-  pageSize: number,
-  status?: string
-): Promise<AdminCommentListResponse> {
-  const params = new URLSearchParams({
-    page: String(page),
-    pageSize: String(pageSize),
-  });
-  if (status) params.set("status", status);
-  const { data } = await http.get<AdminCommentListResponse>(
-    `/admin/comments?${params.toString()}`,
-  );
-  return data;
-}
-
-async function approveComment(id: number): Promise<void> {
-  await http.patch(`/admin/comments/${id}/status`, { status: "approved" });
-}
-
-async function rejectComment(id: number): Promise<void> {
-  await http.patch(`/admin/comments/${id}/status`, { status: "rejected" });
-}
-
-async function deleteComment(id: number): Promise<void> {
-  await http.delete(`/admin/comments/${id}`);
-}
-
 export default function AdminCommentsPage() {
   useDocumentTitle("评论管理");
-  const [data, setData] = useState<AdminCommentListResponse | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof getAdminComments>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<AdminComment | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -221,6 +184,7 @@ export default function AdminCommentsPage() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">评论管理</h2>
         <button
+          type="button"
           onClick={fetchData}
           disabled={loading}
           className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
@@ -229,13 +193,13 @@ export default function AdminCommentsPage() {
         </button>
       </div>
 
-      {/* Status Tabs */}
       <div className="mb-6 flex gap-1 border-b border-gray-200">
         {STATUS_TABS.map((tab) => {
           const isActive = statusFilter === tab.value;
           return (
             <button
               key={tab.value}
+              type="button"
               onClick={() => handleTabChange(tab.value)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 isActive
@@ -249,11 +213,11 @@ export default function AdminCommentsPage() {
         })}
       </div>
 
-      {/* Bulk Actions */}
       {selectedIds.size > 0 && (
         <div className="mb-4 flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <span className="text-sm text-blue-700">已选 {selectedIds.size} 项</span>
           <button
+            type="button"
             onClick={handleBulkApprove}
             disabled={actionLoading}
             className="px-3 py-1 text-xs font-medium text-green-700 bg-white border border-green-300 rounded-md hover:bg-green-50 disabled:opacity-50"
@@ -261,6 +225,7 @@ export default function AdminCommentsPage() {
             批量通过
           </button>
           <button
+            type="button"
             onClick={handleBulkReject}
             disabled={actionLoading}
             className="px-3 py-1 text-xs font-medium text-yellow-700 bg-white border border-yellow-300 rounded-md hover:bg-yellow-50 disabled:opacity-50"
@@ -268,6 +233,7 @@ export default function AdminCommentsPage() {
             批量拒绝
           </button>
           <button
+            type="button"
             onClick={handleBulkDelete}
             disabled={actionLoading}
             className="px-3 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
@@ -334,9 +300,16 @@ export default function AdminCommentsPage() {
                           />
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-900">
-                          <div className="font-medium">{item.author_name}</div>
-                          {item.author_email && (
-                            <div className="text-xs text-gray-500 mt-0.5">{item.author_email}</div>
+                          <div className="font-medium">
+                            {adminCommentAuthorName(item)}
+                            {item.authorRole === "author" && (
+                              <span className="ml-1 text-xs text-blue-600">作者</span>
+                            )}
+                          </div>
+                          {(item.authorEmail || item.author_email) && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {item.authorEmail || item.author_email}
+                            </div>
                           )}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-700 max-w-xs">
@@ -357,12 +330,21 @@ export default function AdminCommentsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                          {formatTime(item.created_at)}
+                          {formatTime(adminCommentCreatedAt(item))}
                         </td>
                         <td className="px-4 py-4 text-sm">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setReplyTarget(item)}
+                              disabled={actionLoading}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium disabled:opacity-50"
+                            >
+                              回复
+                            </button>
                             {item.status !== "approved" && (
                               <button
+                                type="button"
                                 onClick={() => handleApprove(item.id)}
                                 disabled={actionLoading}
                                 className="text-green-600 hover:text-green-800 text-xs font-medium disabled:opacity-50"
@@ -372,6 +354,7 @@ export default function AdminCommentsPage() {
                             )}
                             {item.status !== "rejected" && (
                               <button
+                                type="button"
                                 onClick={() => handleReject(item.id)}
                                 disabled={actionLoading}
                                 className="text-yellow-600 hover:text-yellow-800 text-xs font-medium disabled:opacity-50"
@@ -380,6 +363,7 @@ export default function AdminCommentsPage() {
                               </button>
                             )}
                             <button
+                              type="button"
                               onClick={() => handleDelete(item.id)}
                               disabled={actionLoading}
                               className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50"
@@ -403,7 +387,6 @@ export default function AdminCommentsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-500">
@@ -411,6 +394,7 @@ export default function AdminCommentsPage() {
               </p>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -418,6 +402,7 @@ export default function AdminCommentsPage() {
                   上一页
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -429,6 +414,14 @@ export default function AdminCommentsPage() {
           )}
         </>
       ) : null}
+
+      {replyTarget && (
+        <AdminCommentReplyPanel
+          comment={replyTarget}
+          onClose={() => setReplyTarget(null)}
+          onSent={fetchData}
+        />
+      )}
     </div>
   );
 }

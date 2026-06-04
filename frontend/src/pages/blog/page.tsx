@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { getPublicArticles } from "@/api/articles";
 import SeoHead from "@/components/SeoHead";
 import BlogPageShell from "@/components/blog/BlogPageShell";
+import BlogPageHeader from "@/components/blog/BlogPageHeader";
+import BlogArchiveNav from "@/components/blog/BlogArchiveNav";
 import ArticleList from "@/components/blog/ArticleList";
 import { useSEODefaults } from "@/hooks/useSEODefaults";
 import { useLocaleMode } from "@/hooks/useLocaleMode";
@@ -86,36 +88,14 @@ export default function BlogPage() {
         canonicalUrl="/blog"
       />
       <BlogPageShell>
-        <header className="mb-10">
-          <h1 className="text-3xl font-heading font-bold text-on-surface">{listTitle}</h1>
-          <p className="mt-2 text-on-surface-muted">{listDesc}</p>
-        </header>
+        <BlogPageHeader title={listTitle} description={listDesc} />
 
-        {(categoryFilter || tagFilter) && (
-          <div className="mb-6 flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-on-surface-muted">{t("blog.filters")}:</span>
-            {categoryFilter && (
-              <button
-                type="button"
-                onClick={() => updateFilter("category", categoryFilter)}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-surface-alt text-primary rounded-full text-sm border border-border hover:bg-surface"
-              >
-                {categoryFilter}
-                <span className="ml-1">&times;</span>
-              </button>
-            )}
-            {tagFilter && (
-              <button
-                type="button"
-                onClick={() => updateFilter("tag", tagFilter)}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-surface-alt text-on-surface-muted rounded-full text-sm border border-border hover:bg-surface"
-              >
-                {tagFilter}
-                <span className="ml-1">&times;</span>
-              </button>
-            )}
-          </div>
-        )}
+        <BlogArchiveNav
+          activeCategory={categoryFilter}
+          activeTag={tagFilter}
+          onFilterCategory={(slug) => updateFilter("category", slug)}
+          onFilterTag={(slug) => updateFilter("tag", slug)}
+        />
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
@@ -135,7 +115,7 @@ export default function BlogPage() {
         />
 
         {totalPages > 1 && (
-          <div className="mt-8 flex items-center justify-center gap-2">
+          <div className="mt-8 flex items-center justify-center gap-2 article-page-ui font-sans">
             <button
               type="button"
               onClick={() => goToPage(Math.max(1, page - 1))}

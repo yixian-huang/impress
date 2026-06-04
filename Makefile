@@ -44,6 +44,9 @@ build-backend: ## 编译后端（自动注入版本信息）
 		"$(VERSION)" "$(BUILD_TIME)" "$(GIT_COMMIT)" "$(GIT_BRANCH)" > backend/version.json
 	@echo "Built backend $(VERSION) ($(GIT_BRANCH)@$(GIT_COMMIT)) at $(BUILD_TIME)"
 
+seed-blog-samples: ## 写入约 48 篇示例博客（幂等，需已有数据库）
+	@bash scripts/seed-blog-samples.sh
+
 build-cli: ## 编译 CLI 工具
 	@cd backend && go build -ldflags '-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)' -o impress ./cmd/impress/
 	@echo "Built CLI $(VERSION)"

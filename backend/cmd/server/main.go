@@ -399,7 +399,7 @@ func main() {
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	feedHandlerInst := feedHandler.NewHandler(articleRepo, siteConfigRepo, cfg.BaseURL, "Blog", "Latest posts")
-	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo)
+	themeHandlerInst := themeHandler.NewHandler(siteConfigRepo, publicCache)
 	installedThemeHandlerInst := installedThemeHandler.NewHandler(installedThemeRepo, themePageService, publicCache)
 	bootstrapHandlerInst := bootstrapHandler.NewHandler(contentDocRepo, installedThemeRepo, pageRepo, siteConfigRepo, publicCache)
 	globalConfigHandlerInst := globalConfigHandler.NewHandler(contentDocRepo, publicCache)

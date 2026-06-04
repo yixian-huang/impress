@@ -3,16 +3,25 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getPublicCategories } from "@/api/articles";
 import type { Category } from "@/api/articles";
-import PageHero from "@/components/feature/PageHero";
+import SeoHead from "@/components/SeoHead";
 import BlogPageShell from "@/components/blog/BlogPageShell";
-import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import BlogPageHeader from "@/components/blog/BlogPageHeader";
+import { useSEODefaults } from "@/hooks/useSEODefaults";
+import { useLocaleMode } from "@/hooks/useLocaleMode";
+import { pickLocalizedName } from "@/components/blog/pickLocalizedName";
+import { useIsReadingLayout } from "@/plugins/hooks";
 
 export default function CategoriesPage() {
-  useDocumentTitle("分类");
-  const { t } = useTranslation();
+  const { t } = useTranslation("common");
+  const { buildTitle, defaultDescription } = useSEODefaults();
+  const { currentLocale } = useLocaleMode();
+  const isReading = useIsReadingLayout();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pageTitle = t("blog.categoriesPageTitle");
+  const pageDesc = t("blog.categoriesPageDesc");
 
   useEffect(() => {
     const load = async () => {
@@ -31,60 +40,57 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <PageHero title={t("categories.title", "分类")} subtitle={t("categories.subtitle", "浏览所有文章分类")} />
+      <SeoHead
+        title={buildTitle(pageTitle)}
+        description={pageDesc || defaultDescription}
+        ogTitle={pageTitle}
+        ogDescription={pageDesc || defaultDescription}
+        ogType="website"
+        canonicalUrl="/categories"
+      />
       <BlogPageShell>
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">{t("common.loading", "Loading...")}</div>
-        </div>
-      ) : error ? (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      ) : (<>
+        <BlogPageHeader
+          title={pageTitle}
+          description={pageDesc}
+          backTo={{ href: "/blog", label: t("blog.backToArchive") }}
+        />
 
-      {categories.length === 0 ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">{t("categories.empty", "暂无分类")}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              to={`/categories/${category.slug}`}
-              className="group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
-            >
-              {category.coverImage ? (
-                <div className="aspect-video bg-gray-100 overflow-hidden">
-                  <img
-                    src={category.coverImage}
-                    alt={category.zhName || category.enName}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
-                  <span className="text-4xl text-blue-400/60">
-                    {(category.zhName || category.enName || "").charAt(0)}
-                  </span>
-                </div>
-              )}
-              <div className="p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
-                  {category.zhName || category.enName}
-                </h2>
-                {category.enName && category.zhName && (
-                  <p className="text-sm text-gray-400 mb-2">{category.enName}</p>
-                )}
-                {category.zhDescription && (
-                  <p className="text-sm text-gray-600 line-clamp-2">{category.zhDescription}</p>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-      </>)}
+        {loading ? (
+          <p className="text-on-surface-muted py-10 text-center">{t("status.loading")}</p>
+        ) : error ? (
+          <div className="p-4 border border-red-200 rounded-sm text-red-800 bg-red-50">{error}</div>
+        ) : categories.length === 0 ? (
+          <p className="text-on-surface-muted py-10 text-center">{t("status.empty")}</p>
+        ) : (
+          <ul className="divide-y divide-border/80">
+            {categories.map((category) => {
+              const name = pickLocalizedName(category.zhName, category.enName, currentLocale);
+              const desc =
+                currentLocale === "en" && category.enDescription
+                  ? category.enDescription
+                  : category.zhDescription || category.enDescription;
+              return (
+                <li key={category.id}>
+                  <Link
+                    to={`/categories/${category.slug}`}
+                    className={`block group ${isReading ? "py-6 first:pt-0" : "py-5"}`}
+                  >
+                    <h2 className="text-xl font-heading font-normal text-on-surface group-hover:text-primary transition-colors">
+                      <span className="group-hover:underline decoration-border underline-offset-4">
+                        {name}
+                      </span>
+                    </h2>
+                    {desc && (
+                      <p className="mt-2 text-sm text-on-surface-muted leading-relaxed line-clamp-2">
+                        {desc}
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </BlogPageShell>
     </>
   );

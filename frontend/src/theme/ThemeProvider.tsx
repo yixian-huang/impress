@@ -18,6 +18,9 @@ function applyTokens(tokens: ThemeTokens) {
   root.style.setProperty("--color-border", tokens.colors.border);
   root.style.setProperty("--font-sans", tokens.fonts.sans);
   root.style.setProperty("--font-heading", tokens.fonts.heading);
+  if (tokens.fonts.mono) {
+    root.style.setProperty("--font-mono", tokens.fonts.mono);
+  }
   root.style.setProperty("--layout-max-width", tokens.layout.maxWidth);
   root.style.setProperty("--radius-card", tokens.layout.borderRadius);
   root.style.setProperty("--radius-button", "0.375rem");
@@ -29,7 +32,18 @@ function applyTokens(tokens: ThemeTokens) {
 function mergeWithDefaults(tokens: ThemeTokens): ThemeTokens {
   return {
     colors: { ...defaultTokens.colors, ...tokens.colors },
-    fonts: { ...defaultTokens.fonts, ...tokens.fonts },
+    fonts: {
+      ...defaultTokens.fonts,
+      ...tokens.fonts,
+      mono: tokens.fonts.mono ?? defaultTokens.fonts.mono,
+    },
+    fontSources: tokens.fontSources ?? defaultTokens.fontSources,
+    typography: {
+      article: {
+        ...defaultTokens.typography?.article,
+        ...tokens.typography?.article,
+      },
+    },
     layout: { ...defaultTokens.layout, ...tokens.layout },
   };
 }
