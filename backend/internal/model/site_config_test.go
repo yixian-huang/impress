@@ -6,7 +6,7 @@ import (
 )
 
 func TestSiteConfig_Validate_ValidKeys(t *testing.T) {
-	for _, k := range []string{"global", "theme"} {
+	for _, k := range []string{"global", "theme", "system"} {
 		sc := &model.SiteConfig{Key: k}
 		if err := sc.Validate(); err != nil {
 			t.Errorf("unexpected error for key %q: %v", k, err)

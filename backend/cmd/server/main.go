@@ -55,11 +55,14 @@ import (
 	qa "blotting-consultancy/internal/modules/qa"
 	siteHandler "blotting-consultancy/internal/handler/site"
 	storageHandler "blotting-consultancy/internal/handler/storage"
+	setupHandler "blotting-consultancy/internal/handler/setup"
+	install "blotting-consultancy/internal/setup"
 	systemHandler "blotting-consultancy/internal/handler/system"
 	translationHandler "blotting-consultancy/internal/handler/translation"
 	unifiedPageHandler "blotting-consultancy/internal/handler/unified_page"
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
 	themeExportHandler "blotting-consultancy/internal/handler/theme_export"
+	"blotting-consultancy/internal/middleware"
 	"blotting-consultancy/internal/migration"
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/provider"
@@ -258,35 +261,72 @@ func main() {
 
 	// Run seed (idempotent)
 	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService, unifiedPageRepo, pageTemplateRepo, siteConfigRepo)
+	seedRBAC := func(ctx context.Context) error {
+		return seed.SeedRBAC(ctx, roleRepo)
+	}
+	setupSvc := install.NewService(userRepo, siteConfigRepo, contentDocRepo, seeder, seedRBAC)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
-	seedMode := os.Getenv("SEED_MODE")
-	switch seedMode {
-	case "blank":
-		if err := seeder.BlankSiteSeed(seedCtx); err != nil {
-			log.Error("Failed to run blank-site seed", "error", err)
-			os.Exit(1)
-		}
-	case "none":
-		log.Info("SEED_MODE=none, skipping seed")
-	case "demo":
-		if err := seeder.DemoSiteSeed(seedCtx); err != nil {
-			log.Error("Failed to run demo-site seed", "error", err)
-			os.Exit(1)
-		}
-	default:
-		// Backwards compat: existing deployments continue to get demo behavior.
-		if err := seeder.DemoSiteSeed(seedCtx); err != nil {
-			log.Error("Failed to run seed (default demo)", "error", err)
-			os.Exit(1)
-		}
-	}
-	// Seed RBAC roles and permissions
-	if err := seed.SeedRBAC(seedCtx, roleRepo); err != nil {
-		log.Error("Failed to seed RBAC data", "error", err)
+
+	installed, err := setupSvc.IsInstalled(seedCtx)
+	if err != nil {
+		log.Error("Failed to check install status", "error", err)
 		os.Exit(1)
 	}
-	log.Info("Seed data initialized")
+
+	seedMode := os.Getenv("SEED_MODE")
+	if installed {
+		switch seedMode {
+		case "blank":
+			if err := seeder.BlankSiteSeed(seedCtx); err != nil {
+				log.Error("Failed to run blank-site seed", "error", err)
+				os.Exit(1)
+			}
+		case "none":
+			log.Info("SEED_MODE=none, skipping seed")
+		case "demo":
+			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
+				log.Error("Failed to run demo-site seed", "error", err)
+				os.Exit(1)
+			}
+		default:
+			// Backwards compat: existing deployments continue to get demo behavior.
+			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
+				log.Error("Failed to run seed (default demo)", "error", err)
+				os.Exit(1)
+			}
+		}
+		if err := seedRBAC(seedCtx); err != nil {
+			log.Error("Failed to seed RBAC data", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		switch seedMode {
+		case "demo":
+			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
+				log.Error("Failed to run demo-site seed", "error", err)
+				os.Exit(1)
+			}
+			if err := seedRBAC(seedCtx); err != nil {
+				log.Error("Failed to seed RBAC data", "error", err)
+				os.Exit(1)
+			}
+		case "blank":
+			if err := seeder.BlankSiteSeed(seedCtx); err != nil {
+				log.Error("Failed to run blank-site seed", "error", err)
+				os.Exit(1)
+			}
+			if err := seedRBAC(seedCtx); err != nil {
+				log.Error("Failed to seed RBAC data", "error", err)
+				os.Exit(1)
+			}
+		case "none":
+			log.Info("Not installed; SEED_MODE=none — complete /setup wizard in the browser")
+		default:
+			log.Info("Not installed; awaiting /setup wizard (set SEED_MODE=demo for dev auto-seed)")
+		}
+	}
+	log.Info("Seed data initialized", "installed", installed, "seedMode", seedMode)
 
 	// (old validationService + contentService removed — replaced by UnifiedPageService)
 	log.Info("Services initialized")
@@ -427,6 +467,7 @@ func main() {
 	pageTemplateHdl := pageTemplateHandler.NewHandler(pageTemplateRepo)
 	themeExportSvc := service.NewThemeExportService(pageTemplateRepo, siteConfigRepo)
 	themeExportHdl := themeExportHandler.NewHandler(themeExportSvc)
+	setupHandlerInst := setupHandler.NewHandler(setupSvc, cfg.DBDSN)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router
@@ -500,6 +541,7 @@ func main() {
 		ContentDocRepo: contentDocRepo,
 	}
 	registerRoutes(router, handlers, routeDeps)
+	setupHandlerInst.RegisterRoutes(router, middleware.LoginRateLimit())
 
 	log.Info("Router configured with all routes")
 

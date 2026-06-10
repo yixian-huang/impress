@@ -11,6 +11,7 @@ const (
 	SiteConfigKeyTheme    = "theme"
 	SiteConfigKeyEmail    = "email"
 	SiteConfigKeyFeatures = "features"
+	SiteConfigKeySystem   = "system"
 )
 
 type SiteConfig struct {
@@ -27,8 +28,8 @@ type SiteConfig struct {
 func (SiteConfig) TableName() string { return "site_configs" }
 
 func (sc *SiteConfig) Validate() error {
-	if sc.Key != SiteConfigKeyGlobal && sc.Key != SiteConfigKeyTheme && sc.Key != SiteConfigKeyEmail && sc.Key != SiteConfigKeyFeatures {
-		return errors.New("key must be 'global', 'theme', 'email', or 'features'")
+	if sc.Key != SiteConfigKeyGlobal && sc.Key != SiteConfigKeyTheme && sc.Key != SiteConfigKeyEmail && sc.Key != SiteConfigKeyFeatures && sc.Key != SiteConfigKeySystem {
+		return errors.New("key must be 'global', 'theme', 'email', 'features', or 'system'")
 	}
 	return nil
 }

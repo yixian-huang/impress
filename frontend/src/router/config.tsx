@@ -34,6 +34,7 @@ const AdminFeaturesPage = lazy(() => import('../pages/admin/features/page'));
 import { commentModuleConfig } from '@/modules/comment';
 
 const AdminCommentsPage = lazy(() => import('../modules/comment/admin/page'));
+const SetupPage = lazy(() => import('../pages/setup/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 // Public blog routes
@@ -55,6 +56,10 @@ const DynamicPage = lazy(() => import('../theme/DynamicPage'));
  * dynamically from activeTheme.pages in AppRoutes.
  */
 export const staticRoutes: RouteObject[] = [
+  {
+    path: '/setup',
+    element: <SetupPage />,
+  },
   {
     path: '/blog',
     element: withSiteLayout(

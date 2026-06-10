@@ -41,9 +41,21 @@ make dev
 
 `frontend/index.html` uses static SEO tags for Vite dev. Production builds inject Go templates from `frontend/index.seo.tmpl` into `frontend/out/index.html` for server-side meta rendering.
 
-### 4. Access the admin panel
+### 4. First-time setup (production / fresh database)
 
-Open `http://localhost:3000/admin` and log in with the default credentials:
+Configure the database and secrets first:
+
+```bash
+impress init          # generates .env (DB_DSN, JWT secrets, port)
+impress migrate up
+impress serve         # do not set SEED_MODE — awaits browser setup
+```
+
+Open `http://localhost:3000/setup` and complete the wizard (admin account, site name, blank vs demo content).
+
+### 5. Access the admin panel (local dev)
+
+`make dev` sets `SEED_MODE=demo` for convenience. Open `http://localhost:3000/admin` and log in with:
 - Username: `admin`
 - Password: `admin123`
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
+import { useSetupStatus } from "@/hooks/useSetupStatus";
 import AdminSidebar from "./components/AdminSidebar";
 
 // Map admin route prefixes to permission keys
@@ -31,6 +32,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading, logout, hasPermission } = useAuth();
+  const { status: setupStatus, loading: setupLoading } = useSetupStatus();
   const branding = useBranding();
 
   const [collapsed, setCollapsed] = useState(() =>
@@ -46,13 +48,17 @@ export default function AdminLayout() {
     });
   };
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Show loading state while checking auth / setup
+  if (isLoading || setupLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-gray-600">加载中...</div>
       </div>
     );
+  }
+
+  if (setupStatus && !setupStatus.installed) {
+    return <Navigate to="/setup" replace />;
   }
 
   // Redirect to login if not authenticated

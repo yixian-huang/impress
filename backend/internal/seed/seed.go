@@ -322,6 +322,25 @@ func (s *Seeder) DemoSiteSeed(ctx context.Context) error {
 	return s.SeedAll(ctx)
 }
 
+// DemoSiteSeedContent seeds demo content without creating default users.
+func (s *Seeder) DemoSiteSeedContent(ctx context.Context) error {
+	log.Println("Starting demo-site content seed (no users)...")
+	if err := s.SeedContentDocuments(ctx); err != nil {
+		return err
+	}
+	if err := s.SeedUnifiedPages(ctx); err != nil {
+		return err
+	}
+	if err := s.SeedInstalledThemes(ctx); err != nil {
+		return err
+	}
+	if err := s.SeedThemePages(ctx); err != nil {
+		return err
+	}
+	log.Println("Demo-site content seed completed")
+	return nil
+}
+
 // BlankSiteSeed inserts the minimum required for a fresh personal-blog site:
 // one admin user, the global content document with default SiteConfigGlobal
 // payload, and (if siteCfgRepo provided) the features site_config with
@@ -331,6 +350,12 @@ func (s *Seeder) BlankSiteSeed(ctx context.Context) error {
 	if err := s.SeedUsers(ctx); err != nil {
 		return err
 	}
+	return s.BlankSiteSeedContent(ctx)
+}
+
+// BlankSiteSeedContent seeds a blank site without creating default users.
+func (s *Seeder) BlankSiteSeedContent(ctx context.Context) error {
+	log.Println("Starting blank-site content seed (no users)...")
 
 	// Ensure a "global" content_document exists with personal-blog defaults.
 	existing, err := s.contentRepo.FindByPageKey(ctx, model.PageKeyGlobal)

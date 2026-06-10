@@ -31,6 +31,7 @@ dev-backend: ## 启动后端（需先 build-backend）
 	export JWT_SECRET=dev_jwt_secret_change_in_production && \
 	export JWT_REFRESH_SECRET=dev_jwt_refresh_secret_change_in_production && \
 	export ENV=development && \
+	export SEED_MODE=demo && \
 	export UPLOAD_DIR=./uploads && \
 	./server
 
