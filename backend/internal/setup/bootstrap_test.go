@@ -29,6 +29,7 @@ func TestSaveEnv_BootstrapWritesFile(t *testing.T) {
 
 	result, err := SaveEnv(true, dir, BootstrapInput{
 		Port: 8088,
+		Env:  "production",
 		Database: config.DatabaseInput{
 			Type:       "sqlite",
 			SQLitePath: filepath.Join(dir, "data", "impress.db"),
@@ -38,11 +39,20 @@ func TestSaveEnv_BootstrapWritesFile(t *testing.T) {
 	assert.True(t, result.Success)
 	assert.True(t, result.RestartRequired)
 	assert.FileExists(t, result.EnvPath)
+
+	data, err := os.ReadFile(result.EnvPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "ENV=production")
 }
 
-func TestSaveEnv_RejectsWhenNotBootstrap(t *testing.T) {
+func TestSaveEnv_RejectsWhenNotAllowed(t *testing.T) {
 	_, err := SaveEnv(false, ".", BootstrapInput{
 		Database: config.DatabaseInput{Type: "sqlite", SQLitePath: ":memory:"},
 	})
 	assert.ErrorIs(t, err, ErrEnvConfigNotAllowed)
+}
+
+func TestValidatePostgresHost_RejectsPublicIP(t *testing.T) {
+	err := validatePostgresHost("8.8.8.8")
+	assert.Error(t, err)
 }

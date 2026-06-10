@@ -45,6 +45,16 @@ func (h *Handler) GetStatus(c *gin.Context) {
 
 // TestDatabase checks database connectivity for wizard-provided settings.
 func (h *Handler) TestDatabase(c *gin.Context) {
+	allowed, err := h.svc.AllowsEnvConfiguration(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
+		return
+	}
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "database configuration is not required"}})
+		return
+	}
+
 	var in config.DatabaseInput
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
@@ -59,13 +69,22 @@ func (h *Handler) TestDatabase(c *gin.Context) {
 
 // SaveEnv persists .env during bootstrap setup.
 func (h *Handler) SaveEnv(c *gin.Context) {
+	allowed, err := h.svc.AllowsEnvConfiguration(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
+		return
+	}
+
 	var in install.BootstrapInput
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
 		return
 	}
+	if in.Port == 0 {
+		in.Port = h.svc.ServerPort()
+	}
 
-	result, err := install.SaveEnv(h.svc.BootstrapMode(), install.WorkingDirectory(), in)
+	result, err := install.SaveEnv(allowed, install.WorkingDirectory(), in)
 	if err != nil {
 		if errors.Is(err, install.ErrEnvAlreadyConfigured) {
 			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "environment file already exists", "code": "ENV_ALREADY_CONFIGURED"}})

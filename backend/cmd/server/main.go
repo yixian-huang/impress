@@ -14,6 +14,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"blotting-consultancy/internal/cache"
@@ -266,15 +267,35 @@ func main() {
 
 	// Run seed (idempotent)
 	seeder := seed.NewSeeder(userRepo, contentDocRepo, installedThemeRepo, themePageService, unifiedPageRepo, pageTemplateRepo, siteConfigRepo)
-	seedRBAC := func(ctx context.Context) error {
+	seedRBAC := func(ctx context.Context, roleRepo repository.RoleRepository) error {
 		return seed.SeedRBAC(ctx, roleRepo)
 	}
-	setupSvc := install.NewService(userRepo, siteConfigRepo, contentDocRepo, seeder, seedRBAC, install.ServiceOptions{
-		BootstrapMode: loadResult.BootstrapMode,
-		EnvConfigured: config.EnvFileConfigured(),
-		DatabaseType:  config.DatabaseTypeFromDSN(cfg.DBDSN),
-		EnvFilePath:   config.DefaultEnvFilePath(),
-	})
+	seederFactory := func(tx *gorm.DB) *seed.Seeder {
+		txPageRepo := repository.NewGormPageRepository(tx)
+		return seed.NewSeeder(
+			repository.NewGormUserRepository(tx),
+			repository.NewGormContentDocumentRepository(tx),
+			repository.NewGormInstalledThemeRepository(tx),
+			service.NewThemePageService(txPageRepo),
+			repository.NewGormUnifiedPageRepository(tx),
+			repository.NewGormPageTemplateRepository(tx),
+			repository.NewGormSiteConfigRepository(tx),
+		)
+	}
+	setupSvc := install.NewService(
+		database.DB,
+		userRepo,
+		siteConfigRepo,
+		seederFactory,
+		seedRBAC,
+		install.ServiceOptions{
+			BootstrapMode:    loadResult.BootstrapMode,
+			EnvSecretsLoaded: loadResult.EnvSecretsLoaded,
+			DatabaseType:     config.DatabaseTypeFromDSN(cfg.DBDSN),
+			EnvFilePath:      config.DefaultEnvFilePath(),
+			ServerPort:       cfg.Port,
+		},
+	)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
 
@@ -285,56 +306,11 @@ func main() {
 	}
 
 	seedMode := os.Getenv("SEED_MODE")
-	if installed {
-		switch seedMode {
-		case "blank":
-			if err := seeder.BlankSiteSeed(seedCtx); err != nil {
-				log.Error("Failed to run blank-site seed", "error", err)
-				os.Exit(1)
-			}
-		case "none":
-			log.Info("SEED_MODE=none, skipping seed")
-		case "demo":
-			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
-				log.Error("Failed to run demo-site seed", "error", err)
-				os.Exit(1)
-			}
-		default:
-			// Backwards compat: existing deployments continue to get demo behavior.
-			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
-				log.Error("Failed to run seed (default demo)", "error", err)
-				os.Exit(1)
-			}
-		}
-		if err := seedRBAC(seedCtx); err != nil {
-			log.Error("Failed to seed RBAC data", "error", err)
-			os.Exit(1)
-		}
-	} else {
-		switch seedMode {
-		case "demo":
-			if err := seeder.DemoSiteSeed(seedCtx); err != nil {
-				log.Error("Failed to run demo-site seed", "error", err)
-				os.Exit(1)
-			}
-			if err := seedRBAC(seedCtx); err != nil {
-				log.Error("Failed to seed RBAC data", "error", err)
-				os.Exit(1)
-			}
-		case "blank":
-			if err := seeder.BlankSiteSeed(seedCtx); err != nil {
-				log.Error("Failed to run blank-site seed", "error", err)
-				os.Exit(1)
-			}
-			if err := seedRBAC(seedCtx); err != nil {
-				log.Error("Failed to seed RBAC data", "error", err)
-				os.Exit(1)
-			}
-		case "none":
-			log.Info("Not installed; SEED_MODE=none — complete /setup wizard in the browser")
-		default:
-			log.Info("Not installed; awaiting /setup wizard (set SEED_MODE=demo for dev auto-seed)")
-		}
+	if err := seed.RunStartupSeed(seedCtx, installed, seedMode, seeder, func(ctx context.Context) error {
+		return seedRBAC(ctx, roleRepo)
+	}); err != nil {
+		log.Error("Failed to run startup seed", "error", err)
+		os.Exit(1)
 	}
 	log.Info("Seed data initialized", "installed", installed, "seedMode", seedMode)
 

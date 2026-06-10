@@ -5,7 +5,9 @@ export interface SetupStatus {
   databaseType: "sqlite" | "postgres" | string;
   bootstrapMode?: boolean;
   needsEnvConfig?: boolean;
+  envSecretsLoaded?: boolean;
   envFilePath?: string;
+  serverPort?: number;
 }
 
 export interface DatabaseConfig {
@@ -35,6 +37,7 @@ export interface SetupCompletePayload {
 
 export interface SaveEnvPayload {
   port: number;
+  env: "development" | "production";
   database: DatabaseConfig;
 }
 

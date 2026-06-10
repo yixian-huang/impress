@@ -32,29 +32,35 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&model.Page{},
 		&model.UnifiedPage{},
 		&model.PageTemplate{},
+		&model.RBACRole{},
+		&model.Permission{},
+		&model.UserRole{},
 	))
 	return database.DB
 }
 
-func newTestService(t *testing.T, gormDB *gorm.DB) *Service {
+func newTestService(t *testing.T, gormDB *gorm.DB, opts ServiceOptions) *Service {
 	t.Helper()
 	userRepo := repository.NewGormUserRepository(gormDB)
-	contentRepo := repository.NewGormContentDocumentRepository(gormDB)
 	siteCfgRepo := repository.NewGormSiteConfigRepository(gormDB)
-	installedThemeRepo := repository.NewGormInstalledThemeRepository(gormDB)
-	pageRepo := repository.NewGormPageRepository(gormDB)
-	themePageSvc := service.NewThemePageService(pageRepo)
-	unifiedPageRepo := repository.NewGormUnifiedPageRepository(gormDB)
-	templateRepo := repository.NewGormPageTemplateRepository(gormDB)
-	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc, unifiedPageRepo, templateRepo, siteCfgRepo)
-	return NewService(userRepo, siteCfgRepo, contentRepo, seeder, func(ctx context.Context) error { return nil }, ServiceOptions{
-		DatabaseType: "sqlite",
-	})
+	seederFactory := func(tx *gorm.DB) *seed.Seeder {
+		pageRepo := repository.NewGormPageRepository(tx)
+		return seed.NewSeeder(
+			repository.NewGormUserRepository(tx),
+			repository.NewGormContentDocumentRepository(tx),
+			repository.NewGormInstalledThemeRepository(tx),
+			service.NewThemePageService(pageRepo),
+			repository.NewGormUnifiedPageRepository(tx),
+			repository.NewGormPageTemplateRepository(tx),
+			repository.NewGormSiteConfigRepository(tx),
+		)
+	}
+	return NewService(gormDB, userRepo, siteCfgRepo, seederFactory, nil, opts)
 }
 
 func TestService_IsInstalled_FalseOnEmptyDB(t *testing.T) {
 	gormDB := setupTestDB(t)
-	svc := newTestService(t, gormDB)
+	svc := newTestService(t, gormDB, ServiceOptions{EnvSecretsLoaded: true, DatabaseType: "sqlite"})
 
 	installed, err := svc.IsInstalled(context.Background())
 	require.NoError(t, err)
@@ -63,7 +69,7 @@ func TestService_IsInstalled_FalseOnEmptyDB(t *testing.T) {
 
 func TestService_Complete_CreatesAdminAndMarksInstalled(t *testing.T) {
 	gormDB := setupTestDB(t)
-	svc := newTestService(t, gormDB)
+	svc := newTestService(t, gormDB, ServiceOptions{EnvSecretsLoaded: true, DatabaseType: "sqlite"})
 	userRepo := repository.NewGormUserRepository(gormDB)
 	siteCfgRepo := repository.NewGormSiteConfigRepository(gormDB)
 
@@ -91,9 +97,21 @@ func TestService_Complete_CreatesAdminAndMarksInstalled(t *testing.T) {
 	assert.Equal(t, true, sysCfg.PublishedConfig["installed"])
 }
 
+func TestService_Complete_RejectsWithoutEnvSecrets(t *testing.T) {
+	gormDB := setupTestDB(t)
+	svc := newTestService(t, gormDB, ServiceOptions{EnvSecretsLoaded: false, DatabaseType: "sqlite"})
+
+	err := svc.Complete(context.Background(), CompleteInput{
+		Admin:    AdminInput{Username: "owner", Password: "securepass1"},
+		Site:     SiteInput{Name: map[string]string{"zh": "站点"}},
+		SeedMode: "blank",
+	})
+	assert.ErrorIs(t, err, ErrInvalidInput)
+}
+
 func TestService_Complete_RejectsWhenAlreadyInstalled(t *testing.T) {
 	gormDB := setupTestDB(t)
-	svc := newTestService(t, gormDB)
+	svc := newTestService(t, gormDB, ServiceOptions{EnvSecretsLoaded: true, DatabaseType: "sqlite"})
 
 	input := CompleteInput{
 		Admin:    AdminInput{Username: "owner", Password: "securepass1"},
@@ -106,14 +124,9 @@ func TestService_Complete_RejectsWhenAlreadyInstalled(t *testing.T) {
 	assert.ErrorIs(t, err, ErrAlreadyCompleted)
 }
 
-func TestService_Complete_ValidatesPassword(t *testing.T) {
-	gormDB := setupTestDB(t)
-	svc := newTestService(t, gormDB)
-
-	err := svc.Complete(context.Background(), CompleteInput{
-		Admin:    AdminInput{Username: "owner", Password: "short"},
-		Site:     SiteInput{Name: map[string]string{"zh": "站点"}},
-		SeedMode: "blank",
-	})
-	assert.ErrorIs(t, err, ErrInvalidInput)
+func TestService_NeedsEnvConfig(t *testing.T) {
+	svc := &Service{opts: ServiceOptions{EnvSecretsLoaded: false}}
+	assert.True(t, svc.NeedsEnvConfig())
+	svc.opts.EnvSecretsLoaded = true
+	assert.False(t, svc.NeedsEnvConfig())
 }

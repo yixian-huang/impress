@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"blotting-consultancy/internal/seed"
 	"blotting-consultancy/pkg/auth"
 	"blotting-consultancy/pkg/config"
+	"gorm.io/gorm"
 )
 
 var (
@@ -44,39 +46,45 @@ type CompleteInput struct {
 
 // Status describes whether the instance has completed web setup.
 type Status struct {
-	Installed       bool   `json:"installed"`
-	DatabaseType    string `json:"databaseType"`
-	BootstrapMode   bool   `json:"bootstrapMode"`
-	NeedsEnvConfig  bool   `json:"needsEnvConfig"`
-	EnvFilePath     string `json:"envFilePath"`
+	Installed        bool   `json:"installed"`
+	DatabaseType     string `json:"databaseType"`
+	BootstrapMode    bool   `json:"bootstrapMode"`
+	NeedsEnvConfig   bool   `json:"needsEnvConfig"`
+	EnvSecretsLoaded bool   `json:"envSecretsLoaded"`
+	EnvFilePath      string `json:"envFilePath"`
+	ServerPort       int    `json:"serverPort"`
 }
 
 // ServiceOptions configures bootstrap-aware setup behavior.
 type ServiceOptions struct {
-	BootstrapMode  bool
-	EnvConfigured  bool
-	DatabaseType   string
-	EnvFilePath    string
-	WorkingDir     string
+	BootstrapMode    bool
+	EnvSecretsLoaded bool
+	DatabaseType     string
+	EnvFilePath      string
+	ServerPort       int
+	WorkingDir       string
 }
+
+// SeederFactory builds a seeder bound to the given database handle.
+type SeederFactory func(db *gorm.DB) *seed.Seeder
 
 // Service handles first-run installation via the web wizard.
 type Service struct {
-	userRepo    repository.UserRepository
-	siteCfgRepo repository.SiteConfigRepository
-	contentRepo repository.ContentDocumentRepository
-	seeder      *seed.Seeder
-	seedRBAC    func(ctx context.Context) error
-	opts        ServiceOptions
+	db            *gorm.DB
+	userRepo      repository.UserRepository
+	siteCfgRepo   repository.SiteConfigRepository
+	seederFactory SeederFactory
+	seedRBAC      func(ctx context.Context, roleRepo repository.RoleRepository) error
+	opts          ServiceOptions
 }
 
 // NewService creates a setup service.
 func NewService(
+	db *gorm.DB,
 	userRepo repository.UserRepository,
 	siteCfgRepo repository.SiteConfigRepository,
-	contentRepo repository.ContentDocumentRepository,
-	seeder *seed.Seeder,
-	seedRBAC func(ctx context.Context) error,
+	seederFactory SeederFactory,
+	seedRBAC func(ctx context.Context, roleRepo repository.RoleRepository) error,
 	opts ServiceOptions,
 ) *Service {
 	if opts.EnvFilePath == "" {
@@ -85,13 +93,16 @@ func NewService(
 	if opts.WorkingDir == "" {
 		opts.WorkingDir = WorkingDirectory()
 	}
+	if opts.ServerPort == 0 {
+		opts.ServerPort = 8088
+	}
 	return &Service{
-		userRepo:    userRepo,
-		siteCfgRepo: siteCfgRepo,
-		contentRepo: contentRepo,
-		seeder:      seeder,
-		seedRBAC:    seedRBAC,
-		opts:        opts,
+		db:            db,
+		userRepo:      userRepo,
+		siteCfgRepo:   siteCfgRepo,
+		seederFactory: seederFactory,
+		seedRBAC:      seedRBAC,
+		opts:          opts,
 	}
 }
 
@@ -103,11 +114,16 @@ func (s *Service) IsInstalled(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
+	// Legacy: deployments seeded before the web wizard only have a super admin row.
 	count, err := s.userRepo.CountSuperAdmins(ctx)
 	if err != nil {
 		return false, err
 	}
-	return count > 0, nil
+	if count > 0 {
+		log.Println("setup: legacy super-admin detected without system install record")
+		return true, nil
+	}
+	return false, nil
 }
 
 // GetStatus returns install state plus database type hint for the wizard UI.
@@ -116,24 +132,39 @@ func (s *Service) GetStatus(ctx context.Context) (*Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	needsEnv := s.opts.BootstrapMode && !s.opts.EnvConfigured
 	return &Status{
-		Installed:      installed,
-		DatabaseType:   s.opts.DatabaseType,
-		BootstrapMode:  s.opts.BootstrapMode,
-		NeedsEnvConfig: needsEnv,
-		EnvFilePath:    s.opts.EnvFilePath,
+		Installed:        installed,
+		DatabaseType:     s.opts.DatabaseType,
+		BootstrapMode:    s.opts.BootstrapMode,
+		NeedsEnvConfig:   s.NeedsEnvConfig(),
+		EnvSecretsLoaded: s.opts.EnvSecretsLoaded,
+		EnvFilePath:      s.opts.EnvFilePath,
+		ServerPort:       s.opts.ServerPort,
 	}, nil
 }
 
-// NeedsEnvConfig reports whether the wizard must persist .env before completing install.
+// NeedsEnvConfig reports whether persisted env secrets are required before install can finish.
 func (s *Service) NeedsEnvConfig() bool {
-	return s.opts.BootstrapMode && !s.opts.EnvConfigured
+	return !s.opts.EnvSecretsLoaded
 }
 
 // BootstrapMode reports whether the server started without persisted JWT secrets.
 func (s *Service) BootstrapMode() bool {
 	return s.opts.BootstrapMode
+}
+
+// ServerPort returns the API port exposed to the setup wizard.
+func (s *Service) ServerPort() int {
+	return s.opts.ServerPort
+}
+
+// AllowsEnvConfiguration reports whether bootstrap env endpoints should be accepted.
+func (s *Service) AllowsEnvConfiguration(ctx context.Context) (bool, error) {
+	installed, err := s.IsInstalled(ctx)
+	if err != nil {
+		return false, err
+	}
+	return !installed && s.NeedsEnvConfig(), nil
 }
 
 // Complete runs the one-shot installation flow.
@@ -146,13 +177,14 @@ func (s *Service) Complete(ctx context.Context, in CompleteInput) error {
 		return ErrAlreadyCompleted
 	}
 	if s.NeedsEnvConfig() {
-		return fmt.Errorf("%w: save environment configuration and restart the server first", ErrInvalidInput)
+		return fmt.Errorf("%w: load persisted environment secrets and restart the server first", ErrInvalidInput)
 	}
 	if err := validateInput(in); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
 
-	existing, _ := s.userRepo.FindByUsername(ctx, strings.TrimSpace(in.Admin.Username))
+	username := strings.TrimSpace(in.Admin.Username)
+	existing, _ := s.userRepo.FindByUsername(ctx, username)
 	if existing != nil {
 		return fmt.Errorf("%w: username already exists", ErrInvalidInput)
 	}
@@ -162,65 +194,73 @@ func (s *Service) Complete(ctx context.Context, in CompleteInput) error {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	user := &model.User{
-		Username:     strings.TrimSpace(in.Admin.Username),
-		PasswordHash: hashedPassword,
-		Role:         model.RoleAdmin,
-		IsSuperAdmin: true,
-	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
-		return fmt.Errorf("create admin: %w", err)
-	}
-
-	switch strings.ToLower(strings.TrimSpace(in.SeedMode)) {
-	case "demo":
-		if err := s.seeder.DemoSiteSeedContent(ctx); err != nil {
-			return fmt.Errorf("demo seed: %w", err)
-		}
-	default:
-		if err := s.seeder.BlankSiteSeedContent(ctx); err != nil {
-			return fmt.Errorf("blank seed: %w", err)
-		}
-	}
-
-	if err := applyGlobalSiteName(ctx, s.contentRepo, in.Site); err != nil {
-		return fmt.Errorf("apply site name: %w", err)
-	}
-
 	seedMode := strings.ToLower(strings.TrimSpace(in.SeedMode))
 	if seedMode != "demo" {
 		seedMode = "blank"
 	}
-	installCfg := model.JSONMap{
-		"installed":        true,
-		"installedAt":      time.Now().UTC().Format(time.RFC3339),
-		"seedMode":         seedMode,
-		"installerVersion": "1",
-	}
-	row := &model.SiteConfig{
-		Key:              model.SiteConfigKeySystem,
-		DraftConfig:      installCfg,
-		DraftVersion:     1,
-		PublishedConfig:  installCfg,
-		PublishedVersion: 1,
-	}
-	if err := s.siteCfgRepo.Upsert(ctx, row); err != nil {
-		return fmt.Errorf("write install record: %w", err)
-	}
 
-	if s.seedRBAC != nil {
-		if err := s.seedRBAC(ctx); err != nil {
-			return fmt.Errorf("seed rbac: %w", err)
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		seeder := s.seederFactory(tx)
+		contentRepo := repository.NewGormContentDocumentRepository(tx)
+		siteCfgRepo := repository.NewGormSiteConfigRepository(tx)
+		userRepo := repository.NewGormUserRepository(tx)
+
+		switch seedMode {
+		case "demo":
+			if err := seeder.DemoSiteSeedContent(ctx); err != nil {
+				return fmt.Errorf("demo seed: %w", err)
+			}
+		default:
+			if err := seeder.BlankSiteSeedContent(ctx); err != nil {
+				return fmt.Errorf("blank seed: %w", err)
+			}
 		}
-	}
 
-	return nil
+		if err := applyGlobalSiteName(ctx, contentRepo, in.Site); err != nil {
+			return fmt.Errorf("apply site name: %w", err)
+		}
+
+		user := &model.User{
+			Username:     username,
+			PasswordHash: hashedPassword,
+			Role:         model.RoleAdmin,
+			IsSuperAdmin: true,
+		}
+		if err := userRepo.Create(ctx, user); err != nil {
+			return fmt.Errorf("create admin: %w", err)
+		}
+
+		installCfg := model.JSONMap{
+			"installed":        true,
+			"installedAt":      time.Now().UTC().Format(time.RFC3339),
+			"seedMode":         seedMode,
+			"installerVersion": "1",
+		}
+		row := &model.SiteConfig{
+			Key:              model.SiteConfigKeySystem,
+			DraftConfig:      installCfg,
+			DraftVersion:     1,
+			PublishedConfig:  installCfg,
+			PublishedVersion: 1,
+		}
+		if err := siteCfgRepo.Upsert(ctx, row); err != nil {
+			return fmt.Errorf("write install record: %w", err)
+		}
+
+		if s.seedRBAC != nil {
+			roleRepo := repository.NewGormRoleRepository(tx)
+			if err := s.seedRBAC(ctx, roleRepo); err != nil {
+				return fmt.Errorf("seed rbac: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Service) hasSystemInstallRecord(ctx context.Context) (bool, error) {
 	sc, err := s.siteCfgRepo.FindByKey(ctx, model.SiteConfigKeySystem)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "record not found") {
+		if repository.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
@@ -282,7 +322,7 @@ func validatePassword(password string) error {
 func applyGlobalSiteName(ctx context.Context, contentRepo repository.ContentDocumentRepository, site SiteInput) error {
 	doc, err := contentRepo.FindByPageKey(ctx, model.PageKeyGlobal)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "record not found") {
+		if repository.IsNotFound(err) {
 			return nil
 		}
 		return err

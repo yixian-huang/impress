@@ -10,28 +10,44 @@ import (
 
 // LoadResult contains configuration plus bootstrap metadata.
 type LoadResult struct {
-	Config        *Config
-	BootstrapMode bool
+	Config           *Config
+	BootstrapMode    bool
+	EnvSecretsLoaded bool
 }
 
 // LoadWithBootstrap loads configuration, allowing ephemeral JWT secrets when
 // SETUP_BOOTSTRAP=true or JWT env vars are missing.
 func LoadWithBootstrap() (*LoadResult, error) {
 	forceBootstrap := strings.EqualFold(strings.TrimSpace(os.Getenv("SETUP_BOOTSTRAP")), "true")
-	jwtMissing := strings.TrimSpace(os.Getenv("JWT_SECRET")) == "" ||
-		strings.TrimSpace(os.Getenv("JWT_REFRESH_SECRET")) == ""
+	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	jwtRefresh := strings.TrimSpace(os.Getenv("JWT_REFRESH_SECRET"))
+	secretsFromEnv := jwtSecret != "" && jwtRefresh != ""
 
-	if !forceBootstrap && !jwtMissing {
+	if secretsFromEnv && !forceBootstrap {
 		cfg, err := Load()
 		if err != nil {
 			return nil, err
 		}
-		return &LoadResult{Config: cfg, BootstrapMode: false}, nil
+		return &LoadResult{
+			Config:           cfg,
+			BootstrapMode:    false,
+			EnvSecretsLoaded: true,
+		}, nil
 	}
 
 	cfg, err := loadBase()
 	if err != nil {
 		return nil, err
+	}
+
+	if secretsFromEnv {
+		cfg.JWTSecret = jwtSecret
+		cfg.JWTRefreshSecret = jwtRefresh
+		return &LoadResult{
+			Config:           cfg,
+			BootstrapMode:    forceBootstrap,
+			EnvSecretsLoaded: true,
+		}, nil
 	}
 
 	secret, err := ephemeralSecret()
@@ -45,7 +61,11 @@ func LoadWithBootstrap() (*LoadResult, error) {
 	cfg.JWTSecret = secret
 	cfg.JWTRefreshSecret = refresh
 
-	return &LoadResult{Config: cfg, BootstrapMode: true}, nil
+	return &LoadResult{
+		Config:           cfg,
+		BootstrapMode:    true,
+		EnvSecretsLoaded: false,
+	}, nil
 }
 
 // loadBase reads optional env vars without requiring JWT secrets.

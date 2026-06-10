@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	"blotting-consultancy/internal/db"
@@ -19,7 +21,8 @@ var (
 
 // BootstrapInput is the payload for POST /setup/save-env.
 type BootstrapInput struct {
-	Port     int                 `json:"port"`
+	Port     int                  `json:"port"`
+	Env      string               `json:"env"`
 	Database config.DatabaseInput `json:"database"`
 }
 
@@ -32,6 +35,10 @@ type BootstrapResult struct {
 
 // TestDatabase verifies that the provided database settings can connect.
 func TestDatabase(ctx context.Context, in config.DatabaseInput) error {
+	if err := validateDatabaseInput(in); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
 	dsn, err := config.BuildDSN(in)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
@@ -60,9 +67,9 @@ func TestDatabase(ctx context.Context, in config.DatabaseInput) error {
 	return nil
 }
 
-// SaveEnv writes .env for bootstrap installs. Only allowed before a persisted env exists.
-func SaveEnv(bootstrapMode bool, outputDir string, in BootstrapInput) (*BootstrapResult, error) {
-	if !bootstrapMode {
+// SaveEnv writes .env for bootstrap installs.
+func SaveEnv(allow bool, outputDir string, in BootstrapInput) (*BootstrapResult, error) {
+	if !allow {
 		return nil, ErrEnvConfigNotAllowed
 	}
 	if config.EnvFileConfigured() {
@@ -71,6 +78,15 @@ func SaveEnv(bootstrapMode bool, outputDir string, in BootstrapInput) (*Bootstra
 
 	port, err := config.ParsePort(in.Port)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	runtimeEnv, err := normalizeRuntimeEnv(in.Env)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	if err := validateDatabaseInput(in.Database); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
 
@@ -97,7 +113,7 @@ func SaveEnv(bootstrapMode bool, outputDir string, in BootstrapInput) (*Bootstra
 		DBDSN:            dsn,
 		JWTSecret:        secret,
 		JWTRefreshSecret: refresh,
-		Env:              "development",
+		Env:              runtimeEnv,
 		UploadDir:        "./uploads",
 	})
 	if err != nil {
@@ -109,6 +125,48 @@ func SaveEnv(bootstrapMode bool, outputDir string, in BootstrapInput) (*Bootstra
 		RestartRequired: true,
 		EnvPath:         envPath,
 	}, nil
+}
+
+func validateDatabaseInput(in config.DatabaseInput) error {
+	dbType := strings.ToLower(strings.TrimSpace(in.Type))
+	if dbType == "postgres" || dbType == "postgresql" {
+		if in.Postgres == nil {
+			return errors.New("postgres connection details are required")
+		}
+		host := strings.TrimSpace(in.Postgres.Host)
+		if host == "" {
+			return errors.New("postgres host is required")
+		}
+		if err := validatePostgresHost(host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePostgresHost(host string) error {
+	if strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1" {
+		return nil
+	}
+	ip := net.ParseIP(host)
+	if ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() {
+			return nil
+		}
+		return fmt.Errorf("postgres host must be localhost or a private-network address during setup")
+	}
+	return nil
+}
+
+func normalizeRuntimeEnv(raw string) (string, error) {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	if raw == "" {
+		return "development", nil
+	}
+	if raw != "development" && raw != "production" {
+		return "", errors.New("env must be development or production")
+	}
+	return raw, nil
 }
 
 // WorkingDirectory returns the directory used for bootstrap file writes.

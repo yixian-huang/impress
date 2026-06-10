@@ -17,8 +17,22 @@ func TestLoadWithBootstrap_GeneratesEphemeralJWT(t *testing.T) {
 	result, err := LoadWithBootstrap()
 	require.NoError(t, err)
 	assert.True(t, result.BootstrapMode)
+	assert.False(t, result.EnvSecretsLoaded)
 	assert.NotEmpty(t, result.Config.JWTSecret)
 	assert.NotEmpty(t, result.Config.JWTRefreshSecret)
+}
+
+func TestLoadWithBootstrap_UsesEnvSecretsWhenPresent(t *testing.T) {
+	cleanupBootstrapEnv()
+	os.Setenv("JWT_SECRET", "from-env-secret")
+	os.Setenv("JWT_REFRESH_SECRET", "from-env-refresh-secret")
+	defer cleanupBootstrapEnv()
+
+	result, err := LoadWithBootstrap()
+	require.NoError(t, err)
+	assert.False(t, result.BootstrapMode)
+	assert.True(t, result.EnvSecretsLoaded)
+	assert.Equal(t, "from-env-secret", result.Config.JWTSecret)
 }
 
 func TestWriteEnvFile_CreatesEnvAndDirs(t *testing.T) {

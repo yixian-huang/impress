@@ -12,21 +12,53 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type Step = "welcome" | "database" | "restart" | "site" | "admin" | "content" | "done";
 
+const STEP_STORAGE_KEY = "impress.setup.step";
+const DRAFT_STORAGE_KEY = "impress.setup.draft";
+
+type SetupDraft = {
+  nameZh?: string;
+  nameEn?: string;
+  defaultLocale?: "zh" | "en";
+  username?: string;
+  seedMode?: "blank" | "demo";
+  serverPort?: number;
+  runtimeEnv?: "development" | "production";
+  dbType?: "sqlite" | "postgres";
+  sqlitePath?: string;
+};
+
+function readDraft(): SetupDraft {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as SetupDraft) : {};
+  } catch {
+    return {};
+  }
+}
+
 export default function SetupPage() {
   const { t } = useTranslation("setup");
   useDocumentTitle(t("title"));
   const navigate = useNavigate();
-  const { status, loading } = useSetupStatus();
+  const { status, loading, refetch } = useSetupStatus();
+  const draft = readDraft();
 
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>(() => {
+    const saved = sessionStorage.getItem(STEP_STORAGE_KEY) as Step | null;
+    return saved || "welcome";
+  });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [testingDb, setTestingDb] = useState(false);
   const [dbTestOk, setDbTestOk] = useState(false);
   const [savedEnvPath, setSavedEnvPath] = useState("");
 
-  const [dbType, setDbType] = useState<"sqlite" | "postgres">("sqlite");
-  const [sqlitePath, setSqlitePath] = useState("./data/impress.db");
+  const [serverPort, setServerPort] = useState(String(draft.serverPort ?? 8088));
+  const [runtimeEnv, setRuntimeEnv] = useState<"development" | "production">(
+    draft.runtimeEnv ?? "development",
+  );
+  const [dbType, setDbType] = useState<"sqlite" | "postgres">(draft.dbType ?? "sqlite");
+  const [sqlitePath, setSqlitePath] = useState(draft.sqlitePath ?? "./data/impress.db");
   const [pgHost, setPgHost] = useState("localhost");
   const [pgPort, setPgPort] = useState("5432");
   const [pgUser, setPgUser] = useState("impress");
@@ -34,13 +66,14 @@ export default function SetupPage() {
   const [pgDbName, setPgDbName] = useState("impress");
   const [pgSslMode, setPgSslMode] = useState("disable");
 
-  const [nameZh, setNameZh] = useState("");
-  const [nameEn, setNameEn] = useState("");
-  const [defaultLocale, setDefaultLocale] = useState<"zh" | "en">("zh");
-  const [username, setUsername] = useState("admin");
+  const [nameZh, setNameZh] = useState(draft.nameZh ?? "");
+  const [nameEn, setNameEn] = useState(draft.nameEn ?? "");
+  const [defaultLocale, setDefaultLocale] = useState<"zh" | "en">(draft.defaultLocale ?? "zh");
+  const [username, setUsername] = useState(draft.username ?? "admin");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [seedMode, setSeedMode] = useState<"blank" | "demo">("blank");
+  const [seedMode, setSeedMode] = useState<"blank" | "demo">(draft.seedMode ?? "blank");
+  const [restartPolling, setRestartPolling] = useState(false);
 
   const needsEnvConfig = status?.needsEnvConfig === true;
 
@@ -69,10 +102,56 @@ export default function SetupPage() {
   }, [needsEnvConfig]);
 
   useEffect(() => {
+    sessionStorage.setItem(STEP_STORAGE_KEY, step);
+  }, [step]);
+
+  useEffect(() => {
+    const payload: SetupDraft = {
+      nameZh,
+      nameEn,
+      defaultLocale,
+      username,
+      seedMode,
+      serverPort: Number(serverPort) || 8088,
+      runtimeEnv,
+      dbType,
+      sqlitePath,
+    };
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+  }, [nameZh, nameEn, defaultLocale, username, seedMode, serverPort, runtimeEnv, dbType, sqlitePath]);
+
+  useEffect(() => {
+    if (status?.serverPort) {
+      setServerPort(String(status.serverPort));
+    }
+  }, [status?.serverPort]);
+
+  useEffect(() => {
     if (!loading && status?.installed) {
+      sessionStorage.removeItem(STEP_STORAGE_KEY);
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
       navigate("/admin/login", { replace: true });
     }
   }, [loading, status, navigate]);
+
+  useEffect(() => {
+    if (step !== "restart") {
+      setRestartPolling(false);
+      return;
+    }
+    setRestartPolling(true);
+    const timer = window.setInterval(() => {
+      void refetch()
+        .then((next) => {
+          if (next.envSecretsLoaded && !next.needsEnvConfig) {
+            setRestartPolling(false);
+            setStep("site");
+          }
+        })
+        .catch(() => undefined);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [step, refetch]);
 
   const handleWelcomeNext = () => {
     setError("");
@@ -99,9 +178,17 @@ export default function SetupPage() {
   const handleSaveEnv = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!dbTestOk) {
+      setError(t("database.testRequired"));
+      return;
+    }
     setSubmitting(true);
     try {
-      const result = await saveSetupEnv({ port: 8088, database: databaseConfig });
+      const result = await saveSetupEnv({
+        port: Number(serverPort) || status?.serverPort || 8088,
+        env: runtimeEnv,
+        database: databaseConfig,
+      });
       setSavedEnvPath(result.envPath);
       clearSetupStatusCache();
       setStep("restart");
@@ -215,6 +302,31 @@ export default function SetupPage() {
           {step === "database" && (
             <form className="space-y-4" onSubmit={handleSaveEnv}>
               <h2 className="text-lg font-medium text-gray-900">{t("database.heading")}</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("database.serverPort")}
+                  </label>
+                  <input
+                    value={serverPort}
+                    onChange={(e) => setServerPort(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("database.runtimeEnv")}
+                  </label>
+                  <select
+                    value={runtimeEnv}
+                    onChange={(e) => setRuntimeEnv(e.target.value as "development" | "production")}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    <option value="development">{t("database.envDevelopment")}</option>
+                    <option value="production">{t("database.envProduction")}</option>
+                  </select>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t("database.type")}
@@ -264,7 +376,7 @@ export default function SetupPage() {
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t("database.port")}
+                        {t("database.pgPort")}
                       </label>
                       <input
                         value={pgPort}
@@ -353,7 +465,7 @@ export default function SetupPage() {
               </div>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !dbTestOk}
                 className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60"
               >
                 {submitting ? t("database.saving") : t("database.save")}
@@ -369,10 +481,13 @@ export default function SetupPage() {
                   path: savedEnvPath || status?.envFilePath || ".env",
                 })}
               </p>
+              {restartPolling && (
+                <p className="text-sm text-blue-600">{t("restart.waiting")}</p>
+              )}
               <button
                 type="button"
-                onClick={() => window.location.reload()}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                onClick={() => void refetch().then(() => window.location.reload())}
+                className="w-full py-2 px-4 border border-gray-300 rounded-md"
               >
                 {t("restart.reload")}
               </button>

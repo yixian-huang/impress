@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchSetupStatus, type SetupStatus } from "@/api/setup";
 
 let cachedStatus: SetupStatus | null = null;
 let inflight: Promise<SetupStatus> | null = null;
 
-async function loadSetupStatus(): Promise<SetupStatus> {
-  if (cachedStatus) {
+async function loadSetupStatus(force = false): Promise<SetupStatus> {
+  if (!force && cachedStatus) {
     return cachedStatus;
   }
   if (!inflight) {
@@ -23,12 +23,29 @@ async function loadSetupStatus(): Promise<SetupStatus> {
 
 export function clearSetupStatusCache() {
   cachedStatus = null;
+  inflight = null;
 }
 
 export function useSetupStatus() {
   const [status, setStatus] = useState<SetupStatus | null>(cachedStatus);
   const [loading, setLoading] = useState(!cachedStatus);
   const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    clearSetupStatusCache();
+    setLoading(true);
+    try {
+      const next = await loadSetupStatus(true);
+      setStatus(next);
+      setError(null);
+      return next;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load setup status");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,5 +67,13 @@ export function useSetupStatus() {
     };
   }, []);
 
-  return { status, loading, error };
+  useEffect(() => {
+    const onFocus = () => {
+      void refetch().catch(() => undefined);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refetch]);
+
+  return { status, loading, error, refetch };
 }

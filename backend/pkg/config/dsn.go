@@ -81,15 +81,8 @@ func buildPostgresDSN(pg PostgresInput) (string, error) {
 	return u.String(), nil
 }
 
-// DatabaseTypeFromDSN returns a short label for API responses.
-func DatabaseTypeFromDSN(dsn string) string {
-	if isPostgresDSN(dsn) {
-		return "postgres"
-	}
-	return "sqlite"
-}
-
-func isPostgresDSN(dsn string) bool {
+// IsPostgresDSN reports whether a DSN should use the PostgreSQL dialector.
+func IsPostgresDSN(dsn string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(dsn))
 	if strings.HasPrefix(normalized, "postgres://") || strings.HasPrefix(normalized, "postgresql://") {
 		return true
@@ -101,6 +94,14 @@ func isPostgresDSN(dsn string) bool {
 		}
 	}
 	return signals >= 2
+}
+
+// DatabaseTypeFromDSN returns a short label for API responses.
+func DatabaseTypeFromDSN(dsn string) string {
+	if IsPostgresDSN(dsn) {
+		return "postgres"
+	}
+	return "sqlite"
 }
 
 // FormatPostgresPort returns a normalized postgres port.

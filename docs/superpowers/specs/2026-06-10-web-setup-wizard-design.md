@@ -1,8 +1,8 @@
 # Web Setup Wizard — Phase 1 Design
 
 **Date:** 2026-06-10  
-**Status:** Phase 1 shipped; Phase 2 in progress  
-**Scope:** Web wizard for first-run install. Phase 1: admin + site + seed. Phase 2: bootstrap DB/JWT via browser.
+**Status:** Phase 1 + Phase 2 shipped (hardened)  
+**Scope:** Web wizard for first-run install including bootstrap DB/JWT via browser.
 
 ## Goals
 
@@ -18,7 +18,10 @@ When `SETUP_BOOTSTRAP=true` or JWT env vars are missing:
 - `GET /setup/status` adds `bootstrapMode`, `needsEnvConfig`, `envFilePath`.
 - `POST /setup/test-database` — test SQLite/PostgreSQL connectivity.
 - `POST /setup/save-env` — write `.env` with DSN + generated JWT secrets; `restartRequired: true`.
-- `POST /setup/complete` blocked until `.env` exists and server restarted.
+- `POST /setup/complete` blocked until persisted JWT secrets are loaded in-process (`envSecretsLoaded`).
+- `POST /setup/test-database` / `save-env` only when `!installed && needsEnvConfig`.
+- `Complete` runs in a DB transaction (seed → site name → admin → install record → RBAC).
+- Frontend requires DB test before save; polls `/setup/status` after restart.
 
 ## Install State
 

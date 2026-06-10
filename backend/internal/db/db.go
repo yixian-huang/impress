@@ -12,6 +12,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"blotting-consultancy/pkg/config"
 )
 
 // DB wraps the GORM database connection
@@ -30,20 +32,7 @@ type InitOptions struct {
 
 // IsPostgresDSN reports whether a DSN should use PostgreSQL dialector.
 func IsPostgresDSN(dsn string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(dsn))
-	if strings.HasPrefix(normalized, "postgres://") || strings.HasPrefix(normalized, "postgresql://") {
-		return true
-	}
-
-	// libpq-style DSN, e.g. "host=... user=... dbname=..."
-	signals := 0
-	for _, key := range []string{"host=", "dbname=", "user=", "password=", "sslmode="} {
-		if strings.Contains(normalized, key) {
-			signals++
-		}
-	}
-
-	return signals >= 2
+	return config.IsPostgresDSN(dsn)
 }
 
 // Init initializes a GORM database connection based on the DSN
