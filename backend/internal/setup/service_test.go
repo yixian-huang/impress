@@ -47,7 +47,9 @@ func newTestService(t *testing.T, gormDB *gorm.DB) *Service {
 	unifiedPageRepo := repository.NewGormUnifiedPageRepository(gormDB)
 	templateRepo := repository.NewGormPageTemplateRepository(gormDB)
 	seeder := seed.NewSeeder(userRepo, contentRepo, installedThemeRepo, themePageSvc, unifiedPageRepo, templateRepo, siteCfgRepo)
-	return NewService(userRepo, siteCfgRepo, contentRepo, seeder, func(ctx context.Context) error { return nil })
+	return NewService(userRepo, siteCfgRepo, contentRepo, seeder, func(ctx context.Context) error { return nil }, ServiceOptions{
+		DatabaseType: "sqlite",
+	})
 }
 
 func TestService_IsInstalled_FalseOnEmptyDB(t *testing.T) {

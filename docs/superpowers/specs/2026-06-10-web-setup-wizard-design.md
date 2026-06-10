@@ -1,8 +1,8 @@
 # Web Setup Wizard — Phase 1 Design
 
 **Date:** 2026-06-10  
-**Status:** Approved (Option A)  
-**Scope:** Web wizard for admin account, site info, and seed mode. DB/JWT remain via `impress init` / `.env`.
+**Status:** Phase 1 shipped; Phase 2 in progress  
+**Scope:** Web wizard for first-run install. Phase 1: admin + site + seed. Phase 2: bootstrap DB/JWT via browser.
 
 ## Goals
 
@@ -10,11 +10,15 @@
 - No hardcoded `admin/admin123` on fresh installs (unless `SEED_MODE=demo` for dev).
 - Existing deployments with super-admin users continue working unchanged.
 
-## Non-Goals (Phase 2)
+## Phase 2 (Bootstrap)
 
-- Web-based database DSN configuration.
-- Bootstrap server mode without JWT secrets.
-- Writing `.env` from the browser.
+When `SETUP_BOOTSTRAP=true` or JWT env vars are missing:
+
+- Server starts with ephemeral in-memory JWT secrets.
+- `GET /setup/status` adds `bootstrapMode`, `needsEnvConfig`, `envFilePath`.
+- `POST /setup/test-database` — test SQLite/PostgreSQL connectivity.
+- `POST /setup/save-env` — write `.env` with DSN + generated JWT secrets; `restartRequired: true`.
+- `POST /setup/complete` blocked until `.env` exists and server restarted.
 
 ## Install State
 

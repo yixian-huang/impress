@@ -94,12 +94,13 @@ var (
 // @name Authorization
 // @description Enter "Bearer {token}" for JWT authentication
 func main() {
-	// Load configuration
-	cfg, err := config.Load()
+	// Load configuration (bootstrap mode allows missing JWT for first-run setup)
+	loadResult, err := config.LoadWithBootstrap()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
+	cfg := loadResult.Config
 
 	// Initialize logger
 	log := appLogger.New(cfg.Env, map[string]interface{}{
@@ -113,7 +114,11 @@ func main() {
 		"buildTime", BuildTime,
 		"gitCommit", GitCommit,
 		"gitBranch", GitBranch,
+		"bootstrapMode", loadResult.BootstrapMode,
 	)
+	if loadResult.BootstrapMode {
+		log.Warn("Setup bootstrap mode active — use /setup to persist .env and restart")
+	}
 
 	// Initialize database
 	logLevel := logger.Info
@@ -264,7 +269,12 @@ func main() {
 	seedRBAC := func(ctx context.Context) error {
 		return seed.SeedRBAC(ctx, roleRepo)
 	}
-	setupSvc := install.NewService(userRepo, siteConfigRepo, contentDocRepo, seeder, seedRBAC)
+	setupSvc := install.NewService(userRepo, siteConfigRepo, contentDocRepo, seeder, seedRBAC, install.ServiceOptions{
+		BootstrapMode: loadResult.BootstrapMode,
+		EnvConfigured: config.EnvFileConfigured(),
+		DatabaseType:  config.DatabaseTypeFromDSN(cfg.DBDSN),
+		EnvFilePath:   config.DefaultEnvFilePath(),
+	})
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer seedCancel()
 
@@ -467,7 +477,7 @@ func main() {
 	pageTemplateHdl := pageTemplateHandler.NewHandler(pageTemplateRepo)
 	themeExportSvc := service.NewThemeExportService(pageTemplateRepo, siteConfigRepo)
 	themeExportHdl := themeExportHandler.NewHandler(themeExportSvc)
-	setupHandlerInst := setupHandler.NewHandler(setupSvc, cfg.DBDSN)
+	setupHandlerInst := setupHandler.NewHandler(setupSvc)
 	log.Info("Handlers initialized")
 
 	// Setup Gin router

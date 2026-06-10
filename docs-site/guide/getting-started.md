@@ -43,15 +43,23 @@ make dev
 
 ### 4. First-time setup (production / fresh database)
 
-Configure the database and secrets first:
+**Option A — Web bootstrap (no .env yet):**
 
 ```bash
-impress init          # generates .env (DB_DSN, JWT secrets, port)
+cd backend && SETUP_BOOTSTRAP=true ./server
+```
+
+Open `http://localhost:3000/setup`, configure the database in the browser (writes `.env`), restart the backend, then finish admin/site setup.
+
+**Option B — CLI init:**
+
+```bash
+impress init
 impress migrate up
 impress serve         # do not set SEED_MODE — awaits browser setup
 ```
 
-Open `http://localhost:3000/setup` and complete the wizard (admin account, site name, blank vs demo content).
+Open `http://localhost:3000/setup` for admin account, site name, and blank vs demo content.
 
 ### 5. Access the admin panel (local dev)
 

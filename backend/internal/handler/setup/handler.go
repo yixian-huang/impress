@@ -7,23 +7,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/db"
+	"blotting-consultancy/pkg/config"
 	install "blotting-consultancy/internal/setup"
 )
 
 // Handler serves first-run web setup endpoints.
 type Handler struct {
-	svc          *install.Service
-	databaseType string
+	svc *install.Service
 }
 
 // NewHandler creates a setup handler.
-func NewHandler(svc *install.Service, dbDSN string) *Handler {
-	dbType := "sqlite"
-	if db.IsPostgresDSN(dbDSN) {
-		dbType = "postgres"
-	}
-	return &Handler{svc: svc, databaseType: dbType}
+func NewHandler(svc *install.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 // RegisterRoutes mounts public setup routes on the root router.
@@ -32,18 +27,63 @@ func (h *Handler) RegisterRoutes(router *gin.Engine, rateLimit gin.HandlerFunc) 
 	group.Use(rateLimit)
 	{
 		group.GET("/status", h.GetStatus)
+		group.POST("/test-database", h.TestDatabase)
+		group.POST("/save-env", h.SaveEnv)
 		group.POST("/complete", h.Complete)
 	}
 }
 
 // GetStatus returns whether the instance has completed setup.
 func (h *Handler) GetStatus(c *gin.Context) {
-	status, err := h.svc.GetStatus(c.Request.Context(), h.databaseType)
+	status, err := h.svc.GetStatus(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
 		return
 	}
 	c.JSON(http.StatusOK, status)
+}
+
+// TestDatabase checks database connectivity for wizard-provided settings.
+func (h *Handler) TestDatabase(c *gin.Context) {
+	var in config.DatabaseInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		return
+	}
+	if err := install.TestDatabase(c.Request.Context(), in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// SaveEnv persists .env during bootstrap setup.
+func (h *Handler) SaveEnv(c *gin.Context) {
+	var in install.BootstrapInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		return
+	}
+
+	result, err := install.SaveEnv(h.svc.BootstrapMode(), install.WorkingDirectory(), in)
+	if err != nil {
+		if errors.Is(err, install.ErrEnvAlreadyConfigured) {
+			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "environment file already exists", "code": "ENV_ALREADY_CONFIGURED"}})
+			return
+		}
+		if errors.Is(err, install.ErrEnvConfigNotAllowed) {
+			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "environment configuration is not required"}})
+			return
+		}
+		if errors.Is(err, install.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": strings.TrimPrefix(err.Error(), "invalid setup input: ")}})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // Complete finishes first-run installation.

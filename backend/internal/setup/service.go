@@ -13,6 +13,7 @@ import (
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/seed"
 	"blotting-consultancy/pkg/auth"
+	"blotting-consultancy/pkg/config"
 )
 
 var (
@@ -43,8 +44,20 @@ type CompleteInput struct {
 
 // Status describes whether the instance has completed web setup.
 type Status struct {
-	Installed    bool   `json:"installed"`
-	DatabaseType string `json:"databaseType"`
+	Installed       bool   `json:"installed"`
+	DatabaseType    string `json:"databaseType"`
+	BootstrapMode   bool   `json:"bootstrapMode"`
+	NeedsEnvConfig  bool   `json:"needsEnvConfig"`
+	EnvFilePath     string `json:"envFilePath"`
+}
+
+// ServiceOptions configures bootstrap-aware setup behavior.
+type ServiceOptions struct {
+	BootstrapMode  bool
+	EnvConfigured  bool
+	DatabaseType   string
+	EnvFilePath    string
+	WorkingDir     string
 }
 
 // Service handles first-run installation via the web wizard.
@@ -54,6 +67,7 @@ type Service struct {
 	contentRepo repository.ContentDocumentRepository
 	seeder      *seed.Seeder
 	seedRBAC    func(ctx context.Context) error
+	opts        ServiceOptions
 }
 
 // NewService creates a setup service.
@@ -63,13 +77,21 @@ func NewService(
 	contentRepo repository.ContentDocumentRepository,
 	seeder *seed.Seeder,
 	seedRBAC func(ctx context.Context) error,
+	opts ServiceOptions,
 ) *Service {
+	if opts.EnvFilePath == "" {
+		opts.EnvFilePath = config.DefaultEnvFilePath()
+	}
+	if opts.WorkingDir == "" {
+		opts.WorkingDir = WorkingDirectory()
+	}
 	return &Service{
 		userRepo:    userRepo,
 		siteCfgRepo: siteCfgRepo,
 		contentRepo: contentRepo,
 		seeder:      seeder,
 		seedRBAC:    seedRBAC,
+		opts:        opts,
 	}
 }
 
@@ -89,15 +111,29 @@ func (s *Service) IsInstalled(ctx context.Context) (bool, error) {
 }
 
 // GetStatus returns install state plus database type hint for the wizard UI.
-func (s *Service) GetStatus(ctx context.Context, databaseType string) (*Status, error) {
+func (s *Service) GetStatus(ctx context.Context) (*Status, error) {
 	installed, err := s.IsInstalled(ctx)
 	if err != nil {
 		return nil, err
 	}
+	needsEnv := s.opts.BootstrapMode && !s.opts.EnvConfigured
 	return &Status{
-		Installed:    installed,
-		DatabaseType: databaseType,
+		Installed:      installed,
+		DatabaseType:   s.opts.DatabaseType,
+		BootstrapMode:  s.opts.BootstrapMode,
+		NeedsEnvConfig: needsEnv,
+		EnvFilePath:    s.opts.EnvFilePath,
 	}, nil
+}
+
+// NeedsEnvConfig reports whether the wizard must persist .env before completing install.
+func (s *Service) NeedsEnvConfig() bool {
+	return s.opts.BootstrapMode && !s.opts.EnvConfigured
+}
+
+// BootstrapMode reports whether the server started without persisted JWT secrets.
+func (s *Service) BootstrapMode() bool {
+	return s.opts.BootstrapMode
 }
 
 // Complete runs the one-shot installation flow.
@@ -108,6 +144,9 @@ func (s *Service) Complete(ctx context.Context, in CompleteInput) error {
 	}
 	if installed {
 		return ErrAlreadyCompleted
+	}
+	if s.NeedsEnvConfig() {
+		return fmt.Errorf("%w: save environment configuration and restart the server first", ErrInvalidInput)
 	}
 	if err := validateInput(in); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
