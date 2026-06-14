@@ -17,6 +17,12 @@ qb_log_info "build start version=${VERSION} workdir=${WORKDIR} staging=${STAGING
 cd "${WORKDIR}"
 mkdir -p "${STAGING}"
 
+if [[ "${QB_ENSURE_HOST_DEPS:-true}" == "true" ]]; then
+  qb_log_info "ensuring host build dependencies"
+  bash "${WORKDIR}/scripts/qb-artifact-ensure-deps.sh"
+  export PATH="/usr/local/go/bin:${PATH}"
+fi
+
 if qb_component_enabled "backend"; then
   qb_log_info "building backend component"
   if [[ "${QB_SKIP_BACKEND_TESTS:-false}" == "true" ]]; then
@@ -43,7 +49,15 @@ fi
 
 if qb_component_enabled "frontend"; then
   qb_log_info "building frontend component"
-  "${WORKDIR}/scripts/build-frontend.sh"
+  if [[ "${QB_SKIP_FRONTEND_CHECKS:-true}" == "true" ]]; then
+    qb_log_warn "QB_SKIP_FRONTEND_CHECKS=true — vite build only"
+    (cd "${WORKDIR}/frontend" && pnpm install --frozen-lockfile && pnpm build)
+    mkdir -p "${WORKDIR}/artifacts"
+    (cd "${WORKDIR}/frontend/out" && tar -czf "${WORKDIR}/artifacts/frontend-${VERSION}.tar.gz" .)
+    (cd "${WORKDIR}/artifacts" && sha256sum "frontend-${VERSION}.tar.gz" > "frontend-${VERSION}.tar.gz.sha256" 2>/dev/null || shasum -a 256 "frontend-${VERSION}.tar.gz" > "frontend-${VERSION}.tar.gz.sha256")
+  else
+    "${WORKDIR}/scripts/build-frontend.sh"
+  fi
   cp "${WORKDIR}/artifacts/frontend-${VERSION}.tar.gz" "${STAGING}/"
   if [[ -f "${WORKDIR}/artifacts/frontend-${VERSION}.tar.gz.sha256" ]]; then
     cp "${WORKDIR}/artifacts/frontend-${VERSION}.tar.gz.sha256" "${STAGING}/"
