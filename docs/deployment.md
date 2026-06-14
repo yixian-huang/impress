@@ -12,6 +12,10 @@ The production deployment workflow consists of:
 
 All scripts support environment-based configuration and maintain version history for safe rollback operations.
 
+### Quick-Box artifact deploy (`hk`)
+
+For production on Quick-Box environment **`hk`** (`82.158.226.66`), prefer **`deployMethod: artifact`**: a dedicated **build server** runs `scripts/qb-artifact-build.sh`; the VPS only runs `scripts/qb-artifact-activate.sh`. See [`OPS.md`](../OPS.md) and [`docs/quick-box-artifact-deploy-method.md`](quick-box-artifact-deploy-method.md).
+
 ## Prerequisites
 
 ### Local Build Environment

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "project": "impress",
+  "components": [
+    {
+      "name": "backend",
+      "buildScript": "scripts/build-backend.sh",
+      "artifactPattern": "artifacts/backend-{version}.tar.gz",
+      "checksumPattern": "artifacts/backend-{version}.tar.gz.sha256",
+      "deployPath": "backend/versions/{version}",
+      "runtime": {
+        "binaryName": "blotting-api-{version}",
+        "symlink": "backend/current/blotting-api-latest"
+      }
+    },
+    {
+      "name": "frontend",
+      "buildScript": "scripts/build-frontend.sh",
+      "artifactPattern": "artifacts/frontend-{version}.tar.gz",
+      "checksumPattern": "artifacts/frontend-{version}.tar.gz.sha256",
+      "deployPath": "frontend/versions/{version}",
+      "symlink": "frontend/current"
+    }
+  ],
+  "sharedMetadata": "artifacts/build-info.json",
+  "healthCheckPath": "/health"
+}

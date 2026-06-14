@@ -11,6 +11,10 @@ This directory contains production build and deployment automation scripts for t
 | `deploy.sh` | Deploy artifacts to production | `DEPLOY_HOST=prod.example.com VERSION=v1.0.0 ./scripts/deploy.sh` |
 | `deploy-http.sh` | Deploy artifacts via HTTP API | `DEPLOY_HTTP_ENDPOINT=https://deploy.example.com/api/releases VERSION=v1.0.0 ./scripts/deploy-http.sh` |
 | `rollback.sh` | Rollback to previous version | `DEPLOY_HOST=prod.example.com COMPONENT=all ./scripts/rollback.sh` |
+| `qb-docker-deploy.sh` | Quick-Box docker script deploy (legacy) | QB `deployMethod=script` on target host |
+| `qb-artifact-build.sh` | Quick-Box artifact build (build server) | `artifactDeployConfig.buildCommand` |
+| `qb-artifact-activate.sh` | Quick-Box artifact activate (deploy server) | `artifactDeployConfig.activateCommand` |
+| `qb-artifact-rollback.sh` | Quick-Box artifact rollback | `artifactDeployConfig.rollbackCommand` |
 | `migrate-db.sh` | Migrate SQLite to PostgreSQL | `TARGET_DB_DSN="..." ./scripts/migrate-db.sh` |
 | `long-agent.mjs` | Long-running autonomous agent | `pnpm agent:run` |
 | `agent-usage.mjs` | Agent cost and usage tracking | `pnpm agent:usage` |
@@ -55,6 +59,26 @@ export VERSION="v1.2.3"
 
 ./scripts/deploy-http.sh
 ```
+
+### Quick-Box artifact deploy (recommended for `hk`)
+
+Build server compiles; deploy server (`82.158.226.66`) only activates. See `OPS.md` and `docs/quick-box-artifact-deploy-method.md`.
+
+```bash
+# Local dry-run (build only)
+export VERSION="$(git describe --tags --always --dirty)"
+export QB_ARTIFACT_STAGING="/tmp/impress-artifact-${VERSION}"
+./scripts/qb-artifact-build.sh
+
+# Activate dry-run (as root on deploy host)
+export QB_ARTIFACT_INCOMING="/tmp/impress-artifact-${VERSION}"
+export QB_VERSION="${VERSION}"
+export QB_RELEASE_ROOT="/opt/impress"
+export PORT=8088
+sudo -E ./scripts/qb-artifact-activate.sh
+```
+
+QB environment template: `ops/qb-init-hk-artifact.json`
 
 ### Rolling Back
 
