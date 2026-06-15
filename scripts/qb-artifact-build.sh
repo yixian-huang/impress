@@ -21,6 +21,7 @@ if [[ "${QB_ENSURE_HOST_DEPS:-true}" == "true" ]]; then
   qb_log_info "ensuring host build dependencies"
   bash "${WORKDIR}/scripts/qb-artifact-ensure-deps.sh"
   export PATH="/usr/local/go/bin:${PATH}"
+  export GOTOOLCHAIN=local
 fi
 
 if qb_component_enabled "backend"; then

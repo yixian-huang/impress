@@ -22,11 +22,14 @@ ensure_build_essential() {
 }
 
 ensure_go() {
-  if command -v go >/dev/null 2>&1; then
+  local ver="${QB_GO_VERSION:-1.25.0}"
+  if command -v go >/dev/null 2>&1 && go version 2>/dev/null | grep -q "go${ver} "; then
     qb_log_info "go present: $(go version)"
     return 0
   fi
-  local ver="${QB_GO_VERSION:-1.24.2}"
+  if command -v go >/dev/null 2>&1; then
+    qb_log_warn "upgrading go to ${ver} (was: $(go version 2>/dev/null || echo missing))"
+  fi
   local arch
   arch="$(uname -m)"
   case "${arch}" in
