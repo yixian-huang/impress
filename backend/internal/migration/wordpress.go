@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -230,7 +231,7 @@ func extractMediaURLs(html string) []string {
 
 // sanitizeSlug creates a URL-safe slug from a title.
 func sanitizeSlug(title string) string {
-	slug := strings.ToLower(title)
+	slug := strings.ToLower(strings.TrimSpace(title))
 	var result strings.Builder
 	for _, r := range slug {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
@@ -247,7 +248,8 @@ func sanitizeSlug(title string) string {
 	}
 	s = strings.Trim(s, "-")
 	if s == "" {
-		s = fmt.Sprintf("post-%d", time.Now().UnixNano())
+		sum := sha256.Sum256([]byte(slug))
+		s = fmt.Sprintf("post-%x", sum[:6])
 	}
 	if len(s) > 200 {
 		s = s[:200]

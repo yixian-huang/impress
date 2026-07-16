@@ -3,6 +3,7 @@ package migration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -80,26 +81,25 @@ func (h *Handler) Import(c *gin.Context) {
 	}
 
 	if len(result.Articles) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"message":     "no articles found in export file",
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": gin.H{
+				"message": "no articles found in export file",
+			},
 			"parseErrors": result.Errors,
 		})
 		return
 	}
 
-	// Generate job ID and start async import
-	jobID := fmt.Sprintf("mig-%s-%d", sourceStr, time.Now().UnixMilli())
-
 	// Use a background context so the import continues after the HTTP response
 	importCtx := context.Background()
-	h.service.ImportArticles(importCtx, jobID, source, result.Articles, result.Errors)
+	jobID := h.service.StartImport(importCtx, source, result.Articles, result.Errors)
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"jobId":        jobID,
-		"source":       sourceStr,
+		"jobId":         jobID,
+		"source":        sourceStr,
 		"totalArticles": len(result.Articles),
-		"parseErrors":  result.Errors,
-		"message":      "import started; poll GET /admin/migration/jobs/:jobId for progress",
+		"parseErrors":   result.Errors,
+		"message":       "import started; poll GET /admin/migration/jobs/:jobId for progress",
 	})
 }
 
@@ -128,13 +128,46 @@ func (h *Handler) ListJobs(c *gin.Context) {
 	})
 }
 
+// RetryJob handles POST /admin/migration/jobs/:jobId/retry
+// Retries failed article imports for a failed migration job.
+func (h *Handler) RetryJob(c *gin.Context) {
+	jobID := c.Param("jobId")
+
+	progress, err := h.service.RetryJob(context.Background(), jobID)
+	if err != nil {
+		status := http.StatusBadRequest
+		message := err.Error()
+		switch {
+		case errors.Is(err, migrationPkg.ErrJobNotFound):
+			status = http.StatusNotFound
+			message = "migration job not found"
+		case errors.Is(err, migrationPkg.ErrJobRunning):
+			status = http.StatusConflict
+			message = "migration job is still running"
+		case errors.Is(err, migrationPkg.ErrJobNotFailed):
+			status = http.StatusConflict
+			message = "only failed migration jobs can be retried"
+		case errors.Is(err, migrationPkg.ErrJobNotRetryable):
+			status = http.StatusConflict
+			message = "migration job has no failed article imports to retry"
+		}
+		c.JSON(status, gin.H{
+			"error": gin.H{"message": message},
+		})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, progress)
+}
+
 // StreamProgress handles GET /admin/migration/jobs/:jobId/stream
 // Provides Server-Sent Events (SSE) for real-time progress monitoring.
 func (h *Handler) StreamProgress(c *gin.Context) {
 	jobID := c.Param("jobId")
 
 	// Verify job exists
-	if _, ok := h.service.GetProgress(jobID); !ok {
+	progress, ok := h.service.GetProgress(jobID)
+	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": gin.H{"message": "migration job not found"},
 		})
@@ -149,11 +182,16 @@ func (h *Handler) StreamProgress(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Poll and stream progress updates
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
+	if !writeSSE(c, "progress", progress) || isTerminal(progress.Phase) {
+		return
+	}
 
-	var lastProcessed int
+	ticker := time.NewTicker(500 * time.Millisecond)
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	defer heartbeat.Stop()
+
+	lastProgress := progress
 	for {
 		select {
 		case <-ctx.Done():
@@ -164,19 +202,53 @@ func (h *Handler) StreamProgress(c *gin.Context) {
 				return
 			}
 
-			// Only send update if something changed
-			if progress.Processed != lastProcessed || progress.Phase == "done" || progress.Phase == "failed" {
-				lastProcessed = progress.Processed
-
-				data, _ := json.Marshal(progress)
-				fmt.Fprintf(c.Writer, "data: %s\n\n", data)
-				c.Writer.Flush()
-
-				// Stop streaming once complete
-				if progress.Phase == "done" || progress.Phase == "failed" {
+			if progressChanged(lastProgress, progress) {
+				lastProgress = progress
+				if !writeSSE(c, "progress", progress) {
+					return
+				}
+				if isTerminal(progress.Phase) {
 					return
 				}
 			}
+		case <-heartbeat.C:
+			fmt.Fprint(c.Writer, ": heartbeat\n\n")
+			c.Writer.Flush()
 		}
 	}
+}
+
+func writeSSE(c *gin.Context, event string, progress *provider.MigrationProgress) bool {
+	data, err := json.Marshal(progress)
+	if err != nil {
+		return false
+	}
+	if event != "" {
+		fmt.Fprintf(c.Writer, "event: %s\n", event)
+	}
+	fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+	c.Writer.Flush()
+	return true
+}
+
+func progressChanged(previous, current *provider.MigrationProgress) bool {
+	if previous == nil || current == nil {
+		return previous != current
+	}
+	if previous.Phase != current.Phase ||
+		previous.Processed != current.Processed ||
+		previous.Succeeded != current.Succeeded ||
+		previous.Failed != current.Failed ||
+		previous.Attempt != current.Attempt ||
+		previous.Retryable != current.Retryable {
+		return true
+	}
+	if (previous.FinishedAt == nil) != (current.FinishedAt == nil) {
+		return true
+	}
+	return len(previous.Errors) != len(current.Errors)
+}
+
+func isTerminal(phase string) bool {
+	return phase == "done" || phase == "failed"
 }

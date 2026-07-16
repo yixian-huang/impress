@@ -33,6 +33,7 @@ const AdminEmailSettingsPage = lazy(() => import('../pages/admin/email-settings/
 const AdminSiteConfigPage = lazy(() => import('../pages/admin/site-config/page'));
 const AdminFeaturesPage = lazy(() => import('../pages/admin/features/page'));
 const AdminMigrationPage = lazy(() => import('../pages/admin/migration/page'));
+const AdminSystemStatusPage = lazy(() => import('../pages/admin/system-status/page'));
 import { commentModuleConfig } from '@/modules/comment';
 
 const AdminCommentsPage = lazy(() => import('../modules/comment/admin/page'));
@@ -215,6 +216,10 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'migration',
         element: <AdminMigrationPage />,
+      },
+      {
+        path: 'system-status',
+        element: <AdminSystemStatusPage />,
       },
     ],
   },

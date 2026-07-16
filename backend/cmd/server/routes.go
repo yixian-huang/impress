@@ -458,6 +458,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.POST("/migration/import", require("system", "manage"), handlers.Migration.Import)
 		adminGroup.GET("/migration/jobs", require("system", "manage"), handlers.Migration.ListJobs)
 		adminGroup.GET("/migration/jobs/:jobId", require("system", "manage"), handlers.Migration.GetJob)
+		adminGroup.POST("/migration/jobs/:jobId/retry", require("system", "manage"), handlers.Migration.RetryJob)
 		adminGroup.GET("/migration/jobs/:jobId/stream", require("system", "manage"), handlers.Migration.StreamProgress)
 
 		// Site management
@@ -478,7 +479,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.POST("/storage/test", require("settings", "manage"), handlers.Storage.TestConnection)
 
 		// System status
-		adminGroup.GET("/system/status", require("system", "read"), handlers.System.GetStatus)
+		adminGroup.GET("/system/status", require("system", "manage"), handlers.System.GetStatus)
 
 		// Translation & glossary
 		adminGroup.POST("/translate", require("settings", "manage"), handlers.Translation.Translate)

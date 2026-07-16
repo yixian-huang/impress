@@ -4,10 +4,10 @@ import { chromium } from "playwright";
 
 const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:4173";
 const server = spawn(
-  "pnpm",
-  ["-C", "frontend", "dev", "--host", "127.0.0.1", "--port", "4173", "--strictPort"],
+  process.execPath,
+  ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "4173", "--strictPort"],
   {
-    cwd: process.cwd(),
+    cwd: `${process.cwd()}/frontend`,
     env: { ...process.env, NODE_ENV: "test" },
     stdio: ["ignore", "pipe", "pipe"],
   },
@@ -51,9 +51,87 @@ function createMockState() {
   return {
     nextPageId: 101,
     nextScheduledPublicationId: 1,
+    nextMigrationJobId: 1,
     pages: [],
+    migrationJobs: [],
+    migrationStreamAttempts: {},
+    migrationStreamAuthFailures: 0,
+    authRefreshes: 0,
+    validAccessToken: "e2e-access",
     scheduledPublications: [],
+    systemStatus: {
+      application: { version: "e2e" },
+      runtime: {
+        goVersion: "go1.24.0",
+        os: "linux",
+        arch: "amd64",
+        cpuCount: 4,
+        goroutines: 12,
+        uptime: 3600,
+      },
+      memory: {
+        allocMB: 32,
+        totalAllocMB: 128,
+        sysMB: 64,
+        gcPauseMs: 0.2,
+      },
+      database: {
+        type: "sqlite",
+        healthy: true,
+        status: "healthy",
+        openConnections: 1,
+        maxOpenConnections: 1,
+        inUse: 0,
+        idle: 1,
+      },
+      storage: {
+        type: "local",
+        healthy: true,
+        status: "healthy",
+        uploadDirSizeMB: 12.5,
+        uploadDirBytes: 13107200,
+        mediaCount: 6,
+      },
+      content: {
+        articles: 3,
+        pages: 2,
+        media: 6,
+        users: 1,
+      },
+    },
   };
+}
+
+function createMigrationJob(state, overrides = {}) {
+  const now = new Date().toISOString();
+  const job = {
+    jobId: `mig-${state.nextMigrationJobId++}`,
+    source: "markdown",
+    phase: "importing",
+    total: 3,
+    processed: 0,
+    succeeded: 0,
+    failed: 0,
+    errors: [],
+    attempt: 1,
+    retryable: false,
+    startedAt: now,
+    finishedAt: null,
+    ...overrides,
+  };
+  state.migrationJobs.unshift(job);
+  return job;
+}
+
+function completeMigrationJob(job, overrides = {}) {
+  Object.assign(job, {
+    phase: "done",
+    processed: job.total,
+    succeeded: Math.max(job.total - job.failed, 0),
+    finishedAt: new Date().toISOString(),
+    ...overrides,
+  });
+  return job;
 }
 
 function publicPageFacts(page) {
@@ -119,7 +197,18 @@ async function mockAdminAPI(page, state, currentUser = {
       return;
     }
     if (path === "/auth/login") {
-      await json(route, { accessToken: "e2e-access", refreshToken: "e2e-refresh" });
+      await json(route, { accessToken: state.validAccessToken, refreshToken: "e2e-refresh" });
+      return;
+    }
+    if (path === "/auth/refresh") {
+      const input = request.postDataJSON();
+      assert.equal(input.refreshToken, "e2e-refresh");
+      state.authRefreshes += 1;
+      state.validAccessToken = `e2e-access-refreshed-${state.authRefreshes}`;
+      await json(route, {
+        accessToken: state.validAccessToken,
+        refreshToken: "e2e-refresh",
+      });
       return;
     }
     if (path === "/auth/me") {
@@ -359,10 +448,103 @@ async function mockAdminAPI(page, state, currentUser = {
       await json(route, { items: [], total: 0, page: 1, pageSize: 20 });
       return;
     }
-    if (path === "/admin/migration/jobs") {
-      await json(route, { jobs: [] });
+    if (path === "/admin/system/status") {
+      await json(route, state.systemStatus);
       return;
     }
+    if (path === "/admin/migration/import" && method === "POST") {
+      const job = createMigrationJob(state, {
+        source: "markdown",
+        total: 3,
+      });
+      await json(route, {
+        jobId: job.jobId,
+        message: "Markdown import queued",
+        totalArticles: job.total,
+        parseErrors: [],
+      }, 202);
+      return;
+    }
+    if (path === "/admin/migration/jobs") {
+      await json(route, { jobs: state.migrationJobs });
+      return;
+    }
+
+    const migrationJobMatch = path.match(/^\/admin\/migration\/jobs\/([^/]+)$/);
+    if (migrationJobMatch && method === "GET") {
+      if (request.headers().authorization !== `Bearer ${state.validAccessToken}`) {
+        await json(route, { error: "unauthorized" }, 401);
+        return;
+      }
+      const job = state.migrationJobs.find((item) => item.jobId === migrationJobMatch[1]);
+      if (!job) {
+        await json(route, { error: "migration job not found" }, 404);
+        return;
+      }
+      await json(route, job);
+      return;
+    }
+
+    const migrationRetryMatch = path.match(/^\/admin\/migration\/jobs\/([^/]+)\/retry$/);
+    if (migrationRetryMatch && method === "POST") {
+      const job = state.migrationJobs.find((item) => item.jobId === migrationRetryMatch[1]);
+      if (!job) {
+        await json(route, { error: "migration job not found" }, 404);
+        return;
+      }
+      Object.assign(job, {
+        phase: "importing",
+        processed: job.succeeded,
+        failed: 0,
+        errors: [],
+        attempt: (job.attempt || 1) + 1,
+        retryable: false,
+        finishedAt: null,
+      });
+      await json(route, job);
+      return;
+    }
+
+    const migrationStreamMatch = path.match(/^\/admin\/migration\/jobs\/([^/]+)\/stream$/);
+    if (migrationStreamMatch && method === "GET") {
+      if (request.headers().authorization !== `Bearer ${state.validAccessToken}`) {
+        state.migrationStreamAuthFailures += 1;
+        await json(route, { error: "unauthorized" }, 401);
+        return;
+      }
+      const jobId = migrationStreamMatch[1];
+      const job = state.migrationJobs.find((item) => item.jobId === jobId);
+      if (!job) {
+        await route.fulfill({
+          status: 404,
+          contentType: "text/event-stream",
+          body: "event: error\ndata: {\"error\":\"migration job not found\"}\n\n",
+        });
+        return;
+      }
+
+      assert.equal(request.headers().authorization, `Bearer ${state.validAccessToken}`);
+      state.migrationStreamAttempts[jobId] = (state.migrationStreamAttempts[jobId] || 0) + 1;
+      const progressJob = { ...job, processed: Math.max(1, job.total - 1), succeeded: Math.max(1, job.total - 1) };
+      if (state.migrationStreamAttempts[jobId] === 1) {
+        Object.assign(job, progressJob);
+        await route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: `event: progress\ndata: ${JSON.stringify(progressJob)}\n\n`,
+        });
+        return;
+      }
+
+      completeMigrationJob(job);
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: `event: progress\ndata: ${JSON.stringify(job)}\n\n`,
+      });
+      return;
+    }
+
     if (path.startsWith("/admin/") || path.startsWith("/public/")) {
       await json(route, { items: [], total: 0 });
       return;
@@ -406,6 +588,48 @@ async function run() {
     await page.getByRole("link", { name: "数据迁移" }).click();
     await page.waitForURL(`${baseURL}/admin/migration`);
     await page.getByRole("heading", { name: "数据迁移" }).waitFor();
+    await page.getByText("暂无导入任务", { exact: true }).waitFor();
+
+    await page.getByRole("link", { name: "系统状态" }).click();
+    await page.waitForURL(`${baseURL}/admin/system-status`);
+    await page.getByRole("heading", { name: "系统状态" }).waitFor();
+    await page.getByText("e2e", { exact: true }).waitFor();
+    await page.getByText("sqlite", { exact: true }).waitFor();
+    await page.getByRole("link", { name: "数据迁移" }).click();
+    await page.waitForURL(`${baseURL}/admin/migration`);
+
+    createMigrationJob(state, {
+      jobId: "mig-failed",
+      phase: "failed",
+      total: 2,
+      processed: 1,
+      succeeded: 1,
+      failed: 1,
+      errors: ["broken front matter"],
+      retryable: true,
+      finishedAt: new Date().toISOString(),
+    });
+    await page.getByRole("button", { name: "刷新", exact: true }).click();
+    await page.getByText("失败", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "重试", exact: true }).click();
+    await page.getByText("成功 2 条，失败 0 条", { exact: true }).waitFor();
+    assert.equal(state.migrationStreamAttempts["mig-failed"], 2);
+
+    await page.evaluate(() => {
+      localStorage.setItem("accessToken", "expired-e2e-access");
+    });
+    await page.getByRole("button", { name: "Markdown ZIP" }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "markdown-export.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.from("e2e markdown zip"),
+    });
+    await page.getByRole("button", { name: "开始导入", exact: true }).click();
+    await page.getByText(/导入任务已创建，任务 ID: mig-\d+，待导入 3 条/).waitFor();
+    await page.getByText("成功 3 条，失败 0 条", { exact: true }).waitFor();
+    assert.equal(state.migrationStreamAttempts[state.migrationJobs[0].jobId], 2);
+    assert.equal(state.migrationStreamAuthFailures, 1);
+    assert.equal(state.authRefreshes, 1);
 
     await page.goto(`${baseURL}/admin/pages`);
     await page.getByRole("button", { name: "新建页面" }).click();

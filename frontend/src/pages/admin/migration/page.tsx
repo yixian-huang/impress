@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import {
   importData,
   getMigrationJobs,
-  createMigrationJobStream,
+  getMigrationJob,
+  retryMigrationJob,
+  streamMigrationJob,
   type MigrationJob,
   type MigrationFormat,
   type MigrationJobPhase,
 } from "@/api/migration";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { isAxiosError } from "axios";
 
 const formatOptions: { value: MigrationFormat; label: string; description: string }[] = [
   {
@@ -33,6 +36,36 @@ const phaseConfig: Record<MigrationJobPhase, { label: string; className: string 
   done: { label: "已完成", className: "bg-green-100 text-green-700" },
   failed: { label: "失败", className: "bg-red-100 text-red-700" },
 };
+
+const streamReconnectDelays = [1000, 2000, 4000, 8000, 16000];
+
+function isTerminalPhase(phase: MigrationJobPhase | undefined) {
+  return phase === "done" || phase === "failed";
+}
+
+function getProgressPct(job: Pick<MigrationJob, "processed" | "total">) {
+  return job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0;
+}
+
+function ResultSummary({ job }: { job: MigrationJob }) {
+  const totalErrors = job.errors?.length ?? 0;
+  const finishedAt = job.finishedAt ? new Date(job.finishedAt).toLocaleString("zh-CN") : null;
+
+  if (!isTerminalPhase(job.phase)) {
+    return <span className="text-gray-400">导入完成后显示</span>;
+  }
+
+  return (
+    <div className="space-y-1 text-sm">
+      <div className="text-gray-700">
+        成功 {job.succeeded} 条，失败 {job.failed} 条
+      </div>
+      <div className={totalErrors > 0 ? "text-red-600" : "text-gray-500"}>
+        错误 {totalErrors} 个{finishedAt ? `，完成于 ${finishedAt}` : ""}
+      </div>
+    </div>
+  );
+}
 
 // ---- Progress Bar ----
 function ProgressBar({ value }: { value: number }) {
@@ -126,38 +159,123 @@ function useJobStream(
   onUpdate: (job: Partial<MigrationJob>) => void,
   onDone: () => void
 ) {
-  const esRef = useRef<EventSource | null>(null);
+  const streamRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
+  const activeJobIdRef = useRef<string | null>(null);
+  const onUpdateRef = useRef(onUpdate);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   useEffect(() => {
     if (!jobId) return;
 
-    const es = createMigrationJobStream(jobId);
-    esRef.current = es;
+    let disposed = false;
+    activeJobIdRef.current = jobId;
+    retryCountRef.current = 0;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as Partial<MigrationJob>;
-        onUpdate(data);
-        if (data.phase === "done" || data.phase === "failed") {
-          es.close();
-          onDone();
-        }
-      } catch {
-        // ignore parse errors
+    const clearReconnectTimer = () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
     };
 
-    es.onerror = () => {
-      es.close();
-      onDone();
+    const closeStream = () => {
+      streamRef.current?.abort();
+      streamRef.current = null;
     };
+
+    const finish = () => {
+      clearReconnectTimer();
+      closeStream();
+      onDoneRef.current();
+    };
+
+    const connect = () => {
+      if (disposed || activeJobIdRef.current !== jobId || streamRef.current) return;
+
+      const controller = new AbortController();
+      streamRef.current = controller;
+      void streamMigrationJob(jobId, controller.signal, (data) => {
+        onUpdateRef.current(data);
+        retryCountRef.current = 0;
+        if (isTerminalPhase(data.phase)) {
+          finish();
+        }
+      }).then(() => {
+        if (streamRef.current === controller) {
+          streamRef.current = null;
+        }
+        if (!disposed && activeJobIdRef.current === jobId) {
+          void scheduleReconnect();
+        }
+      }).catch((streamError: unknown) => {
+        if (streamRef.current === controller) {
+          streamRef.current = null;
+        }
+        if (
+          !disposed &&
+          activeJobIdRef.current === jobId &&
+          !(streamError instanceof DOMException && streamError.name === "AbortError")
+        ) {
+          void scheduleReconnect();
+        }
+      });
+    };
+
+    const scheduleNext = (callback: () => void) => {
+      const delay = streamReconnectDelays[
+        Math.min(retryCountRef.current, streamReconnectDelays.length - 1)
+      ];
+      retryCountRef.current += 1;
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        callback();
+      }, delay);
+    };
+
+    const scheduleReconnect = async () => {
+      closeStream();
+      clearReconnectTimer();
+
+      try {
+        const current = await getMigrationJob(jobId);
+        if (disposed || activeJobIdRef.current !== jobId) return;
+
+        onUpdateRef.current(current);
+        if (isTerminalPhase(current.phase)) {
+          finish();
+          return;
+        }
+
+        if (current.phase !== "importing") return;
+      } catch {
+        if (disposed || activeJobIdRef.current !== jobId) return;
+        scheduleNext(scheduleReconnect);
+        return;
+      }
+
+      scheduleNext(connect);
+    };
+
+    connect();
 
     return () => {
-      es.close();
+      disposed = true;
+      clearReconnectTimer();
+      closeStream();
     };
-  }, [jobId, onUpdate, onDone]);
+  }, [jobId]);
 
-  return esRef;
+  return streamRef;
 }
 
 // ---- Import Section ----
@@ -182,11 +300,25 @@ function ImportSection({ onJobCreated }: { onJobCreated: () => void }) {
     setSuccessMsg(null);
     try {
       const result = await importData(file, format);
-      setSuccessMsg(`导入任务已创建，任务 ID: ${result.jobId}`);
+      const parseSummary = result.parseErrors.length > 0
+        ? `，解析提示 ${result.parseErrors.length} 条`
+        : "";
+      setSuccessMsg(`导入任务已创建，任务 ID: ${result.jobId}，待导入 ${result.totalArticles} 条${parseSummary}`);
       setFile(null);
       onJobCreated();
-    } catch {
-      setError("创建导入任务失败，请检查文件格式后重试");
+    } catch (importError) {
+      const message = isAxiosError(importError)
+        ? importError.response?.data?.error?.message
+        : null;
+      const parseErrors = isAxiosError(importError) && Array.isArray(importError.response?.data?.parseErrors)
+        ? importError.response.data.parseErrors.filter((item): item is string => typeof item === "string")
+        : [];
+      setError(
+        [
+          message || "创建导入任务失败，请检查文件格式后重试",
+          parseErrors.length > 0 ? parseErrors.join("；") : "",
+        ].filter(Boolean).join("："),
+      );
     } finally {
       setImporting(false);
     }
@@ -262,6 +394,7 @@ function JobsTable() {
   const [error, setError] = useState<string | null>(null);
   const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
   const [streamJobId, setStreamJobId] = useState<string | null>(null);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -271,7 +404,7 @@ function JobsTable() {
       setJobs(data);
       // Auto-attach SSE to any running job
       const running = data.find((j) => j.phase === "importing");
-      if (running) setStreamJobId(running.jobId);
+      setStreamJobId(running?.jobId ?? null);
     } catch {
       setError("获取迁移任务列表失败");
     } finally {
@@ -307,6 +440,24 @@ function JobsTable() {
     });
   };
 
+  const handleRetry = async (jobId: string) => {
+    setRetryingJobId(jobId);
+    setError(null);
+    try {
+      const retried = await retryMigrationJob(jobId);
+      setJobs((prev) => prev.map((job) => (job.jobId === jobId ? retried : job)));
+      if (retried.phase === "importing") {
+        setStreamJobId(retried.jobId);
+      } else if (isTerminalPhase(retried.phase)) {
+        fetchJobs();
+      }
+    } catch {
+      setError("重试迁移任务失败");
+    } finally {
+      setRetryingJobId(null);
+    }
+  };
+
   const sourceLabel: Record<MigrationFormat, string> = {
     wordpress: "WordPress WXR",
     halo: "Halo JSON",
@@ -334,6 +485,13 @@ function JobsTable() {
 
       {loading && jobs.length === 0 ? (
         <div className="py-12 text-center text-gray-500 text-sm">加载中...</div>
+      ) : jobs.length === 0 ? (
+        <div className="px-6 py-12 text-center">
+          <div className="text-sm font-medium text-gray-700">暂无导入任务</div>
+          <div className="mt-1 text-sm text-gray-400">
+            上传 WordPress、Halo 或 Markdown 文件后，导入进度和结果会显示在这里。
+          </div>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -343,17 +501,19 @@ function JobsTable() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">进度</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">条目数</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">结果</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">错误</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => {
                 const phaseInfo = phaseConfig[job.phase];
                 const showErrors = expandedErrors.has(job.jobId);
-                const progressPct = job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0;
+                const progressPct = getProgressPct(job);
                 return (
-                  <>
+                  <Fragment key={job.jobId}>
                     <tr key={job.jobId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {sourceLabel[job.source] || job.source}
@@ -372,6 +532,9 @@ function JobsTable() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {job.processed} / {job.total}
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <ResultSummary job={job} />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(job.startedAt).toLocaleString("zh-CN")}
                       </td>
@@ -387,10 +550,23 @@ function JobsTable() {
                           <span className="text-gray-400">无</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {job.phase === "failed" && job.retryable !== false ? (
+                          <button
+                            onClick={() => handleRetry(job.jobId)}
+                            disabled={retryingJobId === job.jobId}
+                            className="px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                          >
+                            {retryingJobId === job.jobId ? "重试中..." : "重试"}
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                     </tr>
                     {showErrors && job.errors && job.errors.length > 0 && (
                       <tr key={`${job.jobId}-errors`}>
-                        <td colSpan={6} className="px-6 py-3 bg-red-50">
+                        <td colSpan={8} className="px-6 py-3 bg-red-50">
                           <div className="text-xs font-medium text-red-700 mb-2">错误详情：</div>
                           <ul className="space-y-1 max-h-40 overflow-y-auto">
                             {job.errors.map((err, i) => (
@@ -403,16 +579,9 @@ function JobsTable() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
-              {jobs.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400">
-                    暂无导入任务
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>

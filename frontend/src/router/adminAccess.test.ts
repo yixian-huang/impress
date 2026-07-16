@@ -21,6 +21,7 @@ describe("admin route access metadata", () => {
     expect(getAdminRoutePermission("/admin/form-submissions/12")).toBe("form_submissions:read");
     expect(getAdminRoutePermission("/admin/audit-logs")).toBe("audit_logs:read");
     expect(getAdminRoutePermission("/admin/migration")).toBe("system:manage");
+    expect(getAdminRoutePermission("/admin/system-status")).toBe("system:manage");
   });
 
   it("uses the most specific capability for nested article taxonomies", () => {
@@ -51,5 +52,6 @@ describe("admin route access metadata", () => {
     expect(isAdminRouteVisibleInNavigation("/admin/storage")).toBe(false);
     expect(isAdminRouteVisibleInNavigation("/admin/wizard")).toBe(false);
     expect(isAdminRouteVisibleInNavigation("/admin/migration")).toBe(true);
+    expect(isAdminRouteVisibleInNavigation("/admin/system-status")).toBe(true);
   });
 });

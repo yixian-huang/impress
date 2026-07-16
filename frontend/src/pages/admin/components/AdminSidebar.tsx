@@ -249,6 +249,15 @@ const navGroups: NavGroup[] = [
           </svg>
         ),
       },
+      {
+        label: "系统状态",
+        path: "/admin/system-status",
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h3.75m-6-13.5h16.5m-16.5 0A2.25 2.25 0 006 5.25h12A2.25 2.25 0 0120.25 3m0 0v11.25A2.25 2.25 0 0118 16.5h-3.75m-4.5 0v3.75m0-3.75h4.5m-4.5 3.75h4.5m0-3.75v3.75M8.25 9.75h.008v.008H8.25V9.75zm3.75 0h.008v.008H12V9.75zm3.75 0h.008v.008h-.008V9.75z" />
+          </svg>
+        ),
+      },
     ],
   },
 ];

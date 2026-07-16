@@ -6,7 +6,7 @@
 
 ## 0. 当前执行状态（2026-07-16）
 
-当前分支：`codex/wave1c-scheduled-publishing`
+当前分支：`codex/wave1d-system-migration`
 
 Wave 0 已完成：
 
@@ -58,6 +58,16 @@ Wave 1-C 已完成：
 - 审计已覆盖 schedule/reschedule/cancel/retry，调度执行使用系统 actor 并保留原始创建人。
 - 后端 scheduler/repository/handler 测试覆盖幂等领取、取消、重试、活动任务唯一性、文章快照和页面版本冲突；Playwright 覆盖页面排期、队列展示和取消。
 
+Wave 1-D 已完成：
+
+- 新增 `/admin/system-status` 正式管理入口和 `system:manage` 权限边界，可查看应用版本、Go 运行时、内存、数据库连接、存储占用、媒体及内容数量。
+- system status 对数据库和本地存储分别给出健康状态与错误摘要，不暴露服务器绝对上传路径。
+- migration 正式接入管理导航，补齐空任务列表、导入结果摘要、失败任务重试和重试次数/可重试状态展示。
+- migration job 使用唯一 ID、按新到旧列出；部分文章失败会进入 failed 状态并只重试失败文章，累计成功数和总数在重试后保持一致。
+- migration SSE 会先发送当前状态、仅在变化时发送进度、定期心跳并在终态关闭；前端断线后会先查询任务状态，再按指数退避重连。
+- 空导出文件不再返回伪成功，而是返回 422；migration import/retry 已纳入统一审计，审计 UI 可按 `migration.retry` 筛选。
+- Playwright 已覆盖管理员进入系统状态、Markdown 小样导入、失败任务重试和结果摘要；E2E 启动器直接管理 Vite 子进程，结束后不会遗留端口或卡住 CI。
+
 Wave 0 尚余的测试债务：
 
 - 将 `backend/cmd/server/integration_test.go` 中跳过的旧 `/admin/content` 用例迁移为
@@ -70,8 +80,10 @@ Wave 0 尚余的测试债务：
 - 管理端登录、主导航、迁移入口、API 权限边界和统一页面公开发布闭环已恢复到可验证状态。
 - 当前可承诺统一页面的立即发布、公开路由、自动导航、页面信息即时更新、下线一致性以及发布/回滚审计可追踪。
 - 当前可承诺文章和统一页面的持久化定时发布、改期、取消、失败可观测和权限隔离；页面不会越过排期时锁定的草稿版本，文章未来更新不会提前污染线上内容。
+- 当前可承诺管理员查看应用/数据库/本地存储运行状态，并完成 WordPress、Halo 或 Markdown 内容导入；部分失败可只重试失败文章，实时进度断线可恢复。
+- migration 任务、失败文章与重试状态目前保存在应用进程内，服务重启后不会恢复历史任务；持久化任务模型列入后续运维增强，不影响单次导入闭环。
 - AI 向导、QA、翻译、远端存储、多站点继续按实验性能力隐藏，不纳入本轮发布承诺。
-- 下一主工作包为 Wave 1-D：系统状态与迁移正式开放。
+- 下一主工作包为 Wave 2-A：AI Provider 生命周期。
 
 ## 1. 已确认的功能断链
 
@@ -280,6 +292,7 @@ Wave 0 尚余的测试债务：
 
 #### WP1-D 系统状态与迁移正式开放
 
+- 状态：已完成（2026-07-16）
 - 角色：`executor-frontend-ops` + `test-engineer`
 - 范围：
   - 增加 system status 页面和 API 客户端。
@@ -288,6 +301,12 @@ Wave 0 尚余的测试债务：
 - 验收：
   - 管理员可查看版本、数据库、存储等状态。
   - 可完成一个 Markdown 小样导入并看到结果。
+- 验证：
+  - 后端 system/migration/handler/middleware/server 定向测试通过。
+  - migration/system/middleware Go race test 通过。
+  - 前端 28 个测试文件、142 个测试通过，typecheck、lint、production build 通过。
+  - Playwright 管理端 E2E 覆盖 system status、失败重试、Markdown 导入、SSE 断流重连、401 令牌刷新恢复和结果摘要。
+  - 独立代码门禁 `APPROVE`，独立架构门禁 `CLEAR`。
 - 依赖：WP0-A/B/C、WP1-B。
 
 ### Wave 2：兑现已暴露配置

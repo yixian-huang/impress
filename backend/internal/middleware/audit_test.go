@@ -208,6 +208,22 @@ func TestDescribeMutation_UnifiedPageLifecycle(t *testing.T) {
 	}
 }
 
+func TestDescribeMutation_MigrationRetry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Params = gin.Params{{Key: "jobId", Value: "mig-42"}}
+
+	action, resource, serviceAudited := describeMutation(
+		http.MethodPost,
+		"/admin/migration/jobs/:jobId/retry",
+		c,
+	)
+
+	assert.Equal(t, "migration.retry", action)
+	assert.Equal(t, "migration:mig-42", resource)
+	assert.False(t, serviceAudited)
+}
+
 func TestAuditMutations_ServiceOwnedSuccessIsNotDuplicated(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	writer := &auditWriterStub{}

@@ -31,6 +31,7 @@ export const adminRouteAccess: AdminRouteAccess[] = [
   { path: "/admin/roles", permission: "roles:read", status: "production" },
   { path: "/admin/email-settings", permission: "settings:manage", status: "production" },
   { path: "/admin/migration", permission: "system:manage", status: "production" },
+  { path: "/admin/system-status", permission: "system:manage", status: "production" },
   { path: "/admin/sites", permission: "sites:read", status: "experimental" },
   { path: "/admin/storage", permission: "settings:manage", status: "experimental" },
   { path: "/admin/translation", permission: "settings:manage", status: "experimental" },

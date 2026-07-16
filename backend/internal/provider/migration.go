@@ -64,6 +64,8 @@ type MigrationProgress struct {
 	Succeeded  int             `json:"succeeded"`
 	Failed     int             `json:"failed"`
 	Errors     []string        `json:"errors,omitempty"`
+	Attempt    int             `json:"attempt"`
+	Retryable  bool            `json:"retryable"`
 	StartedAt  time.Time       `json:"startedAt"`
 	FinishedAt *time.Time      `json:"finishedAt,omitempty"`
 }

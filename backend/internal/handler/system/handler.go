@@ -1,6 +1,8 @@
 package system
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,20 +14,29 @@ import (
 	"gorm.io/gorm"
 )
 
+const statusProbeTimeout = 2 * time.Second
+
 // Handler handles system status HTTP requests
 type Handler struct {
-	db        *gorm.DB
-	uploadDir string
-	startTime time.Time
+	db         *gorm.DB
+	uploadDir  string
+	appVersion string
+	startTime  time.Time
 }
 
 // NewHandler creates a new system status handler
-func NewHandler(db *gorm.DB, uploadDir string) *Handler {
+func NewHandler(db *gorm.DB, uploadDir string, appVersion string) *Handler {
 	return &Handler{
-		db:        db,
-		uploadDir: uploadDir,
-		startTime: time.Now(),
+		db:         db,
+		uploadDir:  uploadDir,
+		appVersion: appVersion,
+		startTime:  time.Now(),
 	}
+}
+
+// ApplicationInfo contains build metadata safe to expose in admin status.
+type ApplicationInfo struct {
+	Version string `json:"version"`
 }
 
 // RuntimeInfo contains Go runtime information
@@ -49,6 +60,9 @@ type MemoryInfo struct {
 // DatabaseInfo contains database status information
 type DatabaseInfo struct {
 	Type               string `json:"type"`
+	Healthy            bool   `json:"healthy"`
+	Status             string `json:"status"`
+	Error              string `json:"error,omitempty"`
 	OpenConnections    int    `json:"openConnections"`
 	MaxOpenConnections int    `json:"maxOpenConnections"`
 	InUse              int    `json:"inUse"`
@@ -57,7 +71,12 @@ type DatabaseInfo struct {
 
 // StorageInfo contains storage usage information
 type StorageInfo struct {
+	Type            string  `json:"type"`
+	Healthy         bool    `json:"healthy"`
+	Status          string  `json:"status"`
+	Error           string  `json:"error,omitempty"`
 	UploadDirSizeMB float64 `json:"uploadDirSizeMB"`
+	UploadDirBytes  int64   `json:"uploadDirBytes"`
 	MediaCount      int64   `json:"mediaCount"`
 }
 
@@ -71,11 +90,12 @@ type ContentCounts struct {
 
 // StatusResponse is the full system status response
 type StatusResponse struct {
-	Runtime  RuntimeInfo   `json:"runtime"`
-	Memory   MemoryInfo    `json:"memory"`
-	Database DatabaseInfo  `json:"database"`
-	Storage  StorageInfo   `json:"storage"`
-	Content  ContentCounts `json:"content"`
+	Application ApplicationInfo `json:"application"`
+	Runtime     RuntimeInfo     `json:"runtime"`
+	Memory      MemoryInfo      `json:"memory"`
+	Database    DatabaseInfo    `json:"database"`
+	Storage     StorageInfo     `json:"storage"`
+	Content     ContentCounts   `json:"content"`
 }
 
 // GetStatus returns comprehensive system status.
@@ -105,48 +125,126 @@ func (h *Handler) GetStatus(c *gin.Context) {
 
 	// Database info
 	di := DatabaseInfo{
-		Type: h.db.Dialector.Name(),
+		Type:    h.db.Dialector.Name(),
+		Healthy: true,
+		Status:  "healthy",
 	}
+	databaseCtx, cancelDatabase := context.WithTimeout(c.Request.Context(), statusProbeTimeout)
+	defer cancelDatabase()
+	storageCtx, cancelStorage := context.WithTimeout(c.Request.Context(), statusProbeTimeout)
+	defer cancelStorage()
+	storageResult := make(chan StorageInfo, 1)
+	go func() {
+		storageResult <- localStorageInfo(storageCtx, h.uploadDir)
+	}()
+
 	if sqlDB, err := h.db.DB(); err == nil {
 		stats := sqlDB.Stats()
 		di.OpenConnections = stats.OpenConnections
 		di.MaxOpenConnections = stats.MaxOpenConnections
 		di.InUse = stats.InUse
 		di.Idle = stats.Idle
+		if err := sqlDB.PingContext(databaseCtx); err != nil {
+			di.Healthy = false
+			di.Status = "unhealthy"
+			di.Error = "database ping failed"
+		}
+	} else {
+		di.Healthy = false
+		di.Status = "unhealthy"
+		di.Error = "database connection unavailable"
 	}
-
-	// Storage info
-	si := StorageInfo{}
-	si.UploadDirSizeMB = dirSizeMB(h.uploadDir)
-	h.db.Table("media").Count(&si.MediaCount)
 
 	// Content counts
 	cc := ContentCounts{}
-	h.db.Table("articles").Count(&cc.Articles)
-	h.db.Table("pages").Count(&cc.Pages)
-	cc.Media = si.MediaCount
-	h.db.Table("users").Count(&cc.Users)
+	countQueries := []struct {
+		table string
+		value *int64
+	}{
+		{table: "articles", value: &cc.Articles},
+		{table: "unified_pages", value: &cc.Pages},
+		{table: "media", value: &cc.Media},
+		{table: "users", value: &cc.Users},
+	}
+	for _, query := range countQueries {
+		if err := h.db.WithContext(databaseCtx).Table(query.table).Count(query.value).Error; err != nil {
+			di.Healthy = false
+			di.Status = "unhealthy"
+			if di.Error == "" {
+				di.Error = "database status query failed"
+			}
+		}
+	}
+	si := <-storageResult
+	si.MediaCount = cc.Media
 
 	c.JSON(http.StatusOK, StatusResponse{
-		Runtime:  ri,
-		Memory:   mi,
-		Database: di,
-		Storage:  si,
-		Content:  cc,
+		Application: ApplicationInfo{Version: h.appVersion},
+		Runtime:     ri,
+		Memory:      mi,
+		Database:    di,
+		Storage:     si,
+		Content:     cc,
 	})
+}
+
+func localStorageInfo(ctx context.Context, dir string) StorageInfo {
+	bytes, err := dirSizeBytes(ctx, dir)
+	if err != nil {
+		return StorageInfo{
+			Type:    "local",
+			Healthy: false,
+			Status:  "unhealthy",
+			Error:   storageErrorMessage(err),
+		}
+	}
+	return StorageInfo{
+		Type:            "local",
+		Healthy:         true,
+		Status:          "healthy",
+		UploadDirBytes:  bytes,
+		UploadDirSizeMB: float64(bytes) / 1024 / 1024,
+	}
 }
 
 // dirSizeMB calculates the total size of a directory in MB.
 func dirSizeMB(dir string) float64 {
+	bytes, err := dirSizeBytes(context.Background(), dir)
+	if err != nil {
+		return 0
+	}
+	return float64(bytes) / 1024 / 1024
+}
+
+func dirSizeBytes(ctx context.Context, dir string) (int64, error) {
 	var totalSize int64
-	filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // skip errors
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		if !info.IsDir() {
 			totalSize += info.Size()
 		}
 		return nil
 	})
-	return float64(totalSize) / 1024 / 1024
+	if err != nil {
+		return 0, err
+	}
+	return totalSize, nil
+}
+
+func storageErrorMessage(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return "upload directory scan timed out"
+	}
+	if os.IsNotExist(err) {
+		return "upload directory not found"
+	}
+	if os.IsPermission(err) {
+		return "upload directory is not accessible"
+	}
+	return "upload directory scan failed"
 }

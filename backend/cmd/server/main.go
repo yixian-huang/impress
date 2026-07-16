@@ -445,7 +445,7 @@ func main() {
 	migrationHandlerInst := migrationHandler.NewHandler(migrationSvc)
 	siteHandlerInst := siteHandler.NewHandler(siteSvc, siteRepo)
 	storageHandlerInst := storageHandler.NewHandler(storageConfigRepo)
-	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir)
+	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir, Version)
 	translationHandlerInst := translationHandler.NewHandler(translationProvider, glossaryRepo, articleRepo)
 	unifiedPageSvc := service.NewUnifiedPageService(unifiedPageRepo, pageVersionRepo, bus).
 		WithAuditWriter(auditDbWriter)

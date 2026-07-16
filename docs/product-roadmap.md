@@ -4,7 +4,7 @@
 >
 > 创建时间：2026-02-18
 >
-> 事实状态更新：2026-07-16（Wave 1-C）
+> 事实状态更新：2026-07-16（Wave 1-D）
 
 ---
 
@@ -36,13 +36,15 @@ Impress 是一个双语（zh/en）React SPA + Go/Gin CMS。下表以当前仓库
 | 审计 | production | 登录和后台写操作写入数据库；发布、下线、回滚记录成功/失败、actor、resource 与请求元数据 |
 | 事件/Webhook | production | 内容创建、更新、草稿更新、发布、下线、回滚、删除均有明确事件 |
 | 定时发布 | production | 文章和统一页面共用持久化调度队列；支持排期、改期、取消、失败重试、权限隔离和任务列表；页面锁定草稿版本并事务发布，文章锁定发布快照及排期时内容版本 |
+| 系统状态 | production | 管理员可查看应用版本、运行时、内存、数据库、本地存储、媒体与内容统计；数据库和存储分别提供健康状态和错误摘要 |
+| 数据迁移 | production | 支持 WordPress、Halo、Markdown 导入；任务列表、SSE 进度、结果摘要、部分失败重试、断线恢复、权限和审计已闭环 |
 | 媒体与备份 | production | 媒体上传/裁剪/目录管理；备份、导入导出接口与权限边界 |
-| 管理端质量门禁 | production | lint、typecheck、前后端测试、Go race test、构建及 Playwright 核心发布链路 |
+| 管理端质量门禁 | production | lint、typecheck、前后端测试、Go race test、构建及 Playwright 页面发布、定时发布、系统状态和迁移链路 |
 | 部署 | production | Docker + SSH/systemd，支持 SQLite / PostgreSQL |
 
 ### 受限或未完成能力
 
-- migration 与 system status 后端能力已存在，但正式产品入口、审计摘要和验收仍待 Wave 1-D。
+- migration 任务和失败文章状态目前保存在应用进程内，服务重启后不会恢复历史任务；大规模迁移前仍需补持久化任务模型与文件大小限制。
 - AI 向导、QA、翻译和远端存储配置仍存在运行时断链，保持 experimental/hidden。
 - 多站点只有管理壳，核心内容尚未完成 `site_id` 数据隔离。
 - Marketplace/Plugin 仍是骨架，尚未形成可安装、启停、升级、卸载的真实生命周期。

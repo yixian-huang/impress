@@ -16,6 +16,7 @@ const ACTION_OPTIONS = [
   { value: "permissions.assign", label: "分配权限" },
   { value: "permissions.unassign", label: "取消权限" },
   { value: "migration.import", label: "数据迁移" },
+  { value: "migration.retry", label: "重试迁移" },
   { value: "media.upload", label: "上传媒体" },
   { value: "media.delete", label: "删除媒体" },
   { value: "backup.create", label: "创建备份" },

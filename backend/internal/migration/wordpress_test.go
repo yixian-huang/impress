@@ -124,23 +124,21 @@ func TestSanitizeSlug(t *testing.T) {
 		want  string
 	}{
 		{"Hello World", "hello-world"},
-		{"My  Post!", "my--post"},      // double dash gets collapsed in sanitizeSlug
-		{"", ""},                         // empty returns time-based but we test non-empty
+		{"My  Post!", "my-post"},
 		{"a-b-c", "a-b-c"},
 		{"CamelCase", "camelcase"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := sanitizeSlug(tt.input)
-			if tt.input == "" {
-				assert.NotEmpty(t, got) // should get post-<timestamp>
-			} else {
-				// sanitizeSlug collapses double dashes
-				assert.Equal(t, sanitizeSlug(tt.input), got)
-			}
+			assert.Equal(t, tt.want, sanitizeSlug(tt.input))
 		})
 	}
+
+	assert.Equal(t, sanitizeSlug("中文分类"), sanitizeSlug(" 中文分类 "))
+	assert.NotEqual(t, sanitizeSlug("中文分类"), sanitizeSlug("另一个分类"))
+	assert.Regexp(t, `^post-[0-9a-f]{12}$`, sanitizeSlug("中文分类"))
+	assert.Equal(t, sanitizeSlug("!!!"), sanitizeSlug("!!!"))
 }
 
 func TestExtractMediaURLs(t *testing.T) {

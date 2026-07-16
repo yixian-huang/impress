@@ -2,14 +2,30 @@ package migration
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/repository"
 )
+
+var (
+	ErrJobNotFound     = errors.New("migration job not found")
+	ErrJobRunning      = errors.New("migration job is still running")
+	ErrJobNotFailed    = errors.New("migration job has not failed")
+	ErrJobNotRetryable = errors.New("migration job is not retryable")
+)
+
+type importJob struct {
+	progress       provider.MigrationProgress
+	failedArticles []*provider.MigrationArticle
+	parseErrors    []string
+}
 
 // Service orchestrates the import of parsed MigrationArticles into the
 // database using the existing repository layer.
@@ -19,8 +35,9 @@ type Service struct {
 	tagRepo      repository.TagRepository
 
 	// In-flight job tracking
-	mu   sync.RWMutex
-	jobs map[string]*provider.MigrationProgress
+	mu      sync.RWMutex
+	counter uint64
+	jobs    map[string]*importJob
 }
 
 // NewService creates a new migration service.
@@ -33,7 +50,7 @@ func NewService(
 		articleRepo:  articleRepo,
 		categoryRepo: categoryRepo,
 		tagRepo:      tagRepo,
-		jobs:         make(map[string]*provider.MigrationProgress),
+		jobs:         make(map[string]*importJob),
 	}
 }
 
@@ -41,15 +58,11 @@ func NewService(
 func (s *Service) GetProgress(jobID string) (*provider.MigrationProgress, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	p, ok := s.jobs[jobID]
+	job, ok := s.jobs[jobID]
 	if !ok {
 		return nil, false
 	}
-	// Return a copy to avoid races
-	cp := *p
-	cp.Errors = make([]string, len(p.Errors))
-	copy(cp.Errors, p.Errors)
-	return &cp, true
+	return copyProgress(job.progress), true
 }
 
 // ListJobs returns all known migration jobs.
@@ -57,18 +70,49 @@ func (s *Service) ListJobs() []*provider.MigrationProgress {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]*provider.MigrationProgress, 0, len(s.jobs))
-	for _, p := range s.jobs {
-		cp := *p
-		cp.Errors = make([]string, len(p.Errors))
-		copy(cp.Errors, p.Errors)
-		result = append(result, &cp)
+	for _, job := range s.jobs {
+		result = append(result, copyProgress(job.progress))
 	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].StartedAt.Equal(result[j].StartedAt) {
+			return result[i].JobID > result[j].JobID
+		}
+		return result[i].StartedAt.After(result[j].StartedAt)
+	})
 	return result
 }
 
-// ImportArticles writes parsed MigrationArticles to the database.
-// It runs asynchronously: call GetProgress to monitor status.
-// The returned jobID can be used to poll for progress.
+// StartImport writes parsed MigrationArticles to the database asynchronously.
+// The returned jobID can be used to poll or stream progress.
+func (s *Service) StartImport(
+	ctx context.Context,
+	source provider.MigrationSource,
+	articles []*provider.MigrationArticle,
+	parseErrors []string,
+) string {
+	jobID := s.nextJobID(source)
+	job := &importJob{
+		parseErrors: append([]string(nil), parseErrors...),
+	}
+	job.progress = provider.MigrationProgress{
+		JobID:     jobID,
+		Source:    source,
+		Phase:     "importing",
+		Total:     len(articles),
+		Errors:    append([]string{}, parseErrors...),
+		Attempt:   1,
+		StartedAt: time.Now(),
+	}
+
+	s.mu.Lock()
+	s.jobs[jobID] = job
+	s.mu.Unlock()
+
+	go s.runImport(ctx, jobID, cloneArticles(articles))
+	return jobID
+}
+
+// ImportArticles preserves the previous call shape for existing callers.
 func (s *Service) ImportArticles(
 	ctx context.Context,
 	jobID string,
@@ -76,60 +120,123 @@ func (s *Service) ImportArticles(
 	articles []*provider.MigrationArticle,
 	parseErrors []string,
 ) {
-	progress := &provider.MigrationProgress{
+	job := &importJob{
+		parseErrors: append([]string(nil), parseErrors...),
+	}
+	job.progress = provider.MigrationProgress{
 		JobID:     jobID,
 		Source:    source,
 		Phase:     "importing",
 		Total:     len(articles),
 		Errors:    append([]string{}, parseErrors...),
+		Attempt:   1,
 		StartedAt: time.Now(),
 	}
 
 	s.mu.Lock()
-	s.jobs[jobID] = progress
+	s.jobs[jobID] = job
 	s.mu.Unlock()
 
-	go func() {
-		defer func() {
+	go s.runImport(ctx, jobID, cloneArticles(articles))
+}
+
+// RetryJob retries only the articles that failed in the previous attempt.
+func (s *Service) RetryJob(ctx context.Context, jobID string) (*provider.MigrationProgress, error) {
+	s.mu.Lock()
+	job, ok := s.jobs[jobID]
+	if !ok {
+		s.mu.Unlock()
+		return nil, ErrJobNotFound
+	}
+	if isRunning(job.progress.Phase) {
+		s.mu.Unlock()
+		return nil, ErrJobRunning
+	}
+	if job.progress.Phase != "failed" {
+		s.mu.Unlock()
+		return nil, ErrJobNotFailed
+	}
+	if len(job.failedArticles) == 0 {
+		s.mu.Unlock()
+		return nil, ErrJobNotRetryable
+	}
+
+	articles := cloneArticles(job.failedArticles)
+	job.failedArticles = nil
+	job.progress.Phase = "importing"
+	job.progress.Processed = job.progress.Succeeded
+	job.progress.Failed = 0
+	job.progress.Errors = append([]string(nil), job.parseErrors...)
+	job.progress.Attempt++
+	job.progress.Retryable = false
+	job.progress.FinishedAt = nil
+	progress := copyProgress(job.progress)
+	s.mu.Unlock()
+
+	go s.runImport(ctx, jobID, articles)
+	return progress, nil
+}
+
+func (s *Service) runImport(ctx context.Context, jobID string, articles []*provider.MigrationArticle) {
+	categoryCache := make(map[string]uint)
+	tagCache := make(map[string]uint)
+
+	defer s.finishJob(jobID)
+
+	for i, article := range articles {
+		select {
+		case <-ctx.Done():
 			s.mu.Lock()
-			now := time.Now()
-			progress.FinishedAt = &now
-			if progress.Failed > 0 && progress.Succeeded == 0 {
-				progress.Phase = "failed"
-			} else {
-				progress.Phase = "done"
+			if job, ok := s.jobs[jobID]; ok {
+				remaining := cloneArticles(articles[i:])
+				job.progress.Processed += len(remaining)
+				job.progress.Failed += len(remaining)
+				job.progress.Errors = append(job.progress.Errors, "import cancelled")
+				job.failedArticles = append(job.failedArticles, remaining...)
 			}
 			s.mu.Unlock()
-		}()
-
-		// Build/cache categories and tags
-		categoryCache := make(map[string]uint)
-		tagCache := make(map[string]uint)
-
-		for _, article := range articles {
-			select {
-			case <-ctx.Done():
-				s.mu.Lock()
-				progress.Phase = "failed"
-				progress.Errors = append(progress.Errors, "import cancelled")
-				s.mu.Unlock()
-				return
-			default:
-			}
-
-			err := s.importOne(ctx, article, categoryCache, tagCache)
-
-			s.mu.Lock()
-			progress.Processed++
-			if err != nil {
-				progress.Failed++
-				progress.Errors = append(progress.Errors, fmt.Sprintf("slug=%s: %v", article.Slug, err))
-			} else {
-				progress.Succeeded++
-			}
-			s.mu.Unlock()
+			return
+		default:
 		}
-	}()
+
+		err := s.importOne(ctx, article, categoryCache, tagCache)
+
+		s.mu.Lock()
+		if job, ok := s.jobs[jobID]; ok {
+			job.progress.Processed++
+			if err != nil {
+				job.progress.Failed++
+				job.progress.Errors = append(job.progress.Errors, fmt.Sprintf("slug=%s: %v", article.Slug, err))
+				job.failedArticles = append(job.failedArticles, cloneArticle(article))
+			} else {
+				job.progress.Succeeded++
+			}
+		}
+		s.mu.Unlock()
+	}
+}
+
+func (s *Service) finishJob(jobID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	job, ok := s.jobs[jobID]
+	if !ok {
+		return
+	}
+	now := time.Now()
+	job.progress.FinishedAt = &now
+	if job.progress.Failed > 0 {
+		job.progress.Phase = "failed"
+		job.progress.Retryable = len(job.failedArticles) > 0
+		return
+	}
+	job.progress.Phase = "done"
+	job.progress.Retryable = false
+}
+
+func (s *Service) nextJobID(source provider.MigrationSource) string {
+	sequence := atomic.AddUint64(&s.counter, 1)
+	return fmt.Sprintf("mig-%s-%d-%d", source, time.Now().UnixNano(), sequence)
 }
 
 func (s *Service) importOne(
@@ -185,60 +292,86 @@ func (s *Service) importOne(
 	return nil
 }
 
+func copyProgress(p provider.MigrationProgress) *provider.MigrationProgress {
+	cp := p
+	cp.Errors = append([]string(nil), p.Errors...)
+	if p.FinishedAt != nil {
+		finishedAt := *p.FinishedAt
+		cp.FinishedAt = &finishedAt
+	}
+	return &cp
+}
+
+func cloneArticles(articles []*provider.MigrationArticle) []*provider.MigrationArticle {
+	cloned := make([]*provider.MigrationArticle, 0, len(articles))
+	for _, article := range articles {
+		cloned = append(cloned, cloneArticle(article))
+	}
+	return cloned
+}
+
+func cloneArticle(article *provider.MigrationArticle) *provider.MigrationArticle {
+	if article == nil {
+		return nil
+	}
+	cp := *article
+	cp.TagNames = append([]string(nil), article.TagNames...)
+	cp.MediaURLs = append([]string(nil), article.MediaURLs...)
+	return &cp
+}
+
+func isRunning(phase string) bool {
+	return phase == "parsing" || phase == "importing"
+}
+
 func (s *Service) resolveCategory(ctx context.Context, name string, cache map[string]uint) (uint, error) {
-	if id, ok := cache[name]; ok {
+	slug := sanitizeSlug(name)
+	if id, ok := cache[slug]; ok {
 		return id, nil
 	}
 
-	// List all categories and find by name
-	categories, err := s.categoryRepo.List(ctx)
-	if err != nil {
-		return 0, err
-	}
-	for _, c := range categories {
-		if c.ZhName == name || c.EnName == name {
-			cache[name] = c.ID
-			return c.ID, nil
-		}
+	if category, err := s.categoryRepo.FindBySlug(ctx, slug); err == nil {
+		cache[slug] = category.ID
+		return category.ID, nil
 	}
 
-	// Create new category
 	cat := &model.Category{
-		Slug:   sanitizeSlug(name),
+		Slug:   slug,
 		ZhName: name,
 	}
 	if err := s.categoryRepo.Create(ctx, cat); err != nil {
+		if existing, findErr := s.categoryRepo.FindBySlug(ctx, slug); findErr == nil {
+			cache[slug] = existing.ID
+			return existing.ID, nil
+		}
 		return 0, err
 	}
-	cache[name] = cat.ID
+	cache[slug] = cat.ID
 	return cat.ID, nil
 }
 
 func (s *Service) resolveTag(ctx context.Context, name string, cache map[string]uint) (uint, error) {
-	if id, ok := cache[name]; ok {
+	slug := sanitizeSlug(name)
+	if id, ok := cache[slug]; ok {
 		return id, nil
 	}
 
-	// List all tags and find by name
-	tags, err := s.tagRepo.List(ctx)
-	if err != nil {
-		return 0, err
-	}
-	for _, t := range tags {
-		if t.ZhName == name || t.EnName == name {
-			cache[name] = t.ID
-			return t.ID, nil
-		}
+	if tag, err := s.tagRepo.FindBySlug(ctx, slug); err == nil {
+		cache[slug] = tag.ID
+		return tag.ID, nil
 	}
 
-	// Create new tag
 	tag := &model.Tag{
-		Slug:   sanitizeSlug(name),
+		Slug:   slug,
 		ZhName: name,
 	}
 	if err := s.tagRepo.Create(ctx, tag); err != nil {
+		if existing, findErr := s.tagRepo.FindBySlug(ctx, slug); findErr == nil {
+			cache[slug] = existing.ID
+			return existing.ID, nil
+		}
 		return 0, err
 	}
-	cache[name] = tag.ID
+	cache[slug] = tag.ID
 	return tag.ID, nil
 }

@@ -204,6 +204,8 @@ func describeMutation(method, route string, c *gin.Context) (action, resource st
 		return "permissions.unassign", resource, false
 	case "/admin/migration/import":
 		return "migration.import", resource, false
+	case "/admin/migration/jobs/:jobId/retry":
+		return "migration.retry", resource, false
 	case "/admin/backups/trigger":
 		return "backup.create", resource, false
 	case "/admin/backups/import":
