@@ -51,47 +51,89 @@ func (s *UnifiedPageService) HandlesAudit() bool {
 
 // Publish copies DraftConfig → PublishedConfig, creates a version record.
 func (s *UnifiedPageService) Publish(ctx context.Context, pageID uint, expectedDraftVersion int, userID uint) (err error) {
+	return s.publish(ctx, pageID, expectedDraftVersion, userID, false)
+}
+
+func (s *UnifiedPageService) PublishScheduled(
+	ctx context.Context,
+	pageID uint,
+	expectedDraftVersion int,
+	userID uint,
+) error {
+	return s.publish(ctx, pageID, expectedDraftVersion, userID, true)
+}
+
+func (s *UnifiedPageService) publish(
+	ctx context.Context,
+	pageID uint,
+	expectedDraftVersion int,
+	userID uint,
+	requireSchedule bool,
+) (err error) {
 	details := map[string]interface{}{"expected_draft_version": expectedDraftVersion}
+	recordAudit := true
+	if requireSchedule {
+		details["scheduled"] = true
+	}
 	defer func() {
-		s.recordAudit(ctx, "content.publish", pageID, err, details)
+		if recordAudit {
+			s.recordAudit(ctx, "content.publish", pageID, err, details)
+		}
 	}()
 
-	page, err := s.pageRepo.FindByID(ctx, pageID)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrUnifiedPageNotFound, err)
-	}
-	if page.DraftVersion != expectedDraftVersion {
+	now := time.Now()
+	page, newVersion, didPublish, err := s.pageRepo.PublishDraft(
+		ctx,
+		pageID,
+		expectedDraftVersion,
+		userID,
+		now,
+		requireSchedule,
+	)
+	if errors.Is(err, repository.ErrUnifiedPageDraftVersionConflict) {
 		return ErrPageVersionConflict
 	}
-
-	// Determine next published version
-	latestVer, err := s.versionRepo.GetLatestVersion(ctx, pageID)
 	if err != nil {
-		return fmt.Errorf("get latest version: %w", err)
-	}
-	newVersion := latestVer + 1
-	details["published_version"] = newVersion
-	details["draft_version"] = page.DraftVersion
-
-	// Create version record
-	version := &model.PageVersion{
-		PageID:    pageID,
-		Version:   newVersion,
-		Config:    page.DraftConfig,
-		CreatedBy: userID,
-	}
-	if err := s.versionRepo.Create(ctx, version); err != nil {
-		return fmt.Errorf("create version: %w", err)
-	}
-
-	// Update publication fields only so concurrent live route/navigation edits
-	// cannot be overwritten by this publish operation.
-	now := time.Now()
-	if err := s.pageRepo.UpdatePublished(ctx, page.ID, page.DraftConfig, newVersion, now); err != nil {
 		return err
 	}
-	s.publishEvent(eventbus.ContentPublished, page, userID, newVersion, 0)
+	details["published_version"] = newVersion
+	details["draft_version"] = page.DraftVersion
+	if didPublish {
+		s.publishEvent(eventbus.ContentPublished, page, userID, newVersion, 0)
+	} else {
+		recordAudit = false
+	}
 	return nil
+}
+
+func (s *UnifiedPageService) Schedule(ctx context.Context, pageID uint, scheduledAt time.Time) (*model.UnifiedPage, error) {
+	page, err := s.pageRepo.FindByID(ctx, pageID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnifiedPageNotFound, err)
+	}
+	if page.Status != "published" {
+		page.Status = "scheduled"
+	}
+	page.ScheduledAt = &scheduledAt
+	if err := s.pageRepo.Update(ctx, page); err != nil {
+		return nil, err
+	}
+	return page, nil
+}
+
+func (s *UnifiedPageService) CancelSchedule(ctx context.Context, pageID uint) (*model.UnifiedPage, error) {
+	page, err := s.pageRepo.FindByID(ctx, pageID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnifiedPageNotFound, err)
+	}
+	if page.Status == "scheduled" {
+		page.Status = "draft"
+	}
+	page.ScheduledAt = nil
+	if err := s.pageRepo.Update(ctx, page); err != nil {
+		return nil, err
+	}
+	return page, nil
 }
 
 // Rollback loads a historical version and publishes it as a new version.

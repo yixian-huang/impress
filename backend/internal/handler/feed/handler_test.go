@@ -26,7 +26,10 @@ func (m *mockArticleRepo) FindBySlug(context.Context, string) (*model.Article, e
 	return nil, nil
 }
 func (m *mockArticleRepo) Update(context.Context, *model.Article) error { return nil }
-func (m *mockArticleRepo) Delete(context.Context, uint) error           { return nil }
+func (m *mockArticleRepo) UpdateScheduledPublication(context.Context, *model.Article, time.Time) error {
+	return nil
+}
+func (m *mockArticleRepo) Delete(context.Context, uint) error { return nil }
 func (m *mockArticleRepo) List(context.Context, int, int, string, *uint, *uint) ([]*model.Article, int64, error) {
 	return nil, 0, nil
 }

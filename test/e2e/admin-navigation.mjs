@@ -50,7 +50,9 @@ function clone(value) {
 function createMockState() {
   return {
     nextPageId: 101,
+    nextScheduledPublicationId: 1,
     pages: [],
+    scheduledPublications: [],
   };
 }
 
@@ -160,6 +162,63 @@ async function mockAdminAPI(page, state, currentUser = {
       };
       state.pages.push(item);
       await json(route, item, 201);
+      return;
+    }
+
+    if (path === "/admin/scheduled-publications" && method === "GET") {
+      const resourceType = url.searchParams.get("resourceType");
+      const resourceId = Number(url.searchParams.get("resourceId") || 0);
+      const status = url.searchParams.get("status");
+      const items = state.scheduledPublications.filter((item) =>
+        (!resourceType || item.resourceType === resourceType) &&
+        (!resourceId || item.resourceId === resourceId) &&
+        (!status || item.status === status)
+      );
+      await json(route, {
+        items,
+        total: items.length,
+        page: Number(url.searchParams.get("page") || 1),
+        pageSize: Number(url.searchParams.get("pageSize") || 20),
+      });
+      return;
+    }
+    if (path === "/admin/scheduled-publications" && method === "POST") {
+      const input = request.postDataJSON();
+      const pageItem = state.pages.find((item) => item.id === input.resourceId);
+      const now = new Date().toISOString();
+      const item = {
+        id: state.nextScheduledPublicationId++,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId,
+        title: pageItem?.zhTitle || `#${input.resourceId}`,
+        slug: pageItem?.slug || "",
+        status: "pending",
+        scheduledAt: input.scheduledAt,
+        expectedVersion: input.expectedVersion,
+        attempts: 0,
+        lastError: null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+      };
+      state.scheduledPublications.push(item);
+      await json(route, item, 201);
+      return;
+    }
+
+    const scheduledPublicationMatch = path.match(/^\/admin\/scheduled-publications\/(\d+)$/);
+    if (scheduledPublicationMatch && method === "DELETE") {
+      const item = state.scheduledPublications.find(
+        (candidate) => candidate.id === Number(scheduledPublicationMatch[1]),
+      );
+      if (!item) {
+        await json(route, { error: "scheduled publication not found" }, 404);
+        return;
+      }
+      item.status = "cancelled";
+      item.updatedAt = new Date().toISOString();
+      item.completedAt = item.updatedAt;
+      await json(route, item);
       return;
     }
 
@@ -406,6 +465,39 @@ async function run() {
 
     await page.goto(`${baseURL}/launch-page`);
     await page.getByRole("heading", { name: "404", exact: true }).waitFor();
+
+    await page.goto(`${baseURL}/admin/pages/edit/101`);
+    await page.getByRole("button", { name: "安排发布", exact: true }).click();
+    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000);
+    const localScheduledAt = new Date(
+      scheduledAt.getTime() - scheduledAt.getTimezoneOffset() * 60_000,
+    ).toISOString().slice(0, 16);
+    await page.locator('input[type="datetime-local"]').fill(localScheduledAt);
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().endsWith("/admin/scheduled-publications") &&
+        response.request().method() === "POST" &&
+        response.ok()
+      ),
+      page.locator('button[type="submit"]').filter({ hasText: "Schedule" }).click(),
+    ]);
+    await page.getByText("等待发布", { exact: true }).waitFor();
+    assert.equal(state.scheduledPublications[0].expectedVersion, state.pages[0].draftVersion);
+
+    await page.getByRole("link", { name: "定时发布" }).click();
+    await page.waitForURL(`${baseURL}/admin/scheduled-publications`);
+    await page.getByRole("heading", { name: "定时发布", exact: true }).waitFor();
+    await page.getByText("发布页", { exact: true }).waitFor();
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().endsWith("/admin/scheduled-publications/1") &&
+        response.request().method() === "DELETE" &&
+        response.ok()
+      ),
+      page.getByRole("button", { name: "取消", exact: true }).click(),
+    ]);
+    await page.getByText("暂无定时发布任务", { exact: true }).waitFor();
+    assert.equal(state.scheduledPublications[0].status, "cancelled");
 
     assert.equal(pageErrors.length, 0, `Unexpected page errors: ${pageErrors.join("\n")}`);
 

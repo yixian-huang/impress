@@ -4,6 +4,7 @@ import {
   ADMIN_PAGES_PATH,
   getAdminRouteAccess,
   getAdminRoutePermission,
+  hasAdminRoutePermission,
   isAdminRouteVisibleInNavigation,
 } from "./adminAccess";
 
@@ -34,6 +35,15 @@ describe("admin route access metadata", () => {
       status: "production",
     });
     expect(getAdminRoutePermission("/admin/unknown")).toBeNull();
+  });
+
+  it("supports OR permission gates for shared publish workflows", () => {
+    expect(getAdminRoutePermission("/admin/scheduled-publications")).toEqual([
+      "pages:publish",
+      "articles:publish",
+    ]);
+    expect(hasAdminRoutePermission(["pages:publish", "articles:publish"], (permission) => permission === "articles:publish")).toBe(true);
+    expect(hasAdminRoutePermission(["pages:publish", "articles:publish"], (permission) => permission === "pages:read")).toBe(false);
   });
 
   it("keeps incomplete capabilities out of navigation", () => {

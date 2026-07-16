@@ -5,7 +5,7 @@ import { http } from "@/api/http";
 export interface Article {
   id: number;
   slug: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "scheduled";
   zhTitle: string;
   enTitle: string;
   zhBody: string;
@@ -28,6 +28,7 @@ export interface Article {
   visibility: string;
   metadata: Record<string, unknown>;
   publishedAt: string | null;
+  scheduledAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

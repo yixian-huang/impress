@@ -1,8 +1,9 @@
 export type AdminCapabilityStatus = "production" | "experimental";
+export type AdminRoutePermission = string | string[] | null;
 
 export interface AdminRouteAccess {
   path: string;
-  permission: string | null;
+  permission: AdminRoutePermission;
   status: AdminCapabilityStatus;
 }
 
@@ -18,6 +19,7 @@ export const adminRouteAccess: AdminRouteAccess[] = [
   { path: "/admin/media", permission: "media:read", status: "production" },
   { path: "/admin/form-submissions", permission: "form_submissions:read", status: "production" },
   { path: "/admin/menus", permission: "menus:read", status: "production" },
+  { path: "/admin/scheduled-publications", permission: ["pages:publish", "articles:publish"], status: "production" },
   { path: "/admin/comments", permission: "comments:read", status: "production" },
   { path: "/admin/theme", permission: "themes:read", status: "production" },
   { path: "/admin/site-config", permission: "settings:manage", status: "production" },
@@ -50,8 +52,19 @@ export function getAdminRouteAccess(pathname: string): AdminRouteAccess | null {
   );
 }
 
-export function getAdminRoutePermission(pathname: string): string | null {
+export function getAdminRoutePermission(pathname: string): AdminRoutePermission {
   return getAdminRouteAccess(pathname)?.permission ?? null;
+}
+
+export function hasAdminRoutePermission(
+  requiredPermission: AdminRoutePermission,
+  hasPermission: (permission: string) => boolean,
+): boolean {
+  if (!requiredPermission) return true;
+  if (Array.isArray(requiredPermission)) {
+    return requiredPermission.some((permission) => hasPermission(permission));
+  }
+  return hasPermission(requiredPermission);
 }
 
 export function isAdminRouteVisibleInNavigation(pathname: string): boolean {

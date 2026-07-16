@@ -14,6 +14,7 @@ import (
 )
 
 const auditActorHintKey = "audit_actor_hint"
+const auditResourceHintKey = "audit_resource_hint"
 const auditServiceHandledKey = "audit_service_handled"
 const auditFailureReasonKey = "audit_failure_reason"
 const maxLoginAuditBodyBytes = 64 << 10
@@ -91,6 +92,10 @@ func AuditMutations(writer audit.Writer) gin.HandlerFunc {
 // event for this operation.
 func MarkAuditHandled(c *gin.Context) {
 	c.Set(auditServiceHandledKey, true)
+}
+
+func SetAuditResource(c *gin.Context, resource string) {
+	c.Set(auditResourceHintKey, resource)
 }
 
 // AuditLogin records successful and failed login attempts without persisting
@@ -182,6 +187,17 @@ func describeMutation(method, route string, c *gin.Context) (action, resource st
 			return "content.delete", resource, false
 		}
 		return "content.update", resource, false
+	case "/admin/scheduled-publications":
+		if method == http.MethodPost {
+			return "content.schedule", resource, false
+		}
+	case "/admin/scheduled-publications/:id":
+		if method == http.MethodDelete {
+			return "content.cancel_schedule", resource, false
+		}
+		return "content.reschedule", resource, false
+	case "/admin/scheduled-publications/:id/retry":
+		return "content.retry_schedule", resource, false
 	case "/admin/roles/assign":
 		return "permissions.assign", resource, false
 	case "/admin/roles/unassign":
@@ -209,6 +225,14 @@ func describeMutation(method, route string, c *gin.Context) (action, resource st
 }
 
 func auditResource(route string, c *gin.Context) string {
+	if hinted, ok := c.Get(auditResourceHintKey); ok {
+		if resource, valid := hinted.(string); valid && resource != "" {
+			if len(resource) > 100 {
+				return resource[:100]
+			}
+			return resource
+		}
+	}
 	name := firstRouteSegment(route)
 	if name == "" {
 		name = "admin"
@@ -244,7 +268,7 @@ func mutationOperation(method, route string) string {
 	if last != "" && !strings.HasPrefix(last, ":") {
 		switch last {
 		case "activate", "apply", "assign", "complete", "export", "import", "install",
-			"move", "primary", "publish", "reorder", "restore", "test", "trigger",
+			"move", "primary", "publish", "reorder", "restore", "retry", "test", "trigger",
 			"unassign", "uninstall", "unpublish", "update", "validate":
 			return strings.ReplaceAll(last, "_", "-")
 		}

@@ -15,6 +15,15 @@ import {
   unpublishUnifiedPage,
   rollbackUnifiedPage,
 } from "@/api/unifiedPages";
+import {
+  cancelScheduledPublication,
+  createScheduledPublication,
+  getResourceScheduledPublication,
+  retryScheduledPublication,
+  updateScheduledPublication,
+  type ScheduledPublication,
+} from "@/api/scheduledPublications";
+import { ScheduledPublicationPanel } from "@/components/admin/ScheduledPublicationPanel";
 import SectionPicker from "./SectionPicker";
 import SectionListItem from "./SectionList";
 import { VersionHistoryPanel, ConflictDialog } from "./VersionHistoryPanel";
@@ -64,6 +73,9 @@ export default function PageEditorPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [conflictVersion, setConflictVersion] = useState<number | null>(null);
   const [loading, setLoading] = useState(!!id);
+  const [scheduledPublication, setScheduledPublication] = useState<ScheduledPublication | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(!!id);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
 
   // -- load existing page --
   const loadPage = useCallback(async () => {
@@ -104,9 +116,26 @@ export default function PageEditorPage() {
     }
   }, [pageId]);
 
+  const loadSchedule = useCallback(async () => {
+    if (!pageId) {
+      setScheduleLoading(false);
+      return;
+    }
+    setScheduleLoading(true);
+    try {
+      const schedule = await getResourceScheduledPublication("page", pageId);
+      setScheduledPublication(schedule);
+    } catch {
+      setScheduledPublication(null);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [pageId]);
+
   useEffect(() => {
     loadPage();
-  }, [loadPage]);
+    loadSchedule();
+  }, [loadPage, loadSchedule]);
 
   // -- keep JSON in sync --
   useEffect(() => {
@@ -316,6 +345,88 @@ export default function PageEditorPage() {
     }
   };
 
+  const currentSectionsForSave = (): SectionData[] | null => {
+    if (editorMode !== "json") return sections;
+    try {
+      const parsed = JSON.parse(sectionJson);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      setError("JSON 格式错误");
+      return null;
+    }
+  };
+
+  const handleSchedulePublish = async (scheduledAt: string) => {
+    if (!canPublish || isNew) return;
+    clearMessages();
+    if (metadataDirty) {
+      setError("页面信息尚未保存；请先保存页面信息，再安排定时发布");
+      return;
+    }
+
+    const sectionsToPublish = currentSectionsForSave();
+    if (!sectionsToPublish) return;
+
+    setScheduleBusy(true);
+    try {
+      const saved = await updateUnifiedPageDraft(pageId, draftVersion, {
+        sections: sectionsToPublish,
+      });
+      const scheduledDraftVersion = saved.draftVersion ?? draftVersion + 1;
+      const next = scheduledPublication?.status === "pending"
+        ? await updateScheduledPublication(scheduledPublication.id, {
+            scheduledAt,
+            expectedVersion: scheduledDraftVersion,
+          })
+        : await createScheduledPublication({
+            resourceType: "page",
+            resourceId: pageId,
+            scheduledAt,
+            expectedVersion: scheduledDraftVersion,
+          });
+      setDraftVersion(scheduledDraftVersion);
+      setScheduledPublication(next);
+      setSuccessMsg("定时发布已安排");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "定时发布失败");
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleCancelSchedule = async () => {
+    if (!canPublish || !scheduledPublication) return;
+    clearMessages();
+    setScheduleBusy(true);
+    try {
+      await cancelScheduledPublication(scheduledPublication.id);
+      setScheduledPublication(null);
+      setSuccessMsg("定时发布已取消");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "取消定时发布失败");
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleRetrySchedule = async () => {
+    if (!canPublish || !scheduledPublication) return;
+    clearMessages();
+    setScheduleBusy(true);
+    try {
+      const retried = await retryScheduledPublication(scheduledPublication.id);
+      setScheduledPublication(retried);
+      setSuccessMsg("定时发布已重新入队");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "重试定时发布失败");
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
   // -- unpublish --
   const handleUnpublish = async () => {
     if (!canPublish) return;
@@ -463,6 +574,22 @@ export default function PageEditorPage() {
       {successMsg && (
         <div className="mb-3 p-3 bg-green-50 text-green-700 rounded-md text-sm flex-shrink-0">
           {successMsg}
+        </div>
+      )}
+
+      {!isNew && (
+        <div className="mb-4 flex-shrink-0">
+          <ScheduledPublicationPanel
+            item={scheduledPublication}
+            loading={scheduleLoading}
+            busy={scheduleBusy}
+            canPublish={canPublish}
+            disabledReason="需要 pages:publish 权限才能安排页面定时发布。"
+            onSchedule={handleSchedulePublish}
+            onCancel={handleCancelSchedule}
+            onRetry={handleRetrySchedule}
+            onRefresh={loadSchedule}
+          />
         </div>
       )}
 

@@ -22,6 +22,7 @@ type Handler struct {
 	categoryRepo  repository.CategoryRepository
 	tagRepo       repository.TagRepository
 	searchService *service.SearchService
+	articleSvc    *service.ArticlePublicationService
 	eventBus      eventbus.EventBus
 	cache         *cache.Cache
 }
@@ -40,6 +41,7 @@ func NewHandler(
 		categoryRepo:  categoryRepo,
 		tagRepo:       tagRepo,
 		searchService: searchService,
+		articleSvc:    service.NewArticlePublicationService(articleRepo, searchService, eventBus),
 		eventBus:      eventBus,
 		cache:         cache,
 	}
@@ -328,17 +330,8 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 		return
 	}
 
-	// Auto-index on publish
-	if article.Status == model.ArticleStatusPublished && h.searchService != nil {
-		go func() {
-			ctx := context.Background()
-			if article.ZhTitle != "" {
-				h.searchService.IndexArticle(ctx, article.ID, "zh", article.ZhTitle, article.ZhBody, article.Slug)
-			}
-			if article.EnTitle != "" {
-				h.searchService.IndexArticle(ctx, article.ID, "en", article.EnTitle, article.EnBody, article.Slug)
-			}
-		}()
+	if article.Status == model.ArticleStatusPublished && h.articleSvc != nil {
+		go h.articleSvc.AfterPublish(context.Background(), article, 0)
 	}
 
 	// Publish content created event
@@ -381,6 +374,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
 		return
 	}
+	previousStatus := existing.Status
 
 	var input createUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -459,21 +453,15 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	}
 
 	// Auto-index on publish, remove from index otherwise
-	if h.searchService != nil {
+	if h.articleSvc != nil {
 		if existing.Status == model.ArticleStatusPublished {
-			go func() {
-				ctx := context.Background()
-				if existing.ZhTitle != "" {
-					h.searchService.IndexArticle(ctx, existing.ID, "zh", existing.ZhTitle, existing.ZhBody, existing.Slug)
-				}
-				if existing.EnTitle != "" {
-					h.searchService.IndexArticle(ctx, existing.ID, "en", existing.EnTitle, existing.EnBody, existing.Slug)
-				}
-			}()
-		} else {
-			go func() {
-				h.searchService.RemoveFromIndex(context.Background(), "article", existing.ID)
-			}()
+			if previousStatus != model.ArticleStatusPublished {
+				go h.articleSvc.AfterPublish(context.Background(), existing, 0)
+			} else {
+				go h.articleSvc.RefreshPublished(context.Background(), existing)
+			}
+		} else if previousStatus == model.ArticleStatusPublished {
+			go h.articleSvc.AfterUnpublish(context.Background(), existing)
 		}
 	}
 

@@ -93,8 +93,15 @@ type Handlers struct {
 	System         *systemHandler.Handler
 	Translation    *translationHandler.Handler
 	UnifiedPage    *unifiedPageHandler.Handler
-	PageTemplate   *pageTemplateHandler.Handler
-	ThemeExport    *themeExportHandler.Handler
+	Scheduler      interface {
+		List(*gin.Context)
+		Schedule(*gin.Context)
+		Reschedule(*gin.Context)
+		Cancel(*gin.Context)
+		Retry(*gin.Context)
+	}
+	PageTemplate *pageTemplateHandler.Handler
+	ThemeExport  *themeExportHandler.Handler
 }
 
 // RouteDeps holds dependencies needed by route middleware.
@@ -306,6 +313,23 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.DELETE("/articles/:id", require("articles", "delete"), handlers.Article.AdminDelete)
 		adminGroup.GET("/articles/:id/export", require("articles", "read"), handlers.Article.AdminExportMarkdown)
 		adminGroup.POST("/articles/import", require("articles", "create"), handlers.Article.AdminImportMarkdown)
+
+		scheduledPublications := adminGroup.Group("/scheduled-publications")
+		scheduledPublications.Use(middleware.RequireAnyPermission(
+			[]middleware.PermissionPair{
+				{Resource: "articles", Action: "publish"},
+				{Resource: "pages", Action: "publish"},
+			},
+			deps.UserRepo,
+			deps.RBACCache,
+		))
+		{
+			scheduledPublications.GET("", handlers.Scheduler.List)
+			scheduledPublications.POST("", handlers.Scheduler.Schedule)
+			scheduledPublications.PUT("/:id", handlers.Scheduler.Reschedule)
+			scheduledPublications.DELETE("/:id", handlers.Scheduler.Cancel)
+			scheduledPublications.POST("/:id/retry", handlers.Scheduler.Retry)
+		}
 
 		// Category management
 		adminGroup.GET("/categories", require("categories", "read"), handlers.Category.List)

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"blotting-consultancy/internal/model"
 
@@ -76,6 +77,37 @@ func (r *GormArticleRepository) Update(ctx context.Context, article *model.Artic
 		return err
 	}
 	return r.db.WithContext(ctx).Save(article).Error
+}
+
+func (r *GormArticleRepository) UpdateScheduledPublication(
+	ctx context.Context,
+	article *model.Article,
+	expectedUpdatedAt time.Time,
+) error {
+	if err := article.Validate(); err != nil {
+		return err
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		article.UpdatedAt = time.Now()
+		result := tx.Model(&model.Article{}).
+			Where("id = ? AND updated_at = ?", article.ID, expectedUpdatedAt).
+			Select("*").
+			Omit("id", "created_at", "Category", "Categories", "Tags").
+			Updates(article)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrArticleVersionConflict
+		}
+		if err := tx.Model(article).Association("Tags").Replace(article.Tags); err != nil {
+			return err
+		}
+		if err := tx.Model(article).Association("Categories").Replace(article.Categories); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // Delete deletes an article by ID

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { commentModuleConfig } from "@/modules/comment";
 import {
   getAdminRoutePermission,
+  hasAdminRoutePermission,
   isAdminRouteVisibleInNavigation,
 } from "@/router/adminAccess";
 
@@ -86,6 +87,15 @@ const navGroups: NavGroup[] = [
         icon: (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        ),
+      },
+      {
+        label: "定时发布",
+        path: "/admin/scheduled-publications",
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l3.75 2.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ),
       },
@@ -273,7 +283,7 @@ function SidebarContent({ collapsed, onToggle, onMobileClose }: {
           const permission = getAdminRoutePermission(item.path);
           return (
             isAdminRouteVisibleInNavigation(item.path) &&
-            (!permission || hasPermission(permission))
+            hasAdminRoutePermission(permission, hasPermission)
           );
         }
       ),

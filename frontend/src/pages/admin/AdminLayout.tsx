@@ -3,7 +3,7 @@ import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
-import { getAdminRoutePermission } from "@/router/adminAccess";
+import { getAdminRoutePermission, hasAdminRoutePermission } from "@/router/adminAccess";
 import AdminSidebar from "./components/AdminSidebar";
 
 export default function AdminLayout() {
@@ -51,7 +51,7 @@ export default function AdminLayout() {
 
   // Check route-level permission
   const requiredPerm = getAdminRoutePermission(location.pathname);
-  if (requiredPerm && !hasPermission(requiredPerm)) {
+  if (!hasAdminRoutePermission(requiredPerm, hasPermission)) {
     return <Navigate to="/admin" replace />;
   }
 

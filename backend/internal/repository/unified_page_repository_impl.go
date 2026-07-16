@@ -8,6 +8,7 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GormUnifiedPageRepository struct {
@@ -90,6 +91,79 @@ func (r *GormUnifiedPageRepository) UpdateDraft(ctx context.Context, id uint, ex
 	return page.DraftVersion, nil
 }
 
+func (r *GormUnifiedPageRepository) PublishDraft(
+	ctx context.Context,
+	id uint,
+	expectedVersion int,
+	userID uint,
+	publishedAt time.Time,
+	requireSchedule bool,
+) (*model.UnifiedPage, int, bool, error) {
+	var publishedPage *model.UnifiedPage
+	var publishedVersion int
+	didPublish := false
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var page model.UnifiedPage
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&page, id).Error; err != nil {
+			return err
+		}
+		if requireSchedule && page.ScheduledAt == nil && page.Status == "published" {
+			publishedPage = &page
+			publishedVersion = page.PublishedVersion
+			return nil
+		}
+		if page.DraftVersion != expectedVersion {
+			return ErrUnifiedPageDraftVersionConflict
+		}
+
+		var latest struct{ Max int }
+		if err := tx.Model(&model.PageVersion{}).
+			Select("COALESCE(MAX(version), 0) as max").
+			Where("page_id = ?", id).
+			Scan(&latest).Error; err != nil {
+			return err
+		}
+		publishedVersion = latest.Max + 1
+		version := &model.PageVersion{
+			PageID:    id,
+			Version:   publishedVersion,
+			Config:    page.DraftConfig,
+			CreatedBy: userID,
+		}
+		if err := tx.Create(version).Error; err != nil {
+			return err
+		}
+
+		result := tx.Table("unified_pages").
+			Where("id = ? AND draft_version = ?", id, expectedVersion).
+			Updates(map[string]interface{}{
+				"published_config":  page.DraftConfig,
+				"published_version": publishedVersion,
+				"status":            "published",
+				"published_at":      publishedAt,
+				"scheduled_at":      nil,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrUnifiedPageDraftVersionConflict
+		}
+		page.PublishedConfig = model.NullableJSONMap(page.DraftConfig)
+		page.PublishedVersion = publishedVersion
+		page.Status = "published"
+		page.PublishedAt = &publishedAt
+		page.ScheduledAt = nil
+		publishedPage = &page
+		didPublish = true
+		return nil
+	})
+	if err != nil {
+		return nil, 0, false, err
+	}
+	return publishedPage, publishedVersion, didPublish, nil
+}
+
 func (r *GormUnifiedPageRepository) UpdatePublished(
 	ctx context.Context,
 	id uint,
@@ -102,6 +176,7 @@ func (r *GormUnifiedPageRepository) UpdatePublished(
 		"published_version": publishedVersion,
 		"status":            "published",
 		"published_at":      publishedAt,
+		"scheduled_at":      nil,
 	})
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -125,6 +200,7 @@ func (r *GormUnifiedPageRepository) UpdateRollback(
 		"published_version": publishedVersion,
 		"status":            "published",
 		"published_at":      publishedAt,
+		"scheduled_at":      nil,
 	})
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -136,6 +212,7 @@ func (r *GormUnifiedPageRepository) ClearPublished(ctx context.Context, id uint)
 	result := r.db.WithContext(ctx).Table("unified_pages").Where("id = ?", id).Updates(map[string]interface{}{
 		"published_config": nil,
 		"status":           "draft",
+		"scheduled_at":     nil,
 	})
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound

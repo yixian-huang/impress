@@ -2,9 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"blotting-consultancy/internal/model"
 )
+
+var ErrArticleVersionConflict = errors.New("article version conflict")
 
 // ArticleRepository defines the interface for article data access
 type ArticleRepository interface {
@@ -19,6 +23,7 @@ type ArticleRepository interface {
 
 	// Update updates an article
 	Update(ctx context.Context, article *model.Article) error
+	UpdateScheduledPublication(ctx context.Context, article *model.Article, expectedUpdatedAt time.Time) error
 
 	// Delete deletes an article by ID
 	Delete(ctx context.Context, id uint) error

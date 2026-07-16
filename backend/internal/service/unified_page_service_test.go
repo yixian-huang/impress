@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"blotting-consultancy/internal/eventbus"
 	"blotting-consultancy/internal/model"
@@ -12,6 +13,7 @@ import (
 	"blotting-consultancy/internal/service"
 	"blotting-consultancy/pkg/audit"
 
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -89,6 +91,64 @@ func TestUnifiedPageService_Publish_VersionConflict(t *testing.T) {
 	if err == nil {
 		t.Error("expected version conflict error")
 	}
+}
+
+func TestUnifiedPageService_PublishRollsBackVersionWhenPageUpdateFails(t *testing.T) {
+	db := setupServiceTestDB(t)
+	pageRepo := repository.NewGormUnifiedPageRepository(db)
+	versionRepo := repository.NewGormPageVersionRepository(db)
+	svc := service.NewUnifiedPageService(pageRepo, versionRepo)
+	ctx := context.Background()
+	page := &model.UnifiedPage{
+		Slug:         "transactional-publish",
+		Mode:         "composable",
+		DraftVersion: 1,
+		DraftConfig:  model.JSONMap{"sections": []any{}},
+	}
+	require.NoError(t, pageRepo.Create(ctx, page))
+	require.NoError(t, db.Callback().Update().Before("gorm:update").Register(
+		"test:fail_unified_page_publish",
+		func(tx *gorm.DB) {
+			if tx.Statement.Table == "unified_pages" {
+				tx.AddError(errors.New("injected page update failure"))
+			}
+		},
+	))
+
+	err := svc.Publish(ctx, page.ID, 1, 1)
+	require.ErrorContains(t, err, "injected page update failure")
+
+	_, count, listErr := versionRepo.ListByPageID(ctx, page.ID, 0, 10)
+	require.NoError(t, listErr)
+	require.Zero(t, count)
+	updated, findErr := pageRepo.FindByID(ctx, page.ID)
+	require.NoError(t, findErr)
+	require.NotEqual(t, "published", updated.Status)
+}
+
+func TestUnifiedPageService_ScheduledPublishIsIdempotentAfterScheduleClears(t *testing.T) {
+	db := setupServiceTestDB(t)
+	pageRepo := repository.NewGormUnifiedPageRepository(db)
+	versionRepo := repository.NewGormPageVersionRepository(db)
+	svc := service.NewUnifiedPageService(pageRepo, versionRepo)
+	ctx := context.Background()
+	scheduledAt := time.Now().Add(time.Hour)
+	page := &model.UnifiedPage{
+		Slug:         "idempotent-scheduled-publish",
+		Mode:         "composable",
+		DraftVersion: 1,
+		DraftConfig:  model.JSONMap{"sections": []any{}},
+		Status:       "scheduled",
+		ScheduledAt:  &scheduledAt,
+	}
+	require.NoError(t, pageRepo.Create(ctx, page))
+
+	require.NoError(t, svc.PublishScheduled(ctx, page.ID, 1, 1))
+	require.NoError(t, svc.PublishScheduled(ctx, page.ID, 1, 1))
+
+	_, count, err := versionRepo.ListByPageID(ctx, page.ID, 0, 10)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
 }
 
 func TestUnifiedPageService_Rollback(t *testing.T) {

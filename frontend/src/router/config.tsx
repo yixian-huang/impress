@@ -21,6 +21,7 @@ const AdminThemePage = lazy(() => import('../pages/admin/theme/page'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/dashboard/page'));
 const AdminFormSubmissionsPage = lazy(() => import('../pages/admin/form-submissions/page'));
 const AdminMenusPage = lazy(() => import('../pages/admin/menus/page'));
+const AdminScheduledPublicationsPage = lazy(() => import('../pages/admin/scheduled-publications/page'));
 const AdminUsersPage = lazy(() => import('../pages/admin/users/page'));
 const AdminTranslationPage = lazy(() => import('../pages/admin/translation/page'));
 const AdminQAPage = lazy(() => import('../modules/qa/admin/page'));
@@ -162,6 +163,10 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'menus',
         element: <AdminMenusPage />,
+      },
+      {
+        path: 'scheduled-publications',
+        element: <AdminScheduledPublicationsPage />,
       },
       {
         path: 'users',

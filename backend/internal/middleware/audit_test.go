@@ -111,6 +111,25 @@ func TestAuditMutations_RecordsPermissionFailure(t *testing.T) {
 	assert.Equal(t, "req-42", event.Details["request_id"])
 }
 
+func TestAuditMutations_UsesResourceHint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	writer := &auditWriterStub{}
+	router := gin.New()
+	router.Use(AuditMutations(writer))
+	router.POST("/admin/scheduled-publications", func(c *gin.Context) {
+		SetAuditResource(c, "articles:42")
+		c.Status(http.StatusCreated)
+	})
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/admin/scheduled-publications", nil))
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Len(t, writer.events, 1)
+	assert.Equal(t, "content.schedule", writer.events[0].Action)
+	assert.Equal(t, "articles:42", writer.events[0].Resource)
+}
+
 func TestAuditMutations_CapturesRBACFailureReason(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	writer := &auditWriterStub{}

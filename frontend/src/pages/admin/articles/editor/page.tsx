@@ -10,6 +10,15 @@ import {
   getTags,
 } from "@/api/articles";
 import type { Category, Tag } from "@/api/articles";
+import {
+  cancelScheduledPublication,
+  createScheduledPublication,
+  getResourceScheduledPublication,
+  retryScheduledPublication,
+  updateScheduledPublication,
+  type ScheduledPublication,
+} from "@/api/scheduledPublications";
+import { ScheduledPublicationPanel } from "@/components/admin/ScheduledPublicationPanel";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import {
   getEditorExtensions,
@@ -25,6 +34,7 @@ import MarkdownMode from "@/components/admin/editor/MarkdownMode";
 import TurndownService from "turndown";
 import { marked } from "marked";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAuth } from "@/contexts/AuthContext";
 import EditorSidebar from "./EditorSidebar";
 import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
@@ -35,6 +45,8 @@ export default function ArticleEditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
+  const { hasPermission } = useAuth();
+  const canPublish = hasPermission("articles:publish");
 
   // Form state
   const [zhTitle, setZhTitle] = useState("");
@@ -62,6 +74,7 @@ export default function ArticleEditorPage() {
   // Article metadata (from API)
   const [articleCreatedAt, setArticleCreatedAt] = useState<string | null>(null);
   const [articlePublishedAt, setArticlePublishedAt] = useState<string | null>(null);
+  const [articleStatus, setArticleStatus] = useState<"draft" | "published" | "scheduled">("draft");
 
   // UI state
   const [loading, setLoading] = useState(isEditing);
@@ -69,6 +82,10 @@ export default function ArticleEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [scheduledPublication, setScheduledPublication] = useState<ScheduledPublication | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(isEditing);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState("");
 
   // Editor mode (richtext / markdown)
   const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("richtext");
@@ -215,6 +232,7 @@ export default function ArticleEditorPage() {
       setMetadata(article.metadata || {});
       setArticleCreatedAt(article.createdAt || null);
       setArticlePublishedAt(article.publishedAt || null);
+      setArticleStatus(article.status || "draft");
       // Auto-enable English if it has content
       if (article.enBody || article.enTitle) {
         setEnabledLangs(["zh", "en"]);
@@ -226,12 +244,29 @@ export default function ArticleEditorPage() {
     }
   }, [id]);
 
+  const loadArticleSchedule = useCallback(async () => {
+    if (!id) {
+      setScheduleLoading(false);
+      return;
+    }
+    setScheduleLoading(true);
+    try {
+      const schedule = await getResourceScheduledPublication("article", Number(id));
+      setScheduledPublication(schedule);
+    } catch {
+      setScheduledPublication(null);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadMeta();
     if (isEditing) loadArticle();
-  }, [loadMeta, loadArticle, isEditing]);
+    loadArticleSchedule();
+  }, [loadMeta, loadArticle, loadArticleSchedule, isEditing]);
 
-  const buildPayload = (status: "draft" | "published"): Record<string, unknown> => {
+  const buildPayload = (status: "draft" | "published", publishedAt?: string): Record<string, unknown> => {
     const payload: Record<string, unknown> = {
       zhTitle, enTitle, slug, coverImage,
       zhBody: zhEditor?.getHTML() || "",
@@ -240,7 +275,7 @@ export default function ArticleEditorPage() {
       status, categoryIds: selectedCategoryIds, tagIds: selectedTagIds,
       author, autoSummary, allowComments, pinned, visibility, metadata,
     };
-    if (status === "published") payload.publishedAt = new Date().toISOString();
+    if (status === "published") payload.publishedAt = publishedAt ?? new Date().toISOString();
     return payload;
   };
 
@@ -253,12 +288,88 @@ export default function ArticleEditorPage() {
       const payload = buildPayload(status);
       if (isEditing) await updateArticle(Number(id), payload as Partial<Article>);
       else await createArticle(payload as Partial<Article>);
+      setArticleStatus(status);
       navigate("/admin/articles");
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message;
       setError(msg || (err instanceof Error ? err.message : "保存失败"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSchedulePublish = async (scheduledAt: string) => {
+    if (!canPublish) return;
+    if (!zhTitle.trim()) { setError("请填写中文标题"); return; }
+    if (!slug.trim()) { setError("请填写 Slug"); return; }
+    setScheduleBusy(true);
+    setError(null);
+    setScheduleMessage("");
+    try {
+      const publishPayload = buildPayload("published", scheduledAt);
+      if (scheduledPublication?.status === "pending") {
+        const updated = await updateScheduledPublication(scheduledPublication.id, {
+          scheduledAt,
+          publishPayload,
+        });
+        setScheduledPublication(updated);
+        setScheduleMessage("定时发布已更新");
+      } else {
+        let resourceId = Number(id);
+        if (!isEditing) {
+          const created = await createArticle(buildPayload("draft") as Partial<Article>);
+          resourceId = created.id;
+        }
+        const createdSchedule = await createScheduledPublication({
+          resourceType: "article",
+          resourceId,
+          scheduledAt,
+          publishPayload,
+        });
+        setScheduledPublication(createdSchedule);
+        setArticleStatus(articleStatus === "published" ? "published" : "scheduled");
+        setScheduleMessage("定时发布已安排");
+        if (!isEditing) {
+          navigate(`/admin/articles/edit/${resourceId}`, { replace: true });
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? err?.response?.data?.error;
+      setError(msg || (err instanceof Error ? err.message : "定时发布失败"));
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleCancelSchedule = async () => {
+    if (!scheduledPublication || !canPublish) return;
+    setScheduleBusy(true);
+    setError(null);
+    setScheduleMessage("");
+    try {
+      await cancelScheduledPublication(scheduledPublication.id);
+      setScheduledPublication(null);
+      setScheduleMessage("定时发布已取消");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "取消定时发布失败");
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleRetrySchedule = async () => {
+    if (!scheduledPublication || !canPublish) return;
+    setScheduleBusy(true);
+    setError(null);
+    setScheduleMessage("");
+    try {
+      const retried = await retryScheduledPublication(scheduledPublication.id);
+      setScheduledPublication(retried);
+      setScheduleMessage("定时发布已重新入队");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "重试定时发布失败");
+    } finally {
+      setScheduleBusy(false);
     }
   };
 
@@ -340,10 +451,12 @@ export default function ArticleEditorPage() {
               className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
               {saving ? "保存中..." : "草稿"}
             </button>
-            <button onClick={() => handleSave("published")} disabled={saving}
-              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-              {saving ? "发布中..." : "发布"}
-            </button>
+            {canPublish && (
+              <button onClick={() => handleSave("published")} disabled={saving}
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                {saving ? "发布中..." : "发布"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -401,6 +514,26 @@ export default function ArticleEditorPage() {
           <button onClick={() => setError(null)} className="ml-2 text-red-600 hover:text-red-800">&times;</button>
         </div>
       )}
+      {scheduleMessage && (
+        <div className="px-4 py-2 bg-green-50 border-b border-green-200 text-green-800 text-sm flex-shrink-0">
+          {scheduleMessage}
+          <button onClick={() => setScheduleMessage("")} className="ml-2 text-green-600 hover:text-green-800">&times;</button>
+        </div>
+      )}
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex-shrink-0">
+        <ScheduledPublicationPanel
+          item={scheduledPublication}
+          loading={scheduleLoading}
+          busy={scheduleBusy}
+          canPublish={canPublish}
+          disabledReason="需要 articles:publish 权限才能安排定时发布。"
+          onSchedule={handleSchedulePublish}
+          onCancel={handleCancelSchedule}
+          onRetry={handleRetrySchedule}
+          onRefresh={loadArticleSchedule}
+          title={articleStatus === "published" ? "定时更新发布" : "定时发布"}
+        />
+      </div>
 
       {/* Main Content: Editor + Sidebar */}
       <div className="flex-1 flex min-h-0">

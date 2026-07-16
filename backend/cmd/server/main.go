@@ -43,6 +43,7 @@ import (
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
 	publicHandler "blotting-consultancy/internal/handler/public"
 	roleHandler "blotting-consultancy/internal/handler/role"
+	schedulerHandler "blotting-consultancy/internal/handler/scheduler"
 	searchhandler "blotting-consultancy/internal/handler/search"
 	seoHandler "blotting-consultancy/internal/handler/seo"
 	setupHandler "blotting-consultancy/internal/handler/setup"
@@ -188,6 +189,7 @@ func main() {
 		&model.SiteUser{},
 		&model.UnifiedPage{},
 		&model.PageVersion{},
+		&model.ScheduledPublishJob{},
 		&model.PageTemplate{},
 		&model.SiteConfig{},
 		&commentMod.Comment{},
@@ -258,6 +260,7 @@ func main() {
 	siteRepo := repository.NewGormSiteRepository(database.DB)
 	unifiedPageRepo := repository.NewGormUnifiedPageRepository(database.DB)
 	pageVersionRepo := repository.NewGormPageVersionRepository(database.DB)
+	scheduledPublishJobRepo := repository.NewGormScheduledPublishJobRepository(database.DB)
 	pageTemplateRepo := repository.NewGormPageTemplateRepository(database.DB)
 	siteConfigRepo := repository.NewGormSiteConfigRepository(database.DB)
 	log.Info("Repositories initialized")
@@ -316,10 +319,6 @@ func main() {
 
 	// (old validationService + contentService removed — replaced by UnifiedPageService)
 	log.Info("Services initialized")
-
-	// Start scheduler for auto-publishing scheduled content
-	schedulerService := service.NewSchedulerService(database.DB)
-	schedulerService.Start()
 
 	// Initialize database-backed audit writer. Audit failures are best-effort
 	// for the request but are emitted to the application logger.
@@ -451,6 +450,12 @@ func main() {
 	unifiedPageSvc := service.NewUnifiedPageService(unifiedPageRepo, pageVersionRepo, bus).
 		WithAuditWriter(auditDbWriter)
 	unifiedPageHdl := unifiedPageHandler.NewHandler(unifiedPageRepo, pageVersionRepo, unifiedPageSvc, publicCache, bus)
+	articlePublicationSvc := service.NewArticlePublicationService(articleRepo, searchService, bus).
+		WithTaxonomyRepositories(categoryRepo, tagRepo).
+		WithAuditWriter(auditDbWriter)
+	schedulerService := service.NewSchedulerService(scheduledPublishJobRepo, articlePublicationSvc, unifiedPageSvc)
+	schedulerService.Start()
+	schedulerHdl := schedulerHandler.NewHandler(schedulerService)
 	pageTemplateHdl := pageTemplateHandler.NewHandler(pageTemplateRepo)
 	themeExportSvc := service.NewThemeExportService(pageTemplateRepo, siteConfigRepo)
 	themeExportHdl := themeExportHandler.NewHandler(themeExportSvc)
@@ -517,6 +522,7 @@ func main() {
 		System:         systemHandlerInst,
 		Translation:    translationHandlerInst,
 		UnifiedPage:    unifiedPageHdl,
+		Scheduler:      schedulerHdl,
 		PageTemplate:   pageTemplateHdl,
 		ThemeExport:    themeExportHdl,
 	}
