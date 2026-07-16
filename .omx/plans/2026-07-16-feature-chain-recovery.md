@@ -311,8 +311,11 @@ Wave 0 尚余的测试债务：
 
 ### Wave 2：兑现已暴露配置
 
+> 状态更新（2026-07-17）：WP2-A、WP2-B、WP2-C 已完成，R2 已达到。AI、翻译、建站向导和存储入口从 experimental 调整为 production；QA 仍因向量索引仅在内存中保持 experimental。
+
 #### WP2-A AI Provider 生命周期
 
+- 状态：`completed`
 - 角色：`architect-ai` + `executor-backend-ai`
 - 范围：
   - 持久化 provider 配置，密钥加密/脱敏。
@@ -327,6 +330,7 @@ Wave 0 尚余的测试债务：
 
 #### WP2-B 翻译真实化
 
+- 状态：`completed`
 - 角色：`executor-backend-translation` + `executor-frontend-translation`
 - 范围：
   - 使用动态 AI TranslationProvider 或明确的外部翻译 provider。
@@ -339,6 +343,7 @@ Wave 0 尚余的测试债务：
 
 #### WP2-C 存储配置真实化
 
+- 状态：`completed`
 - 角色：`executor-backend-storage` + `executor-frontend-storage`
 - 范围：
   - 修正 camelCase API 契约和响应类型。
@@ -424,6 +429,13 @@ Wave 3:
 
 - AI、翻译、远端存储的保存配置会真实改变运行时行为。
 - 未配置或失败时返回明确错误，不出现“成功但无效果”。
+- 完成证据（2026-07-17）：
+  - AI/Storage secret 使用 `v1:aes-gcm:` 密文持久化；AI 配置、健康检查、启动恢复和 Registry 热切换已接入 server。
+  - QA、Wizard、Translation 按请求解析当前 AI provider；未配置时返回结构化 503。
+  - Wizard 前后端 camelCase 契约已对齐，应用计划写入可编辑/发布的 `unified_pages` composable 草稿。
+  - Storage 保存前执行真实远端 HEAD/Exists 探测；失败不持久化、不切换。
+  - 普通媒体和分片上传均调用共享 StorageRuntime；媒体记录持久化 storage key/provider。
+  - 后端定向测试、前端 142 tests、typecheck、lint、production build 通过。
 
 ### R3：平台 Beta
 

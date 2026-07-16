@@ -2,13 +2,61 @@ package qa
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/service"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type qaMockAI struct {
+	name   string
+	answer string
+	vector []float64
+}
+
+func (m *qaMockAI) ChatComplete(_ context.Context, _, _ string) (string, error) {
+	return m.answer, nil
+}
+
+func (m *qaMockAI) Chat(_ context.Context, _ provider.ChatRequest) (*provider.ChatResponse, error) {
+	return &provider.ChatResponse{Content: m.answer}, nil
+}
+
+func (m *qaMockAI) Complete(_ context.Context, _ provider.CompletionRequest) (*provider.CompletionResponse, error) {
+	return &provider.CompletionResponse{Text: m.answer}, nil
+}
+
+func (m *qaMockAI) Summarize(_ context.Context, text string, _ int) (string, error) {
+	return text, nil
+}
+
+func (m *qaMockAI) SuggestTitles(_ context.Context, _ string, count int) ([]string, error) {
+	titles := make([]string, count)
+	return titles, nil
+}
+
+func (m *qaMockAI) SuggestTags(_ context.Context, _ string, _ []string) ([]string, error) {
+	return nil, nil
+}
+
+func (m *qaMockAI) StreamChat(_ context.Context, _ provider.ChatRequest) (<-chan provider.ChatChunk, error) {
+	ch := make(chan provider.ChatChunk)
+	close(ch)
+	return ch, nil
+}
+
+func (m *qaMockAI) Embed(_ context.Context, _ string) ([]float64, error) {
+	if m.vector != nil {
+		return m.vector, nil
+	}
+	return []float64{1, 0}, nil
+}
+
+func (m *qaMockAI) Name() string { return m.name }
 
 func TestQAService_AskEmpty(t *testing.T) {
 	ai := service.NewStubAIProvider()
@@ -51,6 +99,26 @@ func TestQAService_AskWithIndexedContent(t *testing.T) {
 	assert.NotEmpty(t, result.Answer)
 	// With the stub AI, the embedding similarity may or may not find relevant chunks
 	// depending on the hash-based pseudo-embedding, so we just check structure
+}
+
+func TestQAService_AskResolvesAIProviderFromRegistryAtCallTime(t *testing.T) {
+	registry := provider.NewRegistry()
+	registry.SetAI(&qaMockAI{name: "first", answer: "first answer"})
+	vs := NewMemoryVectorStore()
+	svc := NewQAServiceWithRegistry(registry, vs)
+
+	registry.SetAI(&qaMockAI{name: "second", answer: "second answer"})
+
+	result, err := svc.Ask(context.Background(), "What is this company?", "en")
+	require.NoError(t, err)
+	assert.Equal(t, "second answer", result.Answer)
+}
+
+func TestQAService_AskReturnsErrAINotConfiguredWhenRegistryHasNoAI(t *testing.T) {
+	svc := NewQAServiceWithRegistry(provider.NewRegistry(), NewMemoryVectorStore())
+
+	_, err := svc.Ask(context.Background(), "What is this company?", "en")
+	assert.True(t, errors.Is(err, service.ErrAINotConfigured))
 }
 
 func TestQAService_EndToEnd(t *testing.T) {

@@ -1,19 +1,23 @@
 package translation
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 )
 
 // Handler handles translation and glossary HTTP requests
 type Handler struct {
 	translator   provider.TranslationProvider
+	registry     *provider.Registry
 	glossaryRepo repository.GlossaryRepository
 	articleRepo  repository.ArticleRepository
 }
@@ -29,6 +33,43 @@ func NewHandler(
 		glossaryRepo: glossaryRepo,
 		articleRepo:  articleRepo,
 	}
+}
+
+// NewHandlerWithRegistry creates a translation handler that resolves the active
+// AI provider from the registry for every translation request.
+func NewHandlerWithRegistry(
+	registry *provider.Registry,
+	glossaryRepo repository.GlossaryRepository,
+	articleRepo repository.ArticleRepository,
+) *Handler {
+	return &Handler{
+		registry:     registry,
+		glossaryRepo: glossaryRepo,
+		articleRepo:  articleRepo,
+	}
+}
+
+func (h *Handler) translationProvider() provider.TranslationProvider {
+	if h.registry != nil {
+		return service.NewAITranslationProviderWithRegistry(h.registry)
+	}
+	if h.translator != nil {
+		return h.translator
+	}
+	return service.NewNoopTranslationProvider()
+}
+
+func (h *Handler) handleTranslationError(c *gin.Context, err error) {
+	if errors.Is(err, service.ErrAINotConfigured) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": gin.H{
+				"code":    "AI_NOT_CONFIGURED",
+				"message": "AI provider is not configured. Please configure an AI provider in settings.",
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
 }
 
 // --- Translation endpoints ---
@@ -63,9 +104,9 @@ func (h *Handler) Translate(c *gin.Context) {
 		Glossary:   glossary,
 	}
 
-	resp, err := h.translator.Translate(c.Request.Context(), req)
+	resp, err := h.translationProvider().Translate(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		h.handleTranslationError(c, err)
 		return
 	}
 
@@ -106,9 +147,9 @@ func (h *Handler) BatchTranslate(c *gin.Context) {
 		})
 	}
 
-	responses, err := h.translator.BatchTranslate(c.Request.Context(), reqs)
+	responses, err := h.translationProvider().BatchTranslate(c.Request.Context(), reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		h.handleTranslationError(c, err)
 		return
 	}
 
@@ -130,12 +171,38 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 		return
 	}
 
+	var input translateArticleInput
+	if c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request data"}})
+			return
+		}
+	}
+
 	// Determine source and target: if Chinese content exists, translate zh->en; otherwise en->zh
 	sourceLang := "zh"
 	targetLang := "en"
 	if article.ZhTitle == "" && article.EnTitle != "" {
 		sourceLang = "en"
 		targetLang = "zh"
+	}
+	if input.SourceLang != "" {
+		sourceLang = input.SourceLang
+	}
+	if input.TargetLang != "" {
+		targetLang = input.TargetLang
+	}
+
+	apply := input.Mode == "apply"
+	if input.Apply != nil {
+		apply = *input.Apply
+	}
+	if input.Preview {
+		apply = false
+	}
+	if sourceLang == targetLang {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "sourceLang and targetLang must differ"}})
+		return
 	}
 
 	// Load glossary
@@ -149,28 +216,48 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 	type fieldMapping struct {
 		sourceText string
 		fieldName  string
+		targetText string
 	}
 
 	var mappings []fieldMapping
 	if sourceLang == "zh" {
 		if article.ZhTitle != "" {
-			mappings = append(mappings, fieldMapping{sourceText: article.ZhTitle, fieldName: "title"})
+			mappings = append(mappings, fieldMapping{sourceText: article.ZhTitle, fieldName: "title", targetText: article.EnTitle})
 		}
 		if article.ZhBody != "" {
-			mappings = append(mappings, fieldMapping{sourceText: article.ZhBody, fieldName: "body"})
+			mappings = append(mappings, fieldMapping{sourceText: article.ZhBody, fieldName: "body", targetText: article.EnBody})
 		}
 	} else {
 		if article.EnTitle != "" {
-			mappings = append(mappings, fieldMapping{sourceText: article.EnTitle, fieldName: "title"})
+			mappings = append(mappings, fieldMapping{sourceText: article.EnTitle, fieldName: "title", targetText: article.ZhTitle})
 		}
 		if article.EnBody != "" {
-			mappings = append(mappings, fieldMapping{sourceText: article.EnBody, fieldName: "body"})
+			mappings = append(mappings, fieldMapping{sourceText: article.EnBody, fieldName: "body", targetText: article.ZhBody})
 		}
 	}
 
 	if len(mappings) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "no source content to translate"}})
 		return
+	}
+
+	if apply && !input.Overwrite {
+		var protectedFields []string
+		for _, m := range mappings {
+			if strings.TrimSpace(m.targetText) != "" {
+				protectedFields = append(protectedFields, m.fieldName)
+			}
+		}
+		if len(protectedFields) > 0 {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": gin.H{
+					"code":    "TRANSLATION_TARGET_NOT_EMPTY",
+					"message": "target fields are not empty; set overwrite=true to replace them",
+					"fields":  protectedFields,
+				},
+			})
+			return
+		}
 	}
 
 	reqs := make([]provider.TranslateRequest, len(mappings))
@@ -183,9 +270,9 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 		}
 	}
 
-	responses, err := h.translator.BatchTranslate(c.Request.Context(), reqs)
+	responses, err := h.translationProvider().BatchTranslate(c.Request.Context(), reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		h.handleTranslationError(c, err)
 		return
 	}
 
@@ -195,33 +282,46 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 		translations[m.fieldName] = responses[i].TranslatedText
 	}
 
-	if targetLang == "en" {
-		if v, ok := translations["title"]; ok {
-			article.EnTitle = v
+	if apply {
+		if targetLang == "en" {
+			if v, ok := translations["title"]; ok {
+				article.EnTitle = v
+			}
+			if v, ok := translations["body"]; ok {
+				article.EnBody = v
+			}
+		} else {
+			if v, ok := translations["title"]; ok {
+				article.ZhTitle = v
+			}
+			if v, ok := translations["body"]; ok {
+				article.ZhBody = v
+			}
 		}
-		if v, ok := translations["body"]; ok {
-			article.EnBody = v
-		}
-	} else {
-		if v, ok := translations["title"]; ok {
-			article.ZhTitle = v
-		}
-		if v, ok := translations["body"]; ok {
-			article.ZhBody = v
-		}
-	}
 
-	if err := h.articleRepo.Update(c.Request.Context(), article); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to save translated article"}})
-		return
+		if err := h.articleRepo.Update(c.Request.Context(), article); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to save translated article"}})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"article":      article,
+		"applied":      apply,
+		"mode":         map[bool]string{true: "apply", false: "preview"}[apply],
 		"sourceLang":   sourceLang,
 		"targetLang":   targetLang,
 		"translations": translations,
 	})
+}
+
+type translateArticleInput struct {
+	SourceLang string `json:"sourceLang"`
+	TargetLang string `json:"targetLang"`
+	Preview    bool   `json:"preview"`
+	Apply      *bool  `json:"apply"`
+	Overwrite  bool   `json:"overwrite"`
+	Mode       string `json:"mode"`
 }
 
 // --- Glossary endpoints ---

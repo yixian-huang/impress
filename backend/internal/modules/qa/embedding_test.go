@@ -1,9 +1,15 @@
 package qa
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	"blotting-consultancy/internal/provider"
+	"blotting-consultancy/internal/service"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestChunkText_Short(t *testing.T) {
@@ -57,4 +63,29 @@ func TestChunkText_ParagraphBreaks(t *testing.T) {
 
 	chunks := ChunkText(text, 60, 10)
 	assert.True(t, len(chunks) >= 2)
+}
+
+func TestEmbeddingService_IndexContentResolvesAIProviderFromRegistryAtCallTime(t *testing.T) {
+	registry := provider.NewRegistry()
+	registry.SetAI(&qaMockAI{name: "first", vector: []float64{1, 0}})
+	vs := NewMemoryVectorStore()
+	svc := NewEmbeddingServiceWithRegistry(registry, vs)
+
+	registry.SetAI(&qaMockAI{name: "second", vector: []float64{0, 1}})
+
+	count, err := svc.IndexContent(context.Background(), "article:1", "content to index", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	results, err := vs.Search(context.Background(), []float64{0, 1}, 1)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, 1.0, results[0].Score)
+}
+
+func TestEmbeddingService_IndexContentReturnsErrAINotConfiguredWhenRegistryHasNoAI(t *testing.T) {
+	svc := NewEmbeddingServiceWithRegistry(provider.NewRegistry(), NewMemoryVectorStore())
+
+	_, err := svc.IndexContent(context.Background(), "article:1", "content to index", nil)
+	assert.True(t, errors.Is(err, service.ErrAINotConfigured))
 }

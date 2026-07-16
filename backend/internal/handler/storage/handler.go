@@ -1,43 +1,57 @@
 package storage
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 )
 
 // Handler handles storage configuration HTTP requests
 type Handler struct {
-	repo repository.StorageConfigRepository
+	runtime *service.StorageRuntimeService
 }
 
 // NewHandler creates a new storage handler
 func NewHandler(repo repository.StorageConfigRepository) *Handler {
-	return &Handler{repo: repo}
+	runtime := service.ConfigureDefaultStorageRuntime(repo, "")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := runtime.RestoreStartupConfig(ctx); err != nil {
+		log.Printf("[storage] restore startup config: %v", err)
+	}
+	return NewHandlerWithRuntime(runtime)
+}
+
+// NewHandlerWithRuntime creates a storage handler with an explicit storage runtime.
+func NewHandlerWithRuntime(runtime *service.StorageRuntimeService) *Handler {
+	if runtime == nil {
+		runtime = service.DefaultStorageRuntime()
+	}
+	return &Handler{runtime: runtime}
 }
 
 // GetConfig returns the current storage configuration
 // GET /admin/storage/config
 func (h *Handler) GetConfig(c *gin.Context) {
-	config, err := h.repo.Get(c.Request.Context())
+	config, err := h.runtime.GetConfig(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取存储配置失败"}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"strategy":     config.Strategy,
-		"bucket":       config.Bucket,
-		"region":       config.Region,
-		"endpoint":     config.Endpoint,
-		"accessKey":    config.AccessKey,
-		"hasSecretKey": config.HasSecretKey(),
-		"basePath":     config.BasePath,
-		"updatedAt":    config.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, config)
 }
 
 // UpdateConfigRequest is the request body for updating storage config
@@ -54,37 +68,22 @@ type UpdateConfigRequest struct {
 // UpdateConfig updates the storage configuration
 // PUT /admin/storage/config
 func (h *Handler) UpdateConfig(c *gin.Context) {
-	var req UpdateConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	req, err := decodeUpdateConfigRequest(c)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
 		return
 	}
 
-	strategy := model.StorageStrategy(req.Strategy)
-
-	// If secretKey is empty, keep the existing one
-	existing, err := h.repo.Get(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取现有配置失败"}})
-		return
-	}
-
-	secretKey := req.SecretKey
-	if secretKey == "" && existing.SecretKey != "" && strategy == existing.Strategy {
-		secretKey = existing.SecretKey
-	}
-
-	config := &model.StorageConfig{
-		Strategy:  strategy,
+	config, err := h.runtime.UpdateConfig(c.Request.Context(), service.StorageConfigRequest{
+		Strategy:  req.Strategy,
 		Bucket:    req.Bucket,
 		Region:    req.Region,
 		Endpoint:  req.Endpoint,
 		AccessKey: req.AccessKey,
-		SecretKey: secretKey,
+		SecretKey: req.SecretKey,
 		BasePath:  req.BasePath,
-	}
-
-	if err := h.repo.Upsert(c.Request.Context(), config); err != nil {
+	})
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
 		return
 	}
@@ -98,37 +97,56 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 // TestConnection tests the storage connection with current config
 // POST /admin/storage/test
 func (h *Handler) TestConnection(c *gin.Context) {
-	config, err := h.repo.Get(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取存储配置失败"}})
-		return
-	}
-
-	switch config.Strategy {
-	case model.StorageLocal:
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "本地存储连接正常",
-		})
-	case model.StorageS3, model.StorageOSS:
-		// For S3/OSS, validate that required credentials are present
-		if config.Bucket == "" || config.AccessKey == "" || config.SecretKey == "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "缺少必要的存储配置信息（bucket、accessKey、secretKey）",
-			})
-			return
-		}
-		// In a real implementation, we would attempt to list objects or put a test object.
-		// For now, we validate the config is complete.
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "存储配置验证通过（凭证格式正确）",
-		})
-	default:
+	if err := h.runtime.TestConnection(c.Request.Context()); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "未知的存储策略: " + string(config.Strategy),
+			"message": err.Error(),
 		})
+		return
 	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "存储连接正常",
+	})
+}
+
+func decodeUpdateConfigRequest(c *gin.Context) (*UpdateConfigRequest, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, err
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, err
+	}
+	allowed := map[string]struct{}{
+		"strategy":  {},
+		"bucket":    {},
+		"region":    {},
+		"endpoint":  {},
+		"accessKey": {},
+		"secretKey": {},
+		"basePath":  {},
+	}
+	for key := range raw {
+		if _, ok := allowed[key]; !ok {
+			return nil, fmt.Errorf("unknown field %q", key)
+		}
+	}
+	if _, ok := raw["strategy"]; !ok {
+		return nil, errors.New("strategy is required")
+	}
+
+	var req UpdateConfigRequest
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Strategy) == "" {
+		return nil, errors.New("strategy is required")
+	}
+	return &req, nil
 }

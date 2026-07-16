@@ -17,11 +17,12 @@ import (
 
 // ChunkedUploadService manages chunked file uploads
 type ChunkedUploadService struct {
-	repo      repository.ChunkedUploadRepository
-	mediaRepo repository.MediaRepository
-	tempDir   string
-	uploadDir string
-	baseURL   string
+	repo           repository.ChunkedUploadRepository
+	mediaRepo      repository.MediaRepository
+	tempDir        string
+	uploadDir      string
+	baseURL        string
+	storageRuntime *StorageRuntimeService
 }
 
 // NewChunkedUploadService creates a new chunked upload service
@@ -32,12 +33,34 @@ func NewChunkedUploadService(
 	uploadDir string,
 	baseURL string,
 ) *ChunkedUploadService {
+	return NewChunkedUploadServiceWithStorage(
+		repo,
+		mediaRepo,
+		tempDir,
+		uploadDir,
+		baseURL,
+		ConfigureDefaultStorageRuntime(nil, uploadDir),
+	)
+}
+
+func NewChunkedUploadServiceWithStorage(
+	repo repository.ChunkedUploadRepository,
+	mediaRepo repository.MediaRepository,
+	tempDir string,
+	uploadDir string,
+	baseURL string,
+	storageRuntime *StorageRuntimeService,
+) *ChunkedUploadService {
+	if storageRuntime == nil {
+		storageRuntime = ConfigureDefaultStorageRuntime(nil, uploadDir)
+	}
 	return &ChunkedUploadService{
-		repo:      repo,
-		mediaRepo: mediaRepo,
-		tempDir:   tempDir,
-		uploadDir: uploadDir,
-		baseURL:   baseURL,
+		repo:           repo,
+		mediaRepo:      mediaRepo,
+		tempDir:        tempDir,
+		uploadDir:      uploadDir,
+		baseURL:        baseURL,
+		storageRuntime: storageRuntime,
 	}
 }
 
@@ -156,15 +179,10 @@ func (s *ChunkedUploadService) CompleteUpload(ctx context.Context, uploadID stri
 		return nil, fmt.Errorf("expected %d chunks, found %d", upload.TotalChunks, len(chunkFiles))
 	}
 
-	// Ensure upload directory exists
-	if err := os.MkdirAll(s.uploadDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
-	}
-
 	// Generate unique filename
 	ext := filepath.Ext(upload.Filename)
 	uniqueName := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), sanitizeFilenameForChunked(upload.Filename), ext)
-	destPath := filepath.Join(s.uploadDir, uniqueName)
+	destPath := filepath.Join(upload.TempDir, uniqueName)
 
 	// Merge chunks
 	destFile, err := os.Create(destPath)
@@ -190,16 +208,28 @@ func (s *ChunkedUploadService) CompleteUpload(ctx context.Context, uploadID stri
 		totalWritten += n
 	}
 
-	// Build URL and create media record
-	url := s.baseURL + "/uploads/" + uniqueName
+	if _, err := destFile.Seek(0, io.SeekStart); err != nil {
+		os.Remove(destPath)
+		return nil, fmt.Errorf("failed to rewind merged file: %w", err)
+	}
+	storageKey, storageProvider, url, err := s.storageRuntime.Save(ctx, uniqueName, destFile, totalWritten)
+	if err != nil {
+		os.Remove(destPath)
+		return nil, fmt.Errorf("failed to save merged file: %w", err)
+	}
+	destFile.Close()
+
 	media := &model.Media{
-		URL:      url,
-		Filename: upload.Filename,
-		MimeType: upload.MimeType,
-		Size:     totalWritten,
+		URL:             url,
+		Filename:        upload.Filename,
+		MimeType:        upload.MimeType,
+		Size:            totalWritten,
+		StorageKey:      storageKey,
+		StorageProvider: storageProvider,
 	}
 
 	if err := s.mediaRepo.Create(ctx, media); err != nil {
+		_ = s.storageRuntime.Delete(ctx, storageProvider, storageKey)
 		os.Remove(destPath)
 		return nil, fmt.Errorf("failed to create media record: %w", err)
 	}
@@ -240,4 +270,3 @@ func sanitizeFilenameForChunked(name string) string {
 	}
 	return s
 }
-

@@ -315,8 +315,8 @@ function Step2ReviewPlan({
               {plan.color_scheme.secondary && (
                 <ColorSwatch color={plan.color_scheme.secondary} label="辅色" />
               )}
-              {plan.color_scheme.accent && (
-                <ColorSwatch color={plan.color_scheme.accent} label="强调色" />
+              {plan.color_scheme.text && (
+                <ColorSwatch color={plan.color_scheme.text} label="文字色" />
               )}
               {plan.color_scheme.background && (
                 <ColorSwatch color={plan.color_scheme.background} label="背景色" />
@@ -500,8 +500,11 @@ export default function AdminWizardPage() {
       const result = await generateWizardPlan(req);
       setPlan(result);
       setStep(2);
-    } catch {
-      setError("生成方案失败，请稍后重试");
+    } catch (error) {
+      const message = (error as {
+        response?: { data?: { error?: { message?: string } } };
+      })?.response?.data?.error?.message;
+      setError(message || "生成方案失败，请稍后重试");
     } finally {
       setLoading(false);
     }

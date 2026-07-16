@@ -11,7 +11,8 @@ import (
 // AITranslationProvider implements TranslationProvider using an AIProvider.
 // It constructs translation prompts with glossary terms and delegates to the AI backend.
 type AITranslationProvider struct {
-	ai provider.TextGenerator
+	ai       provider.TextGenerator
+	registry *provider.Registry
 }
 
 // NewAITranslationProvider creates a new AITranslationProvider wrapping the given AIProvider
@@ -19,11 +20,36 @@ func NewAITranslationProvider(ai provider.TextGenerator) provider.TranslationPro
 	return &AITranslationProvider{ai: ai}
 }
 
+// NewAITranslationProviderWithRegistry creates a TranslationProvider that
+// resolves the active AI provider from the registry for every translation call.
+func NewAITranslationProviderWithRegistry(registry *provider.Registry) provider.TranslationProvider {
+	return &AITranslationProvider{registry: registry}
+}
+
+func (a *AITranslationProvider) textGenerator() (provider.TextGenerator, error) {
+	if a.registry != nil {
+		ai := a.registry.AI()
+		if ai == nil {
+			return nil, ErrAINotConfigured
+		}
+		return aiTextGenerator{ai: ai}, nil
+	}
+	if a.ai == nil {
+		return nil, ErrAINotConfigured
+	}
+	return a.ai, nil
+}
+
 // Translate translates a single text using the AI provider
 func (a *AITranslationProvider) Translate(ctx context.Context, req provider.TranslateRequest) (*provider.TranslateResponse, error) {
+	generator, err := a.textGenerator()
+	if err != nil {
+		return nil, err
+	}
+
 	prompt := buildTranslationPrompt(req)
 
-	result, err := a.ai.GenerateText(ctx, prompt)
+	result, err := generator.GenerateText(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("AI translation failed: %w", err)
 	}
@@ -51,6 +77,11 @@ func (a *AITranslationProvider) BatchTranslate(ctx context.Context, items []prov
 
 // DetectLanguage detects the language of the given text using the AI provider
 func (a *AITranslationProvider) DetectLanguage(ctx context.Context, text string) (string, error) {
+	generator, err := a.textGenerator()
+	if err != nil {
+		return "", err
+	}
+
 	prompt := fmt.Sprintf(
 		"Detect the language of the following text. "+
 			"Reply with ONLY the ISO 639-1 language code (e.g., \"zh\", \"en\", \"ja\"). "+
@@ -58,12 +89,20 @@ func (a *AITranslationProvider) DetectLanguage(ctx context.Context, text string)
 		text,
 	)
 
-	result, err := a.ai.GenerateText(ctx, prompt)
+	result, err := generator.GenerateText(ctx, prompt)
 	if err != nil {
 		return "", fmt.Errorf("language detection failed: %w", err)
 	}
 
 	return strings.TrimSpace(result), nil
+}
+
+type aiTextGenerator struct {
+	ai provider.AIProvider
+}
+
+func (g aiTextGenerator) GenerateText(ctx context.Context, prompt string) (string, error) {
+	return g.ai.ChatComplete(ctx, "You are a precise translation engine.", prompt)
 }
 
 // buildTranslationPrompt constructs a translation prompt with optional glossary terms

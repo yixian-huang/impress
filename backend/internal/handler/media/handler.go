@@ -1,6 +1,8 @@
 package media
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	stdDraw "image/draw"
@@ -22,21 +24,32 @@ import (
 
 	"blotting-consultancy/internal/model"
 	"blotting-consultancy/internal/repository"
+	"blotting-consultancy/internal/service"
 )
 
 // Handler handles media-related HTTP requests
 type Handler struct {
-	mediaRepo repository.MediaRepository
-	uploadDir string
-	baseURL   string
+	mediaRepo      repository.MediaRepository
+	uploadDir      string
+	baseURL        string
+	storageRuntime *service.StorageRuntimeService
 }
 
 // NewHandler creates a new media handler
 func NewHandler(mediaRepo repository.MediaRepository, uploadDir string, baseURL string) *Handler {
+	return NewHandlerWithStorage(mediaRepo, uploadDir, baseURL, service.ConfigureDefaultStorageRuntime(nil, uploadDir))
+}
+
+// NewHandlerWithStorage creates a media handler with an explicit storage runtime.
+func NewHandlerWithStorage(mediaRepo repository.MediaRepository, uploadDir string, baseURL string, storageRuntime *service.StorageRuntimeService) *Handler {
+	if storageRuntime == nil {
+		storageRuntime = service.ConfigureDefaultStorageRuntime(nil, uploadDir)
+	}
 	return &Handler{
-		mediaRepo: mediaRepo,
-		uploadDir: uploadDir,
-		baseURL:   baseURL,
+		mediaRepo:      mediaRepo,
+		uploadDir:      uploadDir,
+		baseURL:        baseURL,
+		storageRuntime: storageRuntime,
 	}
 }
 
@@ -77,12 +90,6 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 
-	// Ensure upload directory exists
-	if err := os.MkdirAll(h.uploadDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建上传目录失败"}})
-		return
-	}
-
 	// Generate unique filename
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
@@ -102,64 +109,56 @@ func (h *Handler) Upload(c *gin.Context) {
 		}
 	}
 	uniqueName := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), sanitizeFilename(strings.TrimSuffix(header.Filename, ext)), ext)
-	destPath := filepath.Join(h.uploadDir, uniqueName)
-
-	// Save file
-	out, err := os.Create(destPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
-		return
-	}
-	defer out.Close()
 
 	// Reset file reader position
 	if seeker, ok := file.(io.ReadSeeker); ok {
 		seeker.Seek(0, io.SeekStart)
 	}
 
-	written, err := io.Copy(out, file)
+	data, err := io.ReadAll(file)
 	if err != nil {
-		os.Remove(destPath)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "写入文件失败"}})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "读取文件失败"}})
+		return
+	}
+	written := int64(len(data))
+	storageKey, storageProvider, url, err := h.storageRuntime.Save(c.Request.Context(), uniqueName, bytes.NewReader(data), written)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
 		return
 	}
 
 	// Try to get image dimensions (only for image files)
 	var width, height *int
 	if strings.HasPrefix(mimeType, "image/") {
-		savedFile, err := os.Open(destPath)
-		if err == nil {
-			defer savedFile.Close()
-			if cfg, _, err := image.DecodeConfig(savedFile); err == nil {
-				w := cfg.Width
-				h := cfg.Height
-				width = &w
-				height = &h
-			}
+		if cfg, _, err := image.DecodeConfig(bytes.NewReader(data)); err == nil {
+			w := cfg.Width
+			h := cfg.Height
+			width = &w
+			height = &h
 		}
 	}
 
-	// Build URL
-	url := h.baseURL + "/uploads/" + uniqueName
-
 	// Save to database
 	media := &model.Media{
-		URL:      url,
-		Filename: header.Filename,
-		MimeType: mimeType,
-		Size:     written,
-		Width:    width,
-		Height:   height,
+		URL:             url,
+		Filename:        header.Filename,
+		MimeType:        mimeType,
+		Size:            written,
+		Width:           width,
+		Height:          height,
+		StorageKey:      storageKey,
+		StorageProvider: storageProvider,
 	}
 
 	if err := h.mediaRepo.Create(c.Request.Context(), media); err != nil {
-		os.Remove(destPath)
+		_ = h.storageRuntime.Delete(c.Request.Context(), storageProvider, storageKey)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存记录失败"}})
 		return
 	}
 
 	// Async WebP conversion and thumbnail generation for non-WebP image uploads
-	if strings.HasPrefix(mimeType, "image/") && !strings.EqualFold(ext, ".webp") {
+	if storageProvider == "local" && strings.HasPrefix(mimeType, "image/") && !strings.EqualFold(ext, ".webp") {
+		destPath := filepath.Join(h.uploadDir, storageKey)
 		go func() {
 			if err := generateWebP(destPath); err != nil {
 				log.Printf("[media] generateWebP(%s): %v", destPath, err)
@@ -241,20 +240,17 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Extract filename from URL to delete the physical file and derivatives
-	parts := strings.Split(media.URL, "/uploads/")
-	if len(parts) == 2 {
-		filePath := filepath.Join(h.uploadDir, parts[1])
-		// Verify resolved path is within uploadDir to prevent path traversal
-		absUpload, _ := filepath.Abs(h.uploadDir)
-		absFile, _ := filepath.Abs(filePath)
-		if strings.HasPrefix(absFile, absUpload+string(filepath.Separator)) {
-			os.Remove(filePath) // Best effort; ignore error
-			// Clean up WebP and thumbnail derivatives
-			base := strings.TrimSuffix(filePath, filepath.Ext(filePath))
-			os.Remove(base + ".webp")
-			os.Remove(base + "_thumb.webp")
+	storageProvider, storageKey := storageLocation(media)
+	if err := h.storageRuntime.Delete(c.Request.Context(), storageProvider, storageKey); err != nil {
+		if errors.Is(err, service.ErrStorageProviderUnavailable) {
+			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": err.Error()}})
+			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "删除文件失败"}})
+		return
+	}
+	if storageProvider == "local" {
+		h.removeLocalDerivatives(storageKey)
 	}
 
 	// Delete database record
@@ -264,6 +260,29 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+}
+
+func (h *Handler) removeLocalDerivatives(storageKey string) {
+	filePath := filepath.Join(h.uploadDir, storageKey)
+	absUpload, _ := filepath.Abs(h.uploadDir)
+	absFile, _ := filepath.Abs(filePath)
+	if !strings.HasPrefix(absFile, absUpload+string(filepath.Separator)) {
+		return
+	}
+	base := strings.TrimSuffix(filePath, filepath.Ext(filePath))
+	os.Remove(base + ".webp")
+	os.Remove(base + "_thumb.webp")
+}
+
+func storageLocation(media *model.Media) (string, string) {
+	if media.StorageKey != "" {
+		return media.StorageProvider, media.StorageKey
+	}
+	parts := strings.Split(media.URL, "/uploads/")
+	if len(parts) == 2 {
+		return "local", parts[1]
+	}
+	return media.StorageProvider, media.StorageKey
 }
 
 // Recrop replaces the physical file for an existing media item with a re-cropped version

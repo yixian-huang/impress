@@ -23,6 +23,7 @@ const AdminFormSubmissionsPage = lazy(() => import('../pages/admin/form-submissi
 const AdminMenusPage = lazy(() => import('../pages/admin/menus/page'));
 const AdminScheduledPublicationsPage = lazy(() => import('../pages/admin/scheduled-publications/page'));
 const AdminUsersPage = lazy(() => import('../pages/admin/users/page'));
+const AdminAISettingsPage = lazy(() => import('../pages/admin/ai-settings/page'));
 const AdminTranslationPage = lazy(() => import('../pages/admin/translation/page'));
 const AdminQAPage = lazy(() => import('../modules/qa/admin/page'));
 const AdminWizardPage = lazy(() => import('../pages/admin/wizard/page'));
@@ -172,6 +173,10 @@ export const staticRoutes: RouteObject[] = [
       {
         path: 'users',
         element: <AdminUsersPage />,
+      },
+      {
+        path: 'ai-settings',
+        element: <AdminAISettingsPage />,
       },
       {
         path: 'translation',

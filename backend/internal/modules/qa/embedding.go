@@ -21,6 +21,7 @@ const (
 // EmbeddingService handles text chunking and vector storage for RAG indexing.
 type EmbeddingService struct {
 	ai           provider.AIProvider
+	registry     *provider.Registry
 	vectorStore  provider.VectorStoreProvider
 	chunkSize    int
 	chunkOverlap int
@@ -36,11 +37,30 @@ func NewEmbeddingService(ai provider.AIProvider, vectorStore provider.VectorStor
 	}
 }
 
+// NewEmbeddingServiceWithRegistry creates an EmbeddingService that resolves the
+// current AI provider from the registry for each indexing call.
+func NewEmbeddingServiceWithRegistry(registry *provider.Registry, vectorStore provider.VectorStoreProvider) *EmbeddingService {
+	return &EmbeddingService{
+		registry:     registry,
+		vectorStore:  vectorStore,
+		chunkSize:    DefaultChunkSize,
+		chunkOverlap: DefaultChunkOverlap,
+	}
+}
+
+func (s *EmbeddingService) aiProvider() provider.AIProvider {
+	if s.registry != nil {
+		return s.registry.AI()
+	}
+	return s.ai
+}
+
 // IndexContent chunks the given text, generates embeddings, and stores them.
 // sourceID is a unique identifier for the content source (e.g., "article:42").
 // metadata is additional key-value pairs stored alongside each chunk.
 func (s *EmbeddingService) IndexContent(ctx context.Context, sourceID string, text string, metadata map[string]string) (int, error) {
-	if s.ai == nil {
+	ai := s.aiProvider()
+	if ai == nil {
 		return 0, service.ErrAINotConfigured
 	}
 
@@ -55,7 +75,7 @@ func (s *EmbeddingService) IndexContent(ctx context.Context, sourceID string, te
 			continue
 		}
 
-		embedding, err := s.ai.Embed(ctx, chunk)
+		embedding, err := ai.Embed(ctx, chunk)
 		if err != nil {
 			return indexed, fmt.Errorf("embedding chunk %d: %w", i, err)
 		}

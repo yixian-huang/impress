@@ -2,6 +2,7 @@ package provider
 
 import (
 	"log"
+	"strings"
 	"sync"
 )
 
@@ -29,6 +30,14 @@ func (r *Registry) Register(name string, provider interface{}) {
 	}
 	r.providers[name] = provider
 	log.Printf("[Registry] registered provider %q (%T)", name, provider)
+}
+
+// Unregister removes a provider by name.
+func (r *Registry) Unregister(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.providers, name)
+	log.Printf("[Registry] unregistered provider %q", name)
 }
 
 // Get retrieves a provider by name. Returns nil if not found.
@@ -73,5 +82,54 @@ func (r *Registry) AI() AIProvider {
 
 // SetAI registers (or replaces) the AIProvider.
 func (r *Registry) SetAI(ai AIProvider) {
+	if ai == nil {
+		r.Unregister("ai")
+		return
+	}
 	r.Register("ai", ai)
+}
+
+// Storage returns the active StorageProvider, or nil if none is registered.
+func (r *Registry) Storage() StorageProvider {
+	p := r.Get("storage")
+	if storage, ok := p.(StorageProvider); ok {
+		return storage
+	}
+	return nil
+}
+
+// SetStorage registers or clears the active StorageProvider.
+func (r *Registry) SetStorage(storage StorageProvider) {
+	if storage == nil {
+		r.Unregister("storage")
+		return
+	}
+	r.Register("storage", storage)
+}
+
+// StorageByName returns a retained storage provider by logical strategy name.
+func (r *Registry) StorageByName(name string) (StorageProvider, bool) {
+	p := r.Get("storage:" + strings.TrimSpace(name))
+	storage, ok := p.(StorageProvider)
+	return storage, ok
+}
+
+// SetStorageByName retains a storage provider for media created before a
+// runtime strategy switch.
+func (r *Registry) SetStorageByName(name string, storage StorageProvider) {
+	key := "storage:" + strings.TrimSpace(name)
+	if storage == nil {
+		r.Unregister(key)
+		return
+	}
+	r.Register(key, storage)
+}
+
+// Notifier returns the active NotifierProvider, or nil if none is registered.
+func (r *Registry) Notifier() NotifierProvider {
+	p := r.Get("notifier")
+	if notifier, ok := p.(NotifierProvider); ok {
+		return notifier
+	}
+	return nil
 }

@@ -19,6 +19,13 @@ func NewGormPageRepository(db *gorm.DB) PageRepository {
 	return &GormPageRepository{db: db}
 }
 
+// UnifiedPageRepository exposes the unified page repository that shares this
+// repository's database handle. It supports compatibility constructors that
+// still receive the legacy page repository at startup.
+func (r *GormPageRepository) UnifiedPageRepository() UnifiedPageRepository {
+	return NewGormUnifiedPageRepository(r.db)
+}
+
 // Create creates a new page
 func (r *GormPageRepository) Create(ctx context.Context, page *model.Page) error {
 	if err := page.Validate(); err != nil {

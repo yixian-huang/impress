@@ -7,14 +7,16 @@ import (
 
 // Media represents an uploaded media file
 type Media struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	URL       string    `gorm:"not null;size:500" json:"url"`
-	Filename  string    `gorm:"not null;size:255" json:"filename"`
-	MimeType  string    `gorm:"not null;size:100" json:"mimeType"`
-	Size      int64     `gorm:"not null" json:"size"`
-	Width     *int      `json:"width,omitempty"`
-	Height    *int      `json:"height,omitempty"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	URL             string    `gorm:"not null;size:500" json:"url"`
+	Filename        string    `gorm:"not null;size:255" json:"filename"`
+	MimeType        string    `gorm:"not null;size:100" json:"mimeType"`
+	Size            int64     `gorm:"not null" json:"size"`
+	Width           *int      `json:"width,omitempty"`
+	Height          *int      `json:"height,omitempty"`
+	StorageKey      string    `gorm:"size:500" json:"storageKey,omitempty"`
+	StorageProvider string    `gorm:"size:50" json:"storageProvider,omitempty"`
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"createdAt"`
 }
 
 // TableName overrides the default table name

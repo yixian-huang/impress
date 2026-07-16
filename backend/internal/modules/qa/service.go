@@ -33,6 +33,7 @@ type QAResult struct {
 // QAService implements a RAG (Retrieval-Augmented Generation) pipeline.
 type QAService struct {
 	ai          provider.AIProvider
+	registry    *provider.Registry
 	vectorStore provider.VectorStoreProvider
 	topK        int
 	minScore    float64
@@ -48,6 +49,24 @@ func NewQAService(ai provider.AIProvider, vectorStore provider.VectorStoreProvid
 	}
 }
 
+// NewQAServiceWithRegistry creates a QAService that resolves the current AI
+// provider from the registry for each request.
+func NewQAServiceWithRegistry(registry *provider.Registry, vectorStore provider.VectorStoreProvider) *QAService {
+	return &QAService{
+		registry:    registry,
+		vectorStore: vectorStore,
+		topK:        DefaultTopK,
+		minScore:    DefaultMinScore,
+	}
+}
+
+func (s *QAService) aiProvider() provider.AIProvider {
+	if s.registry != nil {
+		return s.registry.AI()
+	}
+	return s.ai
+}
+
 // Ask processes a user question through the RAG pipeline:
 // 1. Embed the question
 // 2. Search for relevant content chunks
@@ -58,12 +77,13 @@ func (s *QAService) Ask(ctx context.Context, question string, locale string) (*Q
 		return nil, fmt.Errorf("question cannot be empty")
 	}
 
-	if s.ai == nil {
+	ai := s.aiProvider()
+	if ai == nil {
 		return nil, service.ErrAINotConfigured
 	}
 
 	// Step 1: Get embedding for the question
-	queryEmbedding, err := s.ai.Embed(ctx, question)
+	queryEmbedding, err := ai.Embed(ctx, question)
 	if err != nil {
 		return nil, fmt.Errorf("embedding question: %w", err)
 	}
@@ -113,7 +133,7 @@ func (s *QAService) Ask(ctx context.Context, question string, locale string) (*Q
 	systemPrompt := buildSystemPrompt(contextParts, locale)
 
 	// Step 4: Generate answer
-	answer, err := s.ai.ChatComplete(ctx, systemPrompt, question)
+	answer, err := ai.ChatComplete(ctx, systemPrompt, question)
 	if err != nil {
 		return nil, fmt.Errorf("generating answer: %w", err)
 	}

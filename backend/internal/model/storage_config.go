@@ -22,7 +22,7 @@ type StorageConfig struct {
 	Region    string          `gorm:"size:100" json:"region,omitempty"`
 	Endpoint  string          `gorm:"size:500" json:"endpoint,omitempty"`
 	AccessKey string          `gorm:"size:255" json:"accessKey,omitempty"`
-	SecretKey string          `gorm:"size:255" json:"-"`
+	SecretKey string          `gorm:"size:1000" json:"-"`
 	BasePath  string          `gorm:"size:500" json:"basePath,omitempty"`
 	UpdatedAt time.Time       `gorm:"autoUpdateTime" json:"updatedAt"`
 }

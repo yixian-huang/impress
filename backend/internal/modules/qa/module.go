@@ -27,8 +27,8 @@ func (m *Module) Init(deps module.Dependencies) error {
 	}
 	qaLogRepo := newGormQALogRepository(deps.DB)
 	vectorStore := NewMemoryVectorStore()
-	qaService := NewQAService(deps.Registry.AI(), vectorStore)
-	embeddingService := NewEmbeddingService(deps.Registry.AI(), vectorStore)
+	qaService := NewQAServiceWithRegistry(deps.Registry, vectorStore)
+	embeddingService := NewEmbeddingServiceWithRegistry(deps.Registry, vectorStore)
 	m.handler = &Handler{
 		qaService:        qaService,
 		embeddingService: embeddingService,

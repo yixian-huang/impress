@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -139,6 +140,93 @@ func (r *mockPageRepo) UpdateSortOrder(_ context.Context, _ uint, _ int) error {
 	return nil
 }
 
+type mockUnifiedPageRepo struct {
+	pages  map[string]*model.UnifiedPage
+	nextID uint
+}
+
+func newMockUnifiedPageRepo() *mockUnifiedPageRepo {
+	return &mockUnifiedPageRepo{
+		pages:  make(map[string]*model.UnifiedPage),
+		nextID: 1,
+	}
+}
+
+func (r *mockUnifiedPageRepo) Create(_ context.Context, page *model.UnifiedPage) error {
+	page.ID = r.nextID
+	r.nextID++
+	r.pages[page.Slug] = page
+	return nil
+}
+
+func (r *mockUnifiedPageRepo) Update(_ context.Context, page *model.UnifiedPage) error {
+	r.pages[page.Slug] = page
+	return nil
+}
+
+func (r *mockUnifiedPageRepo) Delete(_ context.Context, id uint) error {
+	for slug, p := range r.pages {
+		if p.ID == id {
+			delete(r.pages, slug)
+			return nil
+		}
+	}
+	return errors.New("not found")
+}
+
+func (r *mockUnifiedPageRepo) FindByID(_ context.Context, id uint) (*model.UnifiedPage, error) {
+	for _, p := range r.pages {
+		if p.ID == id {
+			return p, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
+func (r *mockUnifiedPageRepo) FindBySlug(_ context.Context, slug string) (*model.UnifiedPage, error) {
+	p, ok := r.pages[slug]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return p, nil
+}
+
+func (r *mockUnifiedPageRepo) List(_ context.Context, _ string, _ string, _ *uint) ([]*model.UnifiedPage, error) {
+	pages := make([]*model.UnifiedPage, 0, len(r.pages))
+	for _, p := range r.pages {
+		pages = append(pages, p)
+	}
+	return pages, nil
+}
+
+func (r *mockUnifiedPageRepo) ListPublished(_ context.Context) ([]*model.UnifiedPage, error) {
+	return nil, nil
+}
+
+func (r *mockUnifiedPageRepo) UpdateDraft(_ context.Context, _ uint, _ int, _ model.JSONMap) (int, error) {
+	return 0, nil
+}
+
+func (r *mockUnifiedPageRepo) PublishDraft(_ context.Context, _ uint, _ int, _ uint, _ time.Time, _ bool) (*model.UnifiedPage, int, bool, error) {
+	return nil, 0, false, nil
+}
+
+func (r *mockUnifiedPageRepo) UpdatePublished(_ context.Context, _ uint, _ model.JSONMap, _ int, _ time.Time) error {
+	return nil
+}
+
+func (r *mockUnifiedPageRepo) UpdateRollback(_ context.Context, _ uint, _ model.JSONMap, _ int, _ model.JSONMap, _ int, _ time.Time) error {
+	return nil
+}
+
+func (r *mockUnifiedPageRepo) ClearPublished(_ context.Context, _ uint) error {
+	return nil
+}
+
+func (r *mockUnifiedPageRepo) UpdateSortOrder(_ context.Context, _ uint, _ int) error {
+	return nil
+}
+
 // --- Tests ---
 
 const validSitePlanJSON = `{
@@ -249,10 +337,23 @@ func TestWizardService_GenerateSitePlan_ThemeSanitization(t *testing.T) {
 	assert.Equal(t, "warm-earth", plan.RecommendedTheme)
 }
 
+func TestWizardService_GenerateSitePlan_ResolvesProviderFromRegistry(t *testing.T) {
+	registry := provider.NewRegistry()
+	registry.SetAI(&mockAIProvider{chatCompleteResponse: "not valid json"})
+	repo := newMockUnifiedPageRepo()
+	svc := NewWizardServiceWithRegistry(registry, repo)
+
+	registry.SetAI(&mockAIProvider{chatCompleteResponse: validSitePlanJSON})
+
+	plan, err := svc.GenerateSitePlan(context.Background(), model.Questionnaire{Industry: "technology"})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	assert.Equal(t, "modern-dark", plan.RecommendedTheme)
+}
+
 func TestWizardService_ScaffoldSite_CreatesPages(t *testing.T) {
-	ai := &mockAIProvider{}
-	repo := newMockPageRepo()
-	svc := NewWizardService(ai, repo)
+	repo := newMockUnifiedPageRepo()
+	svc := NewWizardServiceWithRegistry(provider.NewRegistry(), repo)
 
 	plan := model.SitePlan{
 		RecommendedTheme: "default",
@@ -296,20 +397,34 @@ func TestWizardService_ScaffoldSite_CreatesPages(t *testing.T) {
 	// Verify pages were actually stored
 	homePage, err := repo.FindBySlug(context.Background(), "home")
 	require.NoError(t, err)
-	assert.Equal(t, "首页", homePage.Title["zh"])
+	assert.Equal(t, "首页", homePage.ZhTitle)
+	assert.Equal(t, "Home", homePage.EnTitle)
+	assert.Equal(t, model.PageModeComposable, homePage.Mode)
+	assert.Equal(t, "draft", homePage.Status)
+	sections, ok := homePage.DraftConfig["sections"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, sections, 2)
+	hero := sections[0].(map[string]interface{})
+	assert.Equal(t, "hero", hero["type"])
+	assert.Equal(t, "default", hero["variant"])
+	heroData := hero["data"].(map[string]interface{})
+	assert.Equal(t, map[string]interface{}{"zh": "Welcome", "en": "Welcome"}, heroData["title"])
+	assert.Equal(t, map[string]interface{}{"zh": "subtitle", "en": "subtitle"}, heroData["subtitle"])
+	cardGrid := sections[1].(map[string]interface{})
+	assert.Equal(t, "card-grid", cardGrid["type"])
 }
 
 func TestWizardService_ScaffoldSite_SkipsExistingPages(t *testing.T) {
-	ai := &mockAIProvider{}
-	repo := newMockPageRepo()
+	repo := newMockUnifiedPageRepo()
 
 	// Pre-create the "home" page
-	_ = repo.Create(context.Background(), &model.Page{
+	_ = repo.Create(context.Background(), &model.UnifiedPage{
 		Slug:   "home",
-		Status: model.PageStatusPublished,
+		Mode:   model.PageModeComposable,
+		Status: "published",
 	})
 
-	svc := NewWizardService(ai, repo)
+	svc := NewWizardServiceWithRegistry(provider.NewRegistry(), repo)
 
 	plan := model.SitePlan{
 		RecommendedTheme: "default",

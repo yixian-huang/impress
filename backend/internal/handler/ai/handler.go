@@ -12,12 +12,17 @@ import (
 
 // Handler handles AI-related HTTP requests.
 type Handler struct {
-	registry *provider.Registry
+	registry      *provider.Registry
+	configService *service.AIConfigService
 }
 
 // NewHandler creates a new AI handler.
-func NewHandler(registry *provider.Registry) *Handler {
-	return &Handler{registry: registry}
+func NewHandler(registry *provider.Registry, configServices ...*service.AIConfigService) *Handler {
+	h := &Handler{registry: registry}
+	if len(configServices) > 0 {
+		h.configService = configServices[0]
+	}
+	return h
 }
 
 // --- Request/Response types ---
@@ -54,6 +59,13 @@ type completeInput struct {
 type configResponse struct {
 	Provider string `json:"provider"`
 	Enabled  bool   `json:"enabled"`
+}
+
+type configInput struct {
+	Provider string `json:"provider" binding:"required"`
+	APIKey   string `json:"api_key"`
+	BaseURL  string `json:"base_url"`
+	Model    string `json:"model"`
 }
 
 // getAI returns the AI provider or sends a 503 error if not configured.
@@ -193,6 +205,16 @@ func (h *Handler) Complete(c *gin.Context) {
 
 // GetConfig handles GET /admin/ai/config
 func (h *Handler) GetConfig(c *gin.Context) {
+	if h.configService != nil {
+		resp, err := h.configService.Get(c.Request.Context())
+		if err != nil {
+			h.handleAIError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+
 	ai := h.registry.AI()
 	if ai == nil {
 		c.JSON(http.StatusOK, configResponse{
@@ -209,16 +231,25 @@ func (h *Handler) GetConfig(c *gin.Context) {
 }
 
 // UpdateConfig handles PUT /admin/ai/config
-// This is a placeholder; in production, you would persist provider settings.
 func (h *Handler) UpdateConfig(c *gin.Context) {
-	var input struct {
-		Provider string `json:"provider" binding:"required"`
-		APIKey   string `json:"api_key"`
-		BaseURL  string `json:"base_url"`
-		Model    string `json:"model"`
-	}
+	var input configInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request: " + err.Error()}})
+		return
+	}
+
+	if h.configService != nil {
+		resp, err := h.configService.Update(c.Request.Context(), service.AIConfigInput{
+			Provider: input.Provider,
+			APIKey:   input.APIKey,
+			BaseURL:  input.BaseURL,
+			Model:    input.Model,
+		})
+		if err != nil {
+			h.handleAIError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 
@@ -251,6 +282,32 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 	})
 }
 
+// TestConfig handles POST /admin/ai/config/test.
+func (h *Handler) TestConfig(c *gin.Context) {
+	if h.configService == nil {
+		h.handleAIError(c, service.ErrAINotConfigured)
+		return
+	}
+
+	var input configInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request: " + err.Error()}})
+		return
+	}
+
+	resp, err := h.configService.Test(c.Request.Context(), service.AIConfigInput{
+		Provider: input.Provider,
+		APIKey:   input.APIKey,
+		BaseURL:  input.BaseURL,
+		Model:    input.Model,
+	})
+	if err != nil {
+		h.handleAIError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // handleAIError returns an appropriate HTTP error for AI provider errors.
 func (h *Handler) handleAIError(c *gin.Context, err error) {
 	if errors.Is(err, service.ErrAINotConfigured) {
@@ -258,6 +315,15 @@ func (h *Handler) handleAIError(c *gin.Context, err error) {
 			"error": gin.H{
 				"code":    "AI_NOT_CONFIGURED",
 				"message": "AI provider is not configured. Please configure an AI provider in settings.",
+			},
+		})
+		return
+	}
+	if errors.Is(err, service.ErrAIAPIKeyRequired) || errors.Is(err, service.ErrAIUnsupportedConfig) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "AI_CONFIG_INVALID",
+				"message": err.Error(),
 			},
 		})
 		return

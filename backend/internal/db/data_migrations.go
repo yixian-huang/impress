@@ -1,6 +1,8 @@
 package db
 
 import (
+	"blotting-consultancy/internal/model"
+
 	"gorm.io/gorm"
 )
 
@@ -36,6 +38,15 @@ func DataMigrations() []Migration {
 			},
 			Down: func(db *gorm.DB) error {
 				return db.Exec("UPDATE users SET is_super_admin = ? WHERE username = ?", false, "admin").Error
+			},
+		},
+		{
+			ID: "003_create_ai_configs",
+			Up: func(db *gorm.DB) error {
+				return db.AutoMigrate(&model.AIConfig{})
+			},
+			Down: func(db *gorm.DB) error {
+				return db.Migrator().DropTable(&model.AIConfig{})
 			},
 		},
 	}

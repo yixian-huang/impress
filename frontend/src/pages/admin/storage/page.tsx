@@ -90,11 +90,11 @@ export default function AdminStoragePage() {
         bucket: form.bucket,
         region: form.region,
         endpoint: form.endpoint,
-        access_key: form.access_key,
-        base_path: form.base_path,
+        accessKey: form.access_key,
+        basePath: form.base_path,
       };
       if (form.secret_key) {
-        data.secret_key = form.secret_key;
+        data.secretKey = form.secret_key;
       }
       const updated = await updateStorageConfig(data);
       setConfig(updated);

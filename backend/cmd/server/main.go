@@ -76,6 +76,7 @@ import (
 	"blotting-consultancy/pkg/audit"
 	"blotting-consultancy/pkg/config"
 	appLogger "blotting-consultancy/pkg/logger"
+	"blotting-consultancy/pkg/secretcipher"
 )
 
 // Build-time variables (set via ldflags)
@@ -185,6 +186,7 @@ func main() {
 		&model.ChunkedUpload{},
 		&model.Glossary{},
 		&model.StorageConfig{},
+		&model.AIConfig{},
 		&model.Site{},
 		&model.SiteUser{},
 		&model.UnifiedPage{},
@@ -329,13 +331,48 @@ func main() {
 	// Initialize search service (needed by article handler)
 	searchService := service.NewSearchService(database.DB, db.IsPostgresDSN(cfg.DBDSN))
 
+	// Initialize runtime providers and restore persisted configuration before
+	// modules or handlers capture their dependencies.
+	registry := provider.NewRegistry()
+	registry.Register("notifier", service.NewLogNotifier())
+	registry.Register("captcha", &provider.NoopCaptchaProvider{})
+
+	secretCipher, err := secretcipher.New(cfg.JWTSecret)
+	if err != nil {
+		log.Error("Failed to initialize secret cipher", "error", err)
+		os.Exit(1)
+	}
+
+	aiConfigSvc := service.NewAIConfigService(
+		repository.NewGormAIConfigRepository(database.DB),
+		secretCipher,
+		registry,
+	)
+	if err := aiConfigSvc.Restore(context.Background()); err != nil {
+		log.Error("Failed to restore AI configuration", "error", err)
+		os.Exit(1)
+	}
+
+	storageRuntime := service.NewStorageRuntimeService(
+		storageConfigRepo,
+		registry,
+		service.NewLocalStorage(cfg.UploadDir),
+		secretCipher,
+	)
+	if err := storageRuntime.RestoreStartupConfig(context.Background()); err != nil {
+		log.Error("Failed to restore storage configuration", "error", err)
+		os.Exit(1)
+	}
+	log.Info("Provider registry initialized", "providers", registry.List())
+
 	// Initialize chunked upload service
-	chunkedUploadSvc := service.NewChunkedUploadService(
+	chunkedUploadSvc := service.NewChunkedUploadServiceWithStorage(
 		chunkedUploadRepo,
 		mediaRepo,
 		"./tmp/uploads",
 		cfg.UploadDir,
 		"",
+		storageRuntime,
 	)
 
 	// Initialize site service
@@ -343,9 +380,6 @@ func main() {
 
 	// Initialize migration service
 	migrationSvc := migration.NewService(articleRepo, categoryRepo, tagRepo)
-
-	// Initialize translation provider (noop by default)
-	translationProvider := service.NewNoopTranslationProvider()
 
 	// Initialize event bus
 	bus := eventbus.New()
@@ -359,13 +393,6 @@ func main() {
 		log.Info("Content event", "type", e.Type)
 	}))
 	log.Info("Event bus initialized")
-
-	// Initialize provider registry with defaults
-	registry := provider.NewRegistry()
-	registry.Register("notifier", service.NewLogNotifier())
-	registry.Register("captcha", &provider.NoopCaptchaProvider{})
-	registry.Register("storage", service.NewLocalStorage(cfg.UploadDir))
-	log.Info("Provider registry initialized", "providers", registry.List())
 
 	// Initialize in-memory TTL caches
 	publicCache := cache.New(60 * time.Second)
@@ -415,7 +442,7 @@ func main() {
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache)
-	mediaHandlerInst := mediaHandler.NewHandler(mediaRepo, cfg.UploadDir, "")
+	mediaHandlerInst := mediaHandler.NewHandlerWithStorage(mediaRepo, cfg.UploadDir, "", storageRuntime)
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo, articleRepo)
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
@@ -437,16 +464,16 @@ func main() {
 	roleHandlerInst := roleHandler.NewHandler(roleRepo, userRepo)
 	marketplaceSvc := service.NewMarketplaceService(marketplaceRepo)
 	marketplaceHandlerInst := marketplaceHandler.NewHandler(marketplaceSvc)
-	wizardSvc := service.NewWizardService(registry.AI(), pageRepo)
+	wizardSvc := service.NewWizardServiceWithRegistry(registry, unifiedPageRepo)
 	wizardHandlerInst := wizardHandler.NewHandler(wizardSvc)
-	aiHandlerInst := aiHandler.NewHandler(registry)
+	aiHandlerInst := aiHandler.NewHandler(registry, aiConfigSvc)
 	chunkedUploadHandlerInst := chunkedUploadHandler.NewHandler(chunkedUploadSvc)
 	mediaFolderHandlerInst := mediaFolderHandler.NewHandler(mediaFolderRepo, mediaRepo)
 	migrationHandlerInst := migrationHandler.NewHandler(migrationSvc)
 	siteHandlerInst := siteHandler.NewHandler(siteSvc, siteRepo)
-	storageHandlerInst := storageHandler.NewHandler(storageConfigRepo)
+	storageHandlerInst := storageHandler.NewHandlerWithRuntime(storageRuntime)
 	systemHandlerInst := systemHandler.NewHandler(database.DB, cfg.UploadDir, Version)
-	translationHandlerInst := translationHandler.NewHandler(translationProvider, glossaryRepo, articleRepo)
+	translationHandlerInst := translationHandler.NewHandlerWithRegistry(registry, glossaryRepo, articleRepo)
 	unifiedPageSvc := service.NewUnifiedPageService(unifiedPageRepo, pageVersionRepo, bus).
 		WithAuditWriter(auditDbWriter)
 	unifiedPageHdl := unifiedPageHandler.NewHandler(unifiedPageRepo, pageVersionRepo, unifiedPageSvc, publicCache, bus)

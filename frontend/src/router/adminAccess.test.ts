@@ -49,8 +49,9 @@ describe("admin route access metadata", () => {
 
   it("keeps incomplete capabilities out of navigation", () => {
     expect(isAdminRouteVisibleInNavigation("/admin/sites")).toBe(false);
-    expect(isAdminRouteVisibleInNavigation("/admin/storage")).toBe(false);
-    expect(isAdminRouteVisibleInNavigation("/admin/wizard")).toBe(false);
+    expect(isAdminRouteVisibleInNavigation("/admin/storage")).toBe(true);
+    expect(isAdminRouteVisibleInNavigation("/admin/wizard")).toBe(true);
+    expect(isAdminRouteVisibleInNavigation("/admin/ai-settings")).toBe(true);
     expect(isAdminRouteVisibleInNavigation("/admin/migration")).toBe(true);
     expect(isAdminRouteVisibleInNavigation("/admin/system-status")).toBe(true);
   });

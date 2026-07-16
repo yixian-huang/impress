@@ -13,21 +13,46 @@ import (
 
 // WizardService implements AI-driven site building: plan generation and scaffolding.
 type WizardService struct {
-	ai       provider.AIProvider
-	pageRepo repository.PageRepository
+	ai              provider.AIProvider
+	registry        *provider.Registry
+	pageRepo        repository.PageRepository
+	unifiedPageRepo repository.UnifiedPageRepository
 }
 
 // NewWizardService creates a new WizardService.
 func NewWizardService(ai provider.AIProvider, pageRepo repository.PageRepository) *WizardService {
-	return &WizardService{
+	s := &WizardService{
 		ai:       ai,
 		pageRepo: pageRepo,
 	}
+	if provider, ok := pageRepo.(interface {
+		UnifiedPageRepository() repository.UnifiedPageRepository
+	}); ok {
+		s.unifiedPageRepo = provider.UnifiedPageRepository()
+	}
+	return s
+}
+
+// NewWizardServiceWithRegistry creates a WizardService that resolves the active
+// AI provider from the registry for every generation call.
+func NewWizardServiceWithRegistry(registry *provider.Registry, unifiedPageRepo repository.UnifiedPageRepository) *WizardService {
+	return &WizardService{
+		registry:        registry,
+		unifiedPageRepo: unifiedPageRepo,
+	}
+}
+
+func (s *WizardService) aiProvider() provider.AIProvider {
+	if s.registry != nil {
+		return s.registry.AI()
+	}
+	return s.ai
 }
 
 // GenerateSitePlan uses the AI provider to generate a SitePlan from a Questionnaire.
 func (s *WizardService) GenerateSitePlan(ctx context.Context, q model.Questionnaire) (*model.SitePlan, error) {
-	if s.ai == nil {
+	ai := s.aiProvider()
+	if ai == nil {
 		return nil, ErrAINotConfigured
 	}
 	if q.Industry == "" {
@@ -82,14 +107,14 @@ Available themes:
 - modern-dark: dark-themed, bold, suited for tech/creative industries
 - warm-earth: warm tones, approachable, suited for lifestyle/consulting/wellness
 
-Available section types: hero, features, card-grid, testimonials, contact-form, team, portfolio, pricing, faq, cta, stats, timeline
+Available section types: hero, text-image, card-grid, service-cards, team-grid, checklist, contact-form, company-profile, rich-text
 
 Always include at minimum: home page and contact page. Add relevant pages based on the business type.
 Return ONLY valid JSON — no markdown fences, no extra commentary.`, langNote)
 
 	userMessage := buildQuestionnaireSummary(q)
 
-	raw, err := s.ai.ChatComplete(ctx, systemPrompt, userMessage)
+	raw, err := ai.ChatComplete(ctx, systemPrompt, userMessage)
 	if err != nil {
 		return nil, fmt.Errorf("AI plan generation failed: %w", err)
 	}
@@ -108,6 +133,10 @@ Return ONLY valid JSON — no markdown fences, no extra commentary.`, langNote)
 // ScaffoldSite creates pages in the database based on the provided SitePlan.
 // Pages that already exist (by slug) are skipped rather than overwritten.
 func (s *WizardService) ScaffoldSite(ctx context.Context, plan model.SitePlan) (*model.ScaffoldResult, error) {
+	if s.unifiedPageRepo == nil {
+		return nil, fmt.Errorf("unified page repository is required")
+	}
+
 	result := &model.ScaffoldResult{
 		AppliedTheme: plan.RecommendedTheme,
 		CreatedPages: []string{},
@@ -126,38 +155,32 @@ func (s *WizardService) ScaffoldSite(ctx context.Context, plan model.SitePlan) (
 		}
 
 		// Check if page already exists
-		existing, _ := s.pageRepo.FindBySlug(ctx, pp.Slug)
+		existing, _ := s.unifiedPageRepo.FindBySlug(ctx, pp.Slug)
 		if existing != nil {
 			result.SkippedPages = append(result.SkippedPages, pp.Slug)
 			continue
 		}
 
-		title := model.JSONMap{}
-		for locale, t := range pp.Title {
-			title[locale] = t
-		}
-		if len(title) == 0 {
-			title["zh"] = pp.Slug
-			title["en"] = pp.Slug
-		}
-
 		// Build page config from section list and suggested content
 		pageConfig := buildPageConfig(pp, contentMap[pp.Slug], plan.ColorScheme)
 
-		page := &model.Page{
-			Slug:        pp.Slug,
-			Title:       title,
-			Template:    "default",
-			Config:      pageConfig,
-			Status:      model.PageStatusDraft,
-			SortOrder:   pp.SortOrder,
-			ThemeID:     plan.RecommendedTheme,
-			RenderMode:  "dynamic",
-			IsThemePage: false,
-			Visibility:  "public",
+		page := &model.UnifiedPage{
+			Slug:         pp.Slug,
+			ZhTitle:      titleForLocale(pp, "zh"),
+			EnTitle:      titleForLocale(pp, "en"),
+			Mode:         model.PageModeComposable,
+			DraftConfig:  pageConfig,
+			DraftVersion: 1,
+			Status:       "draft",
+			SortOrder:    pp.SortOrder,
+			ShowInNav:    true,
+			TranslationStatus: model.JSONMap{
+				"source": "wizard",
+				"theme":  plan.RecommendedTheme,
+			},
 		}
 
-		if err := s.pageRepo.Create(ctx, page); err != nil {
+		if err := s.unifiedPageRepo.Create(ctx, page); err != nil {
 			return nil, fmt.Errorf("failed to create page %q: %w", pp.Slug, err)
 		}
 
@@ -169,7 +192,8 @@ func (s *WizardService) ScaffoldSite(ctx context.Context, plan model.SitePlan) (
 
 // SuggestColors returns a color scheme recommendation for an industry/brand.
 func (s *WizardService) SuggestColors(ctx context.Context, req model.ColorSuggestionRequest) (*model.ColorScheme, error) {
-	if s.ai == nil {
+	ai := s.aiProvider()
+	if ai == nil {
 		return nil, ErrAINotConfigured
 	}
 	if req.Industry == "" {
@@ -203,7 +227,7 @@ Return ONLY a valid JSON object matching this schema (no markdown, no extra text
 	}
 	sb.WriteString("Please suggest a professional color palette for this brand.")
 
-	raw, err := s.ai.ChatComplete(ctx, systemPrompt, sb.String())
+	raw, err := ai.ChatComplete(ctx, systemPrompt, sb.String())
 	if err != nil {
 		return nil, fmt.Errorf("AI color suggestion failed: %w", err)
 	}
@@ -222,7 +246,8 @@ Return ONLY a valid JSON object matching this schema (no markdown, no extra text
 
 // GenerateContent returns sample content for a given page type and industry.
 func (s *WizardService) GenerateContent(ctx context.Context, req model.GenerateContentRequest) (*model.SuggestedContent, error) {
-	if s.ai == nil {
+	ai := s.aiProvider()
+	if ai == nil {
 		return nil, ErrAINotConfigured
 	}
 	if req.PageType == "" {
@@ -263,7 +288,7 @@ Return ONLY a valid JSON object matching this schema (no markdown, no extra text
 	}
 	sb.WriteString("Please generate professional website copy for this page.")
 
-	raw, err := s.ai.ChatComplete(ctx, systemPrompt, sb.String())
+	raw, err := ai.ChatComplete(ctx, systemPrompt, sb.String())
 	if err != nil {
 		return nil, fmt.Errorf("AI content generation failed: %w", err)
 	}
@@ -365,18 +390,32 @@ func buildPageConfig(pp model.PagePlan, content model.SuggestedContent, colors m
 	sections := make([]interface{}, 0, len(pp.Sections))
 
 	for i, sectionType := range pp.Sections {
+		sectionType = normalizeWizardSectionType(sectionType)
 		sec := map[string]interface{}{
-			"id":   fmt.Sprintf("%s-%d", sectionType, i),
-			"type": sectionType,
+			"id":       fmt.Sprintf("%s-%d", sectionType, i),
+			"type":     sectionType,
+			"variant":  "default",
+			"locked":   false,
+			"data":     map[string]interface{}{},
+			"settings": map[string]interface{}{},
 		}
 
-		// Inject suggested content into the first hero/banner section
-		if i == 0 && (sectionType == "hero" || sectionType == "banner") && content.Heading != "" {
-			sec["heading"] = content.Heading
-			sec["subheading"] = content.Subheading
-			if content.CTAText != "" {
-				sec["ctaText"] = content.CTAText
-			}
+		data := sec["data"].(map[string]interface{})
+		if i == 0 && sectionType == "hero" {
+			data["title"] = bilingualWizardValue(content.Heading)
+			data["subtitle"] = bilingualWizardValue(content.Subheading)
+			data["label"] = bilingualWizardValue(content.CTAText)
+		}
+		if sectionType == "rich-text" && content.Body != "" {
+			data["content"] = bilingualWizardValue(content.Body)
+		}
+		if sectionType == "contact-form" {
+			data["title"] = bilingualWizardValue(content.Heading)
+			data["subtitle"] = bilingualWizardValue(content.Subheading)
+			data["nameLabel"] = map[string]interface{}{"zh": "姓名", "en": "Name"}
+			data["emailLabel"] = map[string]interface{}{"zh": "邮箱", "en": "Email"}
+			data["messageLabel"] = map[string]interface{}{"zh": "留言", "en": "Message"}
+			data["submit"] = map[string]interface{}{"zh": "提交", "en": "Submit"}
 		}
 
 		sections = append(sections, sec)
@@ -397,4 +436,52 @@ func buildPageConfig(pp model.PagePlan, content model.SuggestedContent, colors m
 	}
 
 	return cfg
+}
+
+func bilingualWizardValue(value string) map[string]interface{} {
+	return map[string]interface{}{"zh": value, "en": value}
+}
+
+func normalizeWizardSectionType(sectionType string) string {
+	switch strings.ToLower(strings.TrimSpace(sectionType)) {
+	case "hero", "banner":
+		return "hero"
+	case "text-image", "cta":
+		return "text-image"
+	case "card-grid", "features", "testimonials", "portfolio", "stats":
+		return "card-grid"
+	case "service-cards", "pricing":
+		return "service-cards"
+	case "team-grid", "team":
+		return "team-grid"
+	case "checklist", "faq", "timeline":
+		return "checklist"
+	case "contact-form", "contact":
+		return "contact-form"
+	case "company-profile":
+		return "company-profile"
+	case "rich-text":
+		return "rich-text"
+	default:
+		return "rich-text"
+	}
+}
+
+func titleForLocale(pp model.PagePlan, locale string) string {
+	if pp.Title != nil {
+		if title := strings.TrimSpace(pp.Title[locale]); title != "" {
+			return title
+		}
+	}
+	if locale == "en" && pp.Title != nil {
+		if title := strings.TrimSpace(pp.Title["zh"]); title != "" {
+			return title
+		}
+	}
+	if pp.Title != nil {
+		if title := strings.TrimSpace(pp.Title["en"]); title != "" {
+			return title
+		}
+	}
+	return pp.Slug
 }

@@ -30,13 +30,14 @@ export const adminRouteAccess: AdminRouteAccess[] = [
   { path: "/admin/users", permission: "users:read", status: "production" },
   { path: "/admin/roles", permission: "roles:read", status: "production" },
   { path: "/admin/email-settings", permission: "settings:manage", status: "production" },
+  { path: "/admin/ai-settings", permission: "settings:manage", status: "production" },
+  { path: "/admin/storage", permission: "settings:manage", status: "production" },
+  { path: "/admin/translation", permission: "settings:manage", status: "production" },
+  { path: "/admin/wizard", permission: "pages:create", status: "production" },
   { path: "/admin/migration", permission: "system:manage", status: "production" },
   { path: "/admin/system-status", permission: "system:manage", status: "production" },
   { path: "/admin/sites", permission: "sites:read", status: "experimental" },
-  { path: "/admin/storage", permission: "settings:manage", status: "experimental" },
-  { path: "/admin/translation", permission: "settings:manage", status: "experimental" },
   { path: "/admin/qa", permission: "settings:manage", status: "experimental" },
-  { path: "/admin/wizard", permission: "pages:create", status: "experimental" },
   { path: "/admin", permission: "dashboard:read", status: "production" },
 ];
 

@@ -43,8 +43,11 @@ function TranslationTool() {
         targetLang: targetLang,
       });
       setTranslatedText(result.translatedText);
-    } catch {
-      setError("翻译失败，请稍后重试");
+    } catch (error) {
+      const message = (error as {
+        response?: { data?: { error?: { message?: string } } };
+      })?.response?.data?.error?.message;
+      setError(message || "翻译失败，请稍后重试");
     } finally {
       setLoading(false);
     }

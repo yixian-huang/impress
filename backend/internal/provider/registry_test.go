@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"blotting-consultancy/internal/provider"
@@ -84,10 +85,74 @@ func TestRegistryMustGetSuccess(t *testing.T) {
 	}
 }
 
+func TestRegistryTypedProvidersCanBeReplacedAndCleared(t *testing.T) {
+	reg := provider.NewRegistry()
+	storage := &mockStorage{}
+	reg.SetStorage(storage)
+	if reg.Storage() != storage {
+		t.Fatal("expected active storage provider")
+	}
+	reg.SetStorage(nil)
+	if reg.Storage() != nil {
+		t.Fatal("expected storage provider to be cleared")
+	}
+
+	notifier := &mockNotifier{name: "typed"}
+	reg.Register("notifier", notifier)
+	if reg.Notifier() != notifier {
+		t.Fatal("expected active notifier provider")
+	}
+	reg.Unregister("notifier")
+	if reg.Notifier() != nil {
+		t.Fatal("expected notifier provider to be cleared")
+	}
+}
+
+func TestRegistryRetainsStorageProvidersByName(t *testing.T) {
+	registry := provider.NewRegistry()
+	local := &mockStorage{}
+	remote := &mockStorage{}
+
+	registry.SetStorageByName("local", local)
+	registry.SetStorageByName("s3", remote)
+
+	gotLocal, ok := registry.StorageByName("local")
+	if !ok || gotLocal != local {
+		t.Fatal("expected retained local storage provider")
+	}
+
+	gotRemote, ok := registry.StorageByName("s3")
+	if !ok || gotRemote != remote {
+		t.Fatal("expected retained s3 storage provider")
+	}
+}
+
 type mockNotifier struct {
 	name string
 }
 
 func (m *mockNotifier) Notify(ctx context.Context, event provider.NotifyEvent) error {
 	return nil
+}
+
+type mockStorage struct{}
+
+func (m *mockStorage) Save(context.Context, string, io.Reader, int64) (string, error) {
+	return "", nil
+}
+
+func (m *mockStorage) Get(context.Context, string) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) Delete(context.Context, string) error {
+	return nil
+}
+
+func (m *mockStorage) URL(path string) string {
+	return path
+}
+
+func (m *mockStorage) Exists(context.Context, string) (bool, error) {
+	return false, nil
 }

@@ -441,6 +441,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.POST("/ai/complete", require("settings", "manage"), handlers.AI.Complete)
 		adminGroup.GET("/ai/config", require("settings", "manage"), handlers.AI.GetConfig)
 		adminGroup.PUT("/ai/config", require("settings", "manage"), handlers.AI.UpdateConfig)
+		adminGroup.POST("/ai/config/test", require("settings", "manage"), handlers.AI.TestConfig)
 
 		// Chunked upload
 		adminGroup.POST("/media/upload/init", require("media", "create"), handlers.ChunkedUpload.InitUpload)

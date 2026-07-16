@@ -16,9 +16,9 @@ export interface UpdateStorageConfigRequest {
   bucket?: string;
   region?: string;
   endpoint?: string;
-  access_key?: string;
-  secret_key?: string;
-  base_path?: string;
+  accessKey?: string;
+  secretKey?: string;
+  basePath?: string;
 }
 
 export interface StorageTestResult {
