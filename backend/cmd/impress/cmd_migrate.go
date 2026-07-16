@@ -30,6 +30,8 @@ func allModels() []interface{} {
 		&model.Page{},
 		&model.InstalledTheme{},
 		&model.FormSubmission{},
+		&model.Plugin{},
+		&model.PluginSetting{},
 	}
 }
 
@@ -124,7 +126,7 @@ func migrateCmd() *cobra.Command {
 				"users", "refresh_tokens", "content_documents", "content_versions",
 				"media", "page_views", "categories", "tags",
 				"articles", "backup_records", "audit_events", "pages",
-				"installed_themes", "form_submissions",
+				"installed_themes", "form_submissions", "plugins", "plugin_settings",
 			}
 
 			fmt.Println("Table Status:")

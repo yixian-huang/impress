@@ -4,7 +4,7 @@
 >
 > 创建时间：2026-02-18
 >
-> 事实状态更新：2026-07-17（Wave 2 / R2）
+> 事实状态更新：2026-07-17（Wave 2 / R2 + 外部插件生命周期）
 
 ---
 
@@ -43,6 +43,7 @@ Impress 是一个双语（zh/en）React SPA + Go/Gin CMS。下表以当前仓库
 | AI 建站向导 | production | 使用当前 AI provider 生成计划并写入 `unified_pages` composable 草稿，可继续编辑和发布 |
 | AI 翻译 | production | 动态使用当前 AI provider；未配置返回 503；文章翻译默认预览并提供显式覆盖保护 |
 | 远端存储 | production | S3/OSS 配置保存前真实探测，配置热切换；普通与分片上传统一走 active StorageProvider |
+| 外部插件运行时 | beta | 公开 Go SDK/proto；zip 按实际解压字节限额并原子安装、独立进程启停、在途 RPC 有界排空、provider 注册/恢复、启动恢复、可回滚卸载和管理 API 已闭环；启用态卸载提交前始终保留 DB enabled 真相，失败或进程崩溃后可恢复文件、进程与 provider；`file-notifier` 已通过黑盒验证；默认关闭，仅系统管理员可显式启用 |
 | 管理端质量门禁 | production | lint、typecheck、前后端测试、Go race test、构建及 Playwright 页面发布、定时发布、系统状态和迁移链路 |
 | 部署 | production | Docker + SSH/systemd，支持 SQLite / PostgreSQL |
 
@@ -52,7 +53,7 @@ Impress 是一个双语（zh/en）React SPA + Go/Gin CMS。下表以当前仓库
 - QA 已动态读取当前 AI provider，但向量索引仍为进程内存实现，重启会丢失，保持 experimental。
 - 远端存储切换不迁移历史对象；媒体保留 provider/key，历史 provider 必须仍可访问。
 - 多站点只有管理壳，核心内容尚未完成 `site_id` 数据隔离。
-- Marketplace/Plugin 仍是骨架，尚未形成可安装、启停、升级、卸载的真实生命周期。
+- Marketplace 仍只提供登记/下载信息，尚未接入真实包分发、签名、升级和管理 UI；本地外部插件可通过管理 API 安装、启停、重启恢复和卸载，但二进制按可信服务端代码处理，manifest permission 不构成 OS 沙箱，含 secret settings 的包当前会被拒绝。Beta 仅开放 canonical notifier/search/captcha；external storage、依赖、路由与前端注入仍保留。
 - 线索管理、预约咨询和商业化流程尚未形成完整产品闭环。
 
 ---
@@ -260,7 +261,7 @@ Halo 能把 Sitemap、RSS 等做成插件是因为它有成熟的应用市场 + 
 
 ### 6.1 设计参考
 
-借鉴 Halo 的扩展点机制，适配 Go + React 技术栈。核心概念：
+当前后端已采用独立进程 + gRPC provider 协议；公开入口为 `pkg/pluginproto` 和 `pkg/pluginsdk`。核心概念：
 
 - **MULTI_INSTANCE**：多个插件同时生效（如多个统计代码同时注入）
 - **SINGLETON**：同时只有一个实现（如搜索引擎只选一个）
@@ -332,31 +333,38 @@ const (
 ### 6.5 插件配置存储
 
 ```sql
--- 插件启用/禁用及配置通过 site_settings 表管理
-CREATE TABLE site_settings (
-    key   VARCHAR(100) PRIMARY KEY,
-    value TEXT NOT NULL  -- JSON
+CREATE TABLE plugins (
+    plugin_id   VARCHAR(100) UNIQUE NOT NULL,
+    version     VARCHAR(50) NOT NULL,
+    state       VARCHAR(20) NOT NULL,
+    binary_path VARCHAR(500),
+    permissions TEXT,
+    settings    TEXT,
+    error_msg   VARCHAR(2000)
 );
 
--- 示例数据
--- key: "plugins.sitemap.enabled", value: "true"
--- key: "plugins.analytics.ga4_id", value: "\"G-XXXXXXXXXX\""
--- key: "plugins.webhook.urls", value: "[{\"url\":\"https://...\",\"events\":[\"content.published\"]}]"
+CREATE TABLE plugin_settings (
+    plugin_id VARCHAR(100) NOT NULL,
+    key       VARCHAR(200) NOT NULL,
+    value     TEXT
+);
 ```
 
 ### 6.6 插件 API 路径规范
 
-参考 Halo 的命名空间隔离：
+生命周期管理 API：
 
 ```
-/api/plugins/{plugin-name}/...
-
-// 示例
-GET  /api/plugins/sitemap/sitemap.xml
-GET  /api/plugins/feed/rss.xml
-POST /api/plugins/form-collector/submit
-GET  /admin/plugins/webhook/config
+GET    /admin/plugins
+POST   /admin/plugins/install
+POST   /admin/plugins/{id}/enable
+POST   /admin/plugins/{id}/disable
+PUT    /admin/plugins/{id}/settings
+DELETE /admin/plugins/{id}
+POST   /admin/plugins/test-notification
 ```
+
+插件自定义 HTTP route 的公开命名空间仍待 server 路由接线；当前闭环以 provider 类型为边界。
 
 ---
 
@@ -398,7 +406,7 @@ GET  /admin/plugins/webhook/config
 
 | 需求 | 类型 | 说明 |
 |------|------|------|
-| 插件框架 | 基础设施 | ExtensionRegistry + site_settings + 事件总线 |
+| 插件框架 | 基础设施 | 已完成 backend beta：公开 SDK/proto、go-plugin gRPC、zip 安装、生命周期 API；待补签名/升级/管理 UI |
 | P3 统计代码注入 | HeadProcessor | 百度统计 / GA4 tracking ID 配置化 |
 | P4 服务套餐询价 | 独立模块 | 套餐卡片 + 询价表单 + leads 表 |
 | P11 Webhook | EventListener | 内容发布时推送飞书/企微 |

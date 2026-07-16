@@ -3,13 +3,17 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"io"
 	"testing"
+	"time"
 
-	pb "blotting-consultancy/internal/plugin/proto"
 	"blotting-consultancy/internal/provider"
+	pb "blotting-consultancy/pkg/pluginproto"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // mockProviderClient implements pb.ProviderServiceClient for testing.
@@ -19,7 +23,8 @@ type mockProviderClient struct {
 	shutdownErr   error
 	savePath      string
 	saveErr       string
-	getChunks     []*pb.StorageChunk
+	getData       []byte
+	getError      string
 	getErr        error
 	deleteErr     string
 	urlResult     string
@@ -39,7 +44,7 @@ type mockProviderClient struct {
 	httpErr       error
 }
 
-func (m *mockProviderClient) Initialize(_ context.Context, _ *pb.InitRequest) (*pb.InitResponse, error) {
+func (m *mockProviderClient) Initialize(_ context.Context, _ *pb.InitRequest, _ ...grpc.CallOption) (*pb.InitResponse, error) {
 	if m.initErr != nil {
 		return nil, m.initErr
 	}
@@ -49,59 +54,85 @@ func (m *mockProviderClient) Initialize(_ context.Context, _ *pb.InitRequest) (*
 	return &pb.InitResponse{Success: true}, nil
 }
 
-func (m *mockProviderClient) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
+func (m *mockProviderClient) Shutdown(_ context.Context, _ *pb.ShutdownRequest, _ ...grpc.CallOption) (*pb.ShutdownResponse, error) {
 	return &pb.ShutdownResponse{}, m.shutdownErr
 }
 
-func (m *mockProviderClient) StorageSave(_ context.Context, _ *pb.StorageSaveRequest) (*pb.StorageSaveResponse, error) {
+func (m *mockProviderClient) StorageSave(_ context.Context, _ *pb.StorageSaveRequest, _ ...grpc.CallOption) (*pb.StorageSaveResponse, error) {
 	return &pb.StorageSaveResponse{Path: m.savePath, Error: m.saveErr}, nil
 }
 
-func (m *mockProviderClient) StorageGet(_ context.Context, _ *pb.StorageGetRequest) ([]*pb.StorageChunk, error) {
-	return m.getChunks, m.getErr
+func (m *mockProviderClient) StorageGet(_ context.Context, _ *pb.StorageGetRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[pb.StorageChunk], error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	return &mockStorageGetStream{
+		chunks: []*pb.StorageChunk{{Data: m.getData, Error: m.getError}},
+	}, nil
 }
 
-func (m *mockProviderClient) StorageDelete(_ context.Context, _ *pb.StorageDeleteRequest) (*pb.StorageDeleteResponse, error) {
+type mockStorageGetStream struct {
+	chunks []*pb.StorageChunk
+	index  int
+}
+
+func (s *mockStorageGetStream) Recv() (*pb.StorageChunk, error) {
+	if s.index >= len(s.chunks) {
+		return nil, io.EOF
+	}
+	chunk := s.chunks[s.index]
+	s.index++
+	return chunk, nil
+}
+
+func (*mockStorageGetStream) Header() (metadata.MD, error) { return nil, nil }
+func (*mockStorageGetStream) Trailer() metadata.MD         { return nil }
+func (*mockStorageGetStream) CloseSend() error             { return nil }
+func (*mockStorageGetStream) Context() context.Context     { return context.Background() }
+func (*mockStorageGetStream) SendMsg(any) error            { return nil }
+func (*mockStorageGetStream) RecvMsg(any) error            { return nil }
+
+func (m *mockProviderClient) StorageDelete(_ context.Context, _ *pb.StorageDeleteRequest, _ ...grpc.CallOption) (*pb.StorageDeleteResponse, error) {
 	return &pb.StorageDeleteResponse{Error: m.deleteErr}, nil
 }
 
-func (m *mockProviderClient) StorageURL(_ context.Context, _ *pb.StorageURLRequest) (*pb.StorageURLResponse, error) {
-	return &pb.StorageURLResponse{URL: m.urlResult}, nil
+func (m *mockProviderClient) StorageURL(_ context.Context, _ *pb.StorageURLRequest, _ ...grpc.CallOption) (*pb.StorageURLResponse, error) {
+	return &pb.StorageURLResponse{Url: m.urlResult}, nil
 }
 
-func (m *mockProviderClient) StorageExists(_ context.Context, _ *pb.StorageExistsRequest) (*pb.StorageExistsResponse, error) {
+func (m *mockProviderClient) StorageExists(_ context.Context, _ *pb.StorageExistsRequest, _ ...grpc.CallOption) (*pb.StorageExistsResponse, error) {
 	return &pb.StorageExistsResponse{Exists: m.existsResult, Error: m.existsErr}, nil
 }
 
-func (m *mockProviderClient) Search(_ context.Context, _ *pb.SearchRequest) (*pb.SearchResponse, error) {
+func (m *mockProviderClient) Search(_ context.Context, _ *pb.SearchRequest, _ ...grpc.CallOption) (*pb.SearchResponse, error) {
 	return &pb.SearchResponse{Results: m.searchResults, Total: m.searchTotal, Error: m.searchErr}, nil
 }
 
-func (m *mockProviderClient) SearchSuggest(_ context.Context, _ *pb.SearchSuggestRequest) (*pb.SearchSuggestResponse, error) {
+func (m *mockProviderClient) SearchSuggest(_ context.Context, _ *pb.SearchSuggestRequest, _ ...grpc.CallOption) (*pb.SearchSuggestResponse, error) {
 	return &pb.SearchSuggestResponse{Suggestions: m.suggestions, Error: m.suggestErr}, nil
 }
 
-func (m *mockProviderClient) SearchIndex(_ context.Context, _ *pb.SearchIndexRequest) (*pb.SearchIndexResponse, error) {
+func (m *mockProviderClient) SearchIndex(_ context.Context, _ *pb.SearchIndexRequest, _ ...grpc.CallOption) (*pb.SearchIndexResponse, error) {
 	return &pb.SearchIndexResponse{Error: m.indexErr}, nil
 }
 
-func (m *mockProviderClient) SearchRemove(_ context.Context, _ *pb.SearchRemoveRequest) (*pb.SearchRemoveResponse, error) {
+func (m *mockProviderClient) SearchRemove(_ context.Context, _ *pb.SearchRemoveRequest, _ ...grpc.CallOption) (*pb.SearchRemoveResponse, error) {
 	return &pb.SearchRemoveResponse{Error: m.removeErr}, nil
 }
 
-func (m *mockProviderClient) SearchRebuild(_ context.Context, _ *pb.SearchRebuildRequest) (*pb.SearchRebuildResponse, error) {
+func (m *mockProviderClient) SearchRebuild(_ context.Context, _ *pb.SearchRebuildRequest, _ ...grpc.CallOption) (*pb.SearchRebuildResponse, error) {
 	return &pb.SearchRebuildResponse{Error: m.rebuildErr}, nil
 }
 
-func (m *mockProviderClient) Notify(_ context.Context, _ *pb.NotifyRequest) (*pb.NotifyResponse, error) {
+func (m *mockProviderClient) Notify(_ context.Context, _ *pb.NotifyRequest, _ ...grpc.CallOption) (*pb.NotifyResponse, error) {
 	return &pb.NotifyResponse{Error: m.notifyErr}, nil
 }
 
-func (m *mockProviderClient) CaptchaVerify(_ context.Context, _ *pb.CaptchaVerifyRequest) (*pb.CaptchaVerifyResponse, error) {
+func (m *mockProviderClient) CaptchaVerify(_ context.Context, _ *pb.CaptchaVerifyRequest, _ ...grpc.CallOption) (*pb.CaptchaVerifyResponse, error) {
 	return &pb.CaptchaVerifyResponse{Error: m.captchaErr}, nil
 }
 
-func (m *mockProviderClient) HandleHTTP(_ context.Context, _ *pb.HTTPRequest) (*pb.HTTPResponse, error) {
+func (m *mockProviderClient) HandleHTTP(_ context.Context, _ *pb.HTTPRequest, _ ...grpc.CallOption) (*pb.HTTPResponse, error) {
 	if m.httpErr != nil {
 		return nil, m.httpErr
 	}
@@ -145,10 +176,7 @@ func TestStorageProxy_Save_Error(t *testing.T) {
 
 func TestStorageProxy_Get(t *testing.T) {
 	mock := &mockProviderClient{
-		getChunks: []*pb.StorageChunk{
-			{Data: []byte("hello ")},
-			{Data: []byte("world")},
-		},
+		getData: []byte("hello world"),
 	}
 	host := newTestHostWithMock(mock)
 
@@ -203,7 +231,7 @@ func TestStorageProxy_Exists(t *testing.T) {
 func TestSearchProxy_Search(t *testing.T) {
 	mock := &mockProviderClient{
 		searchResults: []*pb.SearchResult{
-			{ID: 1, Type: "article", Title: "Test", Score: 0.95},
+			{Id: 1, Type: "article", Title: "Test", Score: 0.95},
 		},
 		searchTotal: 1,
 	}
@@ -346,4 +374,56 @@ func TestGRPCHost_StopWhenNotStarted(t *testing.T) {
 	host := NewGRPCHost(&PluginMeta{ID: "test"}, "/fake")
 	err := host.Stop()
 	assert.NoError(t, err)
+}
+
+func TestProviderProxyConcurrentClientRemoval(t *testing.T) {
+	host := newTestHostWithMock(&mockProviderClient{})
+	proxy := host.AsNotifierProvider()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 1000 {
+			_ = proxy.Notify(context.Background(), provider.NotifyEvent{Type: "race"})
+		}
+	}()
+
+	for range 1000 {
+		host.mu.Lock()
+		client := host.rpcClient
+		host.rpcClient = nil
+		host.rpcClient = client
+		host.mu.Unlock()
+	}
+	<-done
+}
+
+func TestGRPCHostDrainsActiveRPCsBeforeStop(t *testing.T) {
+	host := newTestHostWithMock(&mockProviderClient{})
+	_, release, err := host.acquireProviderClient()
+	require.NoError(t, err)
+
+	host.mu.Lock()
+	host.stopping = true
+	host.mu.Unlock()
+	_, _, err = host.acquireProviderClient()
+	require.Error(t, err)
+
+	drained := make(chan struct{})
+	go func() {
+		host.waitForActiveRPCs(time.Second)
+		close(drained)
+	}()
+
+	select {
+	case <-drained:
+		t.Fatal("active RPC drained before release")
+	case <-time.After(20 * time.Millisecond):
+	}
+	release()
+	select {
+	case <-drained:
+	case <-time.After(time.Second):
+		t.Fatal("active RPC did not drain after release")
+	}
 }

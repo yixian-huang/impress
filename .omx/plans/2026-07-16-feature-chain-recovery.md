@@ -6,7 +6,7 @@
 
 ## 0. 当前执行状态（2026-07-16）
 
-当前分支：`codex/wave1d-system-migration`
+当前分支：`codex/wave2-config-behavior`
 
 Wave 0 已完成：
 
@@ -83,7 +83,7 @@ Wave 0 尚余的测试债务：
 - 当前可承诺管理员查看应用/数据库/本地存储运行状态，并完成 WordPress、Halo 或 Markdown 内容导入；部分失败可只重试失败文章，实时进度断线可恢复。
 - migration 任务、失败文章与重试状态目前保存在应用进程内，服务重启后不会恢复历史任务；持久化任务模型列入后续运维增强，不影响单次导入闭环。
 - AI 向导、QA、翻译、远端存储、多站点继续按实验性能力隐藏，不纳入本轮发布承诺。
-- 下一主工作包为 Wave 2-A：AI Provider 生命周期。
+- Wave 2 已完成；Wave 3-B 的最小外部插件生命周期也已完成。运行时默认关闭且仅系统管理员可显式启用，插件按可信服务端代码处理。下一主工作包在多站点隔离与插件分发/UI 之间择一推进。
 
 ## 1. 已确认的功能断链
 
@@ -374,6 +374,7 @@ Wave 0 尚余的测试债务：
 
 #### WP3-B Plugin/Marketplace 最小真实闭环
 
+- 状态：`backend lifecycle completed`（2026-07-17）；默认关闭，仅 `system:manage` + `ENABLE_EXTERNAL_PLUGINS=true` 可操作；当前 Beta 只开放 canonical notifier/search/captcha，storage/依赖/路由/前端注入仍拒绝。Marketplace 下载/升级、签名、OS 隔离、secret settings 加密、CLI scaffold 和管理 UI 待完成。
 - 角色：`architect-plugin` + `executor-backend-plugin` + `executor-cli` + `executor-frontend-plugin`
 - 范围：
   - 先限定一个最小 provider 类型完成真实 POC。
@@ -384,6 +385,10 @@ Wave 0 尚余的测试债务：
 - 验收：
   - 外部示例插件可安装、启动、调用、禁用、重启恢复、卸载。
   - 安装失败不会留下伪“已安装”记录。
+- 完成证据：
+  - `pkg/pluginproto` / `pkg/pluginsdk` 已公开，独立 Go module 构建验证通过。
+  - `/admin/plugins` 管理 API、server 启停恢复、provider 回滚和受控 zip 安装已接通；启用态卸载在 DB 删除提交前保留 enabled 真相，失败或崩溃后按 DB 恢复文件、进程和 provider。
+  - `file-notifier` 黑盒测试跑通完整生命周期；zip-slip 安装失败无残留。
 - 依赖：WP2-C 可作为第一个真实 provider；不得与多站点迁移共享核心文件并行。
 
 ## 4. 并行执行图
@@ -441,6 +446,7 @@ Wave 3:
 
 - 多站点完成数据隔离和迁移演练。
 - 至少一个外部插件跑通完整生命周期。
+- 当前状态：外部插件生命周期已达到；多站点数据隔离未完成，因此 R3 整体尚未达到。
 
 ## 6. 文档与真相维护
 

@@ -41,6 +41,7 @@ import (
 	menuHandler "blotting-consultancy/internal/handler/menu"
 	migrationHandler "blotting-consultancy/internal/handler/migration"
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
+	pluginHandler "blotting-consultancy/internal/handler/plugin"
 	publicHandler "blotting-consultancy/internal/handler/public"
 	roleHandler "blotting-consultancy/internal/handler/role"
 	schedulerHandler "blotting-consultancy/internal/handler/scheduler"
@@ -66,6 +67,7 @@ import (
 	commentMod "blotting-consultancy/internal/modules/comment"
 	formSubmissionMod "blotting-consultancy/internal/modules/form_submission"
 	qa "blotting-consultancy/internal/modules/qa"
+	pluginruntime "blotting-consultancy/internal/plugin"
 	"blotting-consultancy/internal/provider"
 	"blotting-consultancy/internal/repository"
 	"blotting-consultancy/internal/seed"
@@ -194,6 +196,8 @@ func main() {
 		&model.ScheduledPublishJob{},
 		&model.PageTemplate{},
 		&model.SiteConfig{},
+		&model.Plugin{},
+		&model.PluginSetting{},
 		&commentMod.Comment{},
 	); err != nil {
 		log.Error("Failed to run migrations", "error", err)
@@ -363,6 +367,19 @@ func main() {
 		log.Error("Failed to restore storage configuration", "error", err)
 		os.Exit(1)
 	}
+
+	pluginStore := pluginruntime.NewStore(database.DB)
+	pluginManager := pluginruntime.NewManager(pluginruntime.ManagerConfig{
+		PluginDir: cfg.PluginDir,
+		DataDir:   cfg.PluginDataDir,
+	}, pluginStore, registry)
+	if cfg.ExternalPlugins {
+		if err := pluginManager.StartEnabledPlugins(context.Background()); err != nil {
+			log.Error("Failed to restore enabled plugins", "error", err)
+			os.Exit(1)
+		}
+		pluginManager.StartHealthMonitor(30 * time.Second)
+	}
 	log.Info("Provider registry initialized", "providers", registry.List())
 
 	// Initialize chunked upload service
@@ -464,6 +481,7 @@ func main() {
 	roleHandlerInst := roleHandler.NewHandler(roleRepo, userRepo)
 	marketplaceSvc := service.NewMarketplaceService(marketplaceRepo)
 	marketplaceHandlerInst := marketplaceHandler.NewHandler(marketplaceSvc)
+	pluginHandlerInst := pluginHandler.NewHandler(pluginManager, registry, cfg.ExternalPlugins)
 	wizardSvc := service.NewWizardServiceWithRegistry(registry, unifiedPageRepo)
 	wizardHandlerInst := wizardHandler.NewHandler(wizardSvc)
 	aiHandlerInst := aiHandler.NewHandler(registry, aiConfigSvc)
@@ -539,6 +557,7 @@ func main() {
 		Search:         searchHandlerInst,
 		Role:           roleHandlerInst,
 		Marketplace:    marketplaceHandlerInst,
+		Plugin:         pluginHandlerInst,
 		Wizard:         wizardHandlerInst,
 		AI:             aiHandlerInst,
 		ChunkedUpload:  chunkedUploadHandlerInst,
@@ -603,6 +622,9 @@ func main() {
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error("Server forced to shutdown", "error", err)
+	}
+	if err := pluginManager.StopAll(); err != nil {
+		log.Error("Failed to stop plugins cleanly", "error", err)
 	}
 
 	// Close database connection

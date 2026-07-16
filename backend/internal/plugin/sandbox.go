@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-// Sandbox enforces permissions declared in a plugin's manifest.
-// Before a plugin is allowed to perform an operation, the sandbox checks
-// that the required permission was declared in plugin.yaml and approved.
+// Sandbox validates capability declarations in a plugin manifest.
+// External plugin processes are trusted code and are not isolated from the
+// server OS by these checks.
 type Sandbox struct {
 	pluginID    string
 	permissions map[Permission]bool
@@ -70,8 +70,8 @@ func RequiredPermissionsForProvider(providerType string) []Permission {
 	}
 }
 
-// ValidateManifestPermissions checks that a plugin's declared permissions
-// are sufficient for its declared providers and routes.
+// ValidateManifestPermissions checks that declared capabilities are
+// internally consistent. It is not an OS-level security boundary.
 func ValidateManifestPermissions(meta *PluginMeta) error {
 	sandbox := NewSandbox(meta.ID, meta.Permissions)
 	var errs []string

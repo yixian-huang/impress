@@ -1,0 +1,18 @@
+id: file-notifier
+name: File Notifier
+nameZh: 文件通知器
+version: 1.0.0
+description: Writes Impress notification events to a JSON Lines file.
+author: Impress
+license: MIT
+permissions:
+  - filesystem:write
+  - network:outbound
+providers:
+  - type: notifier
+    name: notifier
+settingsSchema:
+  outputFile:
+    type: string
+    title: Output file
+    default: notifications.jsonl

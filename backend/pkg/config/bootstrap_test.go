@@ -35,6 +35,25 @@ func TestLoadWithBootstrap_UsesEnvSecretsWhenPresent(t *testing.T) {
 	assert.Equal(t, "from-env-secret", result.Config.JWTSecret)
 }
 
+func TestExternalPluginsAreDisabledByDefault(t *testing.T) {
+	cleanupBootstrapEnv()
+	defer cleanupBootstrapEnv()
+
+	cfg, err := loadBase()
+	require.NoError(t, err)
+	assert.False(t, cfg.ExternalPlugins)
+}
+
+func TestExternalPluginsRequireExplicitEnable(t *testing.T) {
+	cleanupBootstrapEnv()
+	os.Setenv("ENABLE_EXTERNAL_PLUGINS", "true")
+	defer cleanupBootstrapEnv()
+
+	cfg, err := loadBase()
+	require.NoError(t, err)
+	assert.True(t, cfg.ExternalPlugins)
+}
+
 func TestWriteEnvFile_CreatesEnvAndDirs(t *testing.T) {
 	dir := t.TempDir()
 	path, err := WriteEnvFile(dir, EnvFileParams{
@@ -60,4 +79,5 @@ func cleanupBootstrapEnv() {
 	os.Unsetenv("PORT")
 	os.Unsetenv("DB_DSN")
 	os.Unsetenv("ENV")
+	os.Unsetenv("ENABLE_EXTERNAL_PLUGINS")
 }

@@ -29,6 +29,7 @@ import (
 	menuHandler "blotting-consultancy/internal/handler/menu"
 	migrationHandler "blotting-consultancy/internal/handler/migration"
 	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
+	pluginHandler "blotting-consultancy/internal/handler/plugin"
 	publicHandler "blotting-consultancy/internal/handler/public"
 	roleHandler "blotting-consultancy/internal/handler/role"
 	searchhandler "blotting-consultancy/internal/handler/search"
@@ -83,6 +84,7 @@ type Handlers struct {
 	Search         *searchhandler.Handler
 	Role           *roleHandler.Handler
 	Marketplace    *marketplaceHandler.Handler
+	Plugin         *pluginHandler.Handler
 	Wizard         *wizardHandler.Handler
 	AI             *aiHandler.Handler
 	ChunkedUpload  *chunkedUploadHandler.Handler
@@ -432,6 +434,15 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.PUT("/marketplace/items/:slug/update", require("plugins", "manage"), handlers.Marketplace.AdminUpdateItem)
 		adminGroup.DELETE("/marketplace/items/:slug", require("plugins", "manage"), handlers.Marketplace.AdminUninstallItem)
 		adminGroup.POST("/marketplace/items/:slug/versions", require("plugins", "manage"), handlers.Marketplace.AdminAddVersion)
+
+		// External plugin lifecycle
+		adminGroup.GET("/plugins", require("plugins", "read"), handlers.Plugin.List)
+		adminGroup.POST("/plugins/install", require("system", "manage"), handlers.Plugin.Install)
+		adminGroup.POST("/plugins/:id/enable", require("system", "manage"), handlers.Plugin.Enable)
+		adminGroup.POST("/plugins/:id/disable", require("system", "manage"), handlers.Plugin.Disable)
+		adminGroup.DELETE("/plugins/:id", require("system", "manage"), handlers.Plugin.Uninstall)
+		adminGroup.PUT("/plugins/:id/settings", require("system", "manage"), handlers.Plugin.UpdateSettings)
+		adminGroup.POST("/plugins/test-notification", require("system", "manage"), handlers.Plugin.TestNotification)
 
 		// AI provider management
 		adminGroup.POST("/ai/chat", require("settings", "manage"), handlers.AI.Chat)

@@ -11,17 +11,18 @@
 - QA、Wizard、Translation 按请求读取当前 AI provider；未配置时返回结构化 503。
 - Wizard 写入 `unified_pages` composable 草稿，前后端请求/响应契约及 section 数据结构已对齐。
 - StorageConfig 使用 camelCase，保存前真实探测远端；普通与分片上传统一走 StorageRuntime。
-- Plugin Manager、Store、manifest 和生命周期状态机已存在，但未接入 server；go-plugin gRPC client 仍是占位实现，Marketplace 安装只返回下载 URL。
+- Plugin Manager 已接入 server 启停、恢复和健康检查；真实 protobuf/gRPC client、受控 zip 安装和 provider 回滚已完成。
+- Marketplace 下载分发、管理 UI 和插件升级仍未完成；当前真实生命周期通过独立 `/admin/plugins` 管理 API 提供。
 
 ## 进度
 
 - [x] R2：配置即行为
-- [ ] 外部 Notifier 插件安装
-- [ ] enable/start/register/invoke
-- [ ] disable/stop/unregister
-- [ ] server restart restore
-- [ ] uninstall/cleanup
-- [ ] R3 插件黑盒验证
+- [x] 外部 Notifier 插件安装
+- [x] enable/start/register/invoke
+- [x] disable/stop/unregister
+- [x] server restart restore
+- [x] uninstall/cleanup
+- [x] R3 插件黑盒验证
 
 ## 实施决定
 
@@ -38,9 +39,9 @@
 ### 外部插件
 
 - 选择 Notifier 作为第一个外部插件：接口小、无内容迁移、可通过测试通知明确证明调用链。
-- 生成真实 protobuf/gRPC glue，修复 go-plugin host/client。
-- 增加插件包下载、校验、临时解包、原子安装目录、DB 记录、启停、卸载文件清理和启动恢复。
-- 提供独立示例插件二进制和 `plugin.yaml`，以及管理 API/CLI。
+- 公开 `pkg/pluginproto` 与 `pkg/pluginsdk`，生成真实 protobuf/gRPC glue；独立 Go module 已验证可引用 SDK。
+- 增加插件包校验、临时解包、原子安装目录、DB 记录、启停、provider 恢复、卸载文件清理和启动恢复。
+- 提供 `file-notifier` 示例插件源码和 `plugin.yaml`，以及管理 API。
 
 ## 验收标准
 
@@ -62,6 +63,19 @@
 - uninstall 删除 DB 记录、安装目录和插件数据目录，不留下 enabled provider。
 - 安装失败不留下 DB 记录、临时目录或半安装目录。
 
+## 完成证据（2026-07-17）
+
+- `/admin/plugins` 支持列表、zip 安装、启用、停用、卸载、设置更新和 notifier 测试。
+- 外部插件运行时默认关闭；仅 `system:manage` 可操作，并需显式设置 `ENABLE_EXTERNAL_PLUGINS=true`。
+- `plugins` / `plugin_settings` 已加入 server 与 CLI migration 模型；`PLUGIN_DIR`、`PLUGIN_DATA_DIR` 可配置。
+- 插件启用会启动独立 go-plugin 子进程；停用、崩溃重启和 server 关闭会按实例安全恢复被替换的内置 provider。
+- 停机先拒绝新 RPC 并有限等待在途调用；健康检查与 StopAll 通过 stopping 状态和 wait group 协调，关闭后不会重新拉起插件。
+- `file-notifier` 黑盒测试完成 install → enable → invoke → disable → enable → server restart restore → invoke → uninstall。
+- zip-slip、绝对/越界路径和 symlink 被拒绝；安装使用临时目录和原子 rename，失败会清理 staging/final 目录。
+- 启用态卸载只停止运行态，DB 在删除提交前始终保持 enabled；安装/数据目录随后原子重命名，失败会恢复文件、进程与 provider，进程崩溃遗留的 uninstall staging 会在 manager 初始化时按 DB 真相恢复或清理。
+- zip 安装同时校验声明大小和实际解压写入字节，实际总量超过 100 MiB 会立即失败并清理 staging。
+- 独立临时 Go module 成功导入公开 SDK 并完成构建，证明不依赖仓库 `internal/` 边界。
+
 ## 验证
 
 - 后端 unit/integration/race tests。
@@ -75,4 +89,6 @@
 - JWT secret 变化会导致已加密配置不可解密：启动时保持安全默认并暴露明确错误，不回退为明文使用。
 - 存储切换不迁移历史对象；历史媒体保留原 URL 和 provider 标识，删除需要对应 provider 可用。
 - 插件安装只接受限定大小的 zip，拒绝绝对路径、软链接和 zip-slip。
-- 插件 settings 中声明为 secret 的字段必须加密或脱敏，管理 API 不返回明文。
+- 外部插件二进制是可信服务端代码；manifest permission 只做声明一致性校验，不提供 OS 沙箱。
+- 当前拒绝含 secret setting 的外部插件；开放此类配置前仍需补加密持久化与 API 脱敏。
+- Beta 仅允许 canonical notifier/search/captcha provider；external storage、dependencies、custom routes 和 frontend entry 在所有权/交付链完成前拒绝安装或启用。

@@ -17,6 +17,9 @@ type Config struct {
 	UploadDir          string
 	BaseURL            string
 	FrontendDir        string
+	PluginDir          string
+	PluginDataDir      string
+	ExternalPlugins    bool
 }
 
 const defaultSQLiteDSN = "file:./data/impress.db?cache=shared&mode=rwc"

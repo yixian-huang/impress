@@ -7,12 +7,13 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"time"
 
 	goplugin "github.com/hashicorp/go-plugin"
 
-	pb "blotting-consultancy/internal/plugin/proto"
-	"blotting-consultancy/internal/plugin/shared"
 	"blotting-consultancy/internal/provider"
+	pb "blotting-consultancy/pkg/pluginproto"
+	"blotting-consultancy/pkg/pluginsdk"
 )
 
 // GRPCHost manages a single plugin process via hashicorp/go-plugin.
@@ -21,8 +22,16 @@ type GRPCHost struct {
 	binaryPath string
 	client     *goplugin.Client
 	rpcClient  pb.ProviderServiceClient
-	mu         sync.Mutex
+	mu         sync.RWMutex
+	activeRPCs sync.WaitGroup
+	stopping   bool
 }
+
+const (
+	pluginStartTimeout    = 15 * time.Second
+	pluginRPCTimeout      = 15 * time.Second
+	pluginShutdownTimeout = 5 * time.Second
+)
 
 // NewGRPCHost creates a host for a plugin binary.
 func NewGRPCHost(meta *PluginMeta, binaryPath string) *GRPCHost {
@@ -32,20 +41,8 @@ func NewGRPCHost(meta *PluginMeta, binaryPath string) *GRPCHost {
 	}
 }
 
-// PluginImpl implements goplugin.Plugin for the host side.
-// It creates a ProviderServiceClient from the gRPC connection.
-type PluginImpl struct {
-	goplugin.Plugin
-}
-
-// GRPCClient returns a client-side ProviderServiceClient backed by a DirectClient.
-func (p *PluginImpl) GRPCClient(_ *goplugin.GRPCBroker, c *goplugin.RPCClient) (interface{}, error) {
-	// go-plugin calls this for net/rpc; we use gRPC path instead.
-	return nil, fmt.Errorf("net/rpc not supported; use GRPCClient")
-}
-
 // Start launches the plugin process and establishes gRPC connection.
-func (h *GRPCHost) Start(settings map[string]string) error {
+func (h *GRPCHost) Start(settings map[string]string, dataDir string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -54,12 +51,13 @@ func (h *GRPCHost) Start(settings map[string]string) error {
 	}
 
 	client := goplugin.NewClient(&goplugin.ClientConfig{
-		HandshakeConfig: shared.Handshake,
+		HandshakeConfig: pluginsdk.Handshake,
 		Plugins: map[string]goplugin.Plugin{
-			shared.ProviderPluginName: &GRPCProviderPluginHost{},
+			pluginsdk.ProviderPluginName: &pluginsdk.GRPCProviderPlugin{},
 		},
 		Cmd:              exec.Command(h.binaryPath),
 		AllowedProtocols: []goplugin.Protocol{goplugin.ProtocolGRPC},
+		StartTimeout:     pluginStartTimeout,
 	})
 
 	rpcClient, err := client.Client()
@@ -68,7 +66,7 @@ func (h *GRPCHost) Start(settings map[string]string) error {
 		return fmt.Errorf("failed to create plugin client for %s: %w", h.meta.ID, err)
 	}
 
-	raw, err := rpcClient.Dispense(shared.ProviderPluginName)
+	raw, err := rpcClient.Dispense(pluginsdk.ProviderPluginName)
 	if err != nil {
 		client.Kill()
 		return fmt.Errorf("failed to dispense plugin %s: %w", h.meta.ID, err)
@@ -81,9 +79,12 @@ func (h *GRPCHost) Start(settings map[string]string) error {
 	}
 
 	// Initialize the plugin with settings
-	resp, err := svc.Initialize(context.Background(), &pb.InitRequest{
+	ctx, cancel := context.WithTimeout(context.Background(), pluginRPCTimeout)
+	defer cancel()
+	resp, err := svc.Initialize(ctx, &pb.InitRequest{
 		Settings: settings,
-		PluginID: h.meta.ID,
+		DataDir:  dataDir,
+		PluginId: h.meta.ID,
 	})
 	if err != nil {
 		client.Kill()
@@ -96,33 +97,92 @@ func (h *GRPCHost) Start(settings map[string]string) error {
 
 	h.client = client
 	h.rpcClient = svc
+	h.stopping = false
 	return nil
 }
 
 // Stop gracefully shuts down the plugin process.
 func (h *GRPCHost) Stop() error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	if h.client == nil {
+		h.mu.Unlock()
 		return nil
 	}
+	if h.stopping {
+		h.mu.Unlock()
+		return nil
+	}
+	h.stopping = true
+	client := h.client
+	svc := h.rpcClient
+	h.mu.Unlock()
 
-	if h.rpcClient != nil {
-		_, _ = h.rpcClient.Shutdown(context.Background(), &pb.ShutdownRequest{})
+	h.waitForActiveRPCs(pluginShutdownTimeout)
+	if svc != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), pluginShutdownTimeout)
+		_, _ = svc.Shutdown(ctx, &pb.ShutdownRequest{})
+		cancel()
 	}
 
-	h.client.Kill()
+	client.Kill()
+	h.mu.Lock()
 	h.client = nil
 	h.rpcClient = nil
+	h.stopping = false
+	h.mu.Unlock()
 	return nil
 }
 
 // IsRunning checks if the plugin process is alive.
 func (h *GRPCHost) IsRunning() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.client != nil && !h.client.Exited()
+}
+
+func (h *GRPCHost) acquireProviderClient() (pb.ProviderServiceClient, func(), error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.client != nil && !h.client.Exited()
+	if h.rpcClient == nil || h.stopping {
+		return nil, nil, fmt.Errorf("plugin %s is not running", h.meta.ID)
+	}
+	h.activeRPCs.Add(1)
+	return h.rpcClient, h.activeRPCs.Done, nil
+}
+
+func (h *GRPCHost) waitForActiveRPCs(timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		h.activeRPCs.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+	}
+}
+
+// Reinitialize applies settings to a running plugin without persisting them.
+func (h *GRPCHost) Reinitialize(ctx context.Context, settings map[string]string, dataDir string) error {
+	svc, release, err := h.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	callCtx, cancel := context.WithTimeout(ctx, pluginRPCTimeout)
+	defer cancel()
+	resp, err := svc.Initialize(callCtx, &pb.InitRequest{
+		Settings: settings,
+		DataDir:  dataDir,
+		PluginId: h.meta.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to re-initialize plugin %s: %w", h.meta.ID, err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("plugin %s re-initialization failed: %s", h.meta.ID, resp.Error)
+	}
+	return nil
 }
 
 // AsStorageProvider returns a StorageProvider that proxies to the plugin.
@@ -147,83 +207,12 @@ func (h *GRPCHost) AsCaptchaProvider() provider.CaptchaProvider {
 
 // HandleHTTP proxies an HTTP request to the plugin.
 func (h *GRPCHost) HandleHTTP(ctx context.Context, req *pb.HTTPRequest) (*pb.HTTPResponse, error) {
-	h.mu.Lock()
-	svc := h.rpcClient
-	h.mu.Unlock()
-	if svc == nil {
-		return nil, fmt.Errorf("plugin %s is not running", h.meta.ID)
+	svc, release, err := h.acquireProviderClient()
+	if err != nil {
+		return nil, err
 	}
+	defer release()
 	return svc.HandleHTTP(ctx, req)
-}
-
-// --- GRPCProviderPluginHost implements go-plugin.GRPCPlugin on the host side ---
-
-// GRPCProviderPluginHost implements goplugin.GRPCPlugin for the host side.
-type GRPCProviderPluginHost struct {
-	goplugin.Plugin
-}
-
-// GRPCServer is not used on the host side.
-func (p *GRPCProviderPluginHost) GRPCServer(_ *goplugin.GRPCBroker, _ interface{}) error {
-	return fmt.Errorf("GRPCServer called on host side")
-}
-
-// GRPCClient creates a ProviderServiceClient from the gRPC connection.
-func (p *GRPCProviderPluginHost) GRPCClient(_ *goplugin.GRPCBroker, c interface{}) (interface{}, error) {
-	// go-plugin passes an *grpc.ClientConn via the GRPCClient method.
-	// For our simplified interface approach, we return a DirectClient wrapper.
-	return &DirectClient{}, nil
-}
-
-// DirectClient is a placeholder that implements ProviderServiceClient.
-// In the real go-plugin flow, the client connection is provided by the framework.
-// This type is returned by GRPCClient and used by the host-side proxies.
-type DirectClient struct{}
-
-func (d *DirectClient) Initialize(ctx context.Context, req *pb.InitRequest) (*pb.InitResponse, error) {
-	return &pb.InitResponse{Success: true}, nil
-}
-func (d *DirectClient) Shutdown(ctx context.Context, req *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
-	return &pb.ShutdownResponse{}, nil
-}
-func (d *DirectClient) StorageSave(ctx context.Context, req *pb.StorageSaveRequest) (*pb.StorageSaveResponse, error) {
-	return &pb.StorageSaveResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) StorageGet(ctx context.Context, req *pb.StorageGetRequest) ([]*pb.StorageChunk, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-func (d *DirectClient) StorageDelete(ctx context.Context, req *pb.StorageDeleteRequest) (*pb.StorageDeleteResponse, error) {
-	return &pb.StorageDeleteResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) StorageURL(ctx context.Context, req *pb.StorageURLRequest) (*pb.StorageURLResponse, error) {
-	return &pb.StorageURLResponse{}, nil
-}
-func (d *DirectClient) StorageExists(ctx context.Context, req *pb.StorageExistsRequest) (*pb.StorageExistsResponse, error) {
-	return &pb.StorageExistsResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) Search(ctx context.Context, req *pb.SearchRequest) (*pb.SearchResponse, error) {
-	return &pb.SearchResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) SearchSuggest(ctx context.Context, req *pb.SearchSuggestRequest) (*pb.SearchSuggestResponse, error) {
-	return &pb.SearchSuggestResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) SearchIndex(ctx context.Context, req *pb.SearchIndexRequest) (*pb.SearchIndexResponse, error) {
-	return &pb.SearchIndexResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) SearchRemove(ctx context.Context, req *pb.SearchRemoveRequest) (*pb.SearchRemoveResponse, error) {
-	return &pb.SearchRemoveResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) SearchRebuild(ctx context.Context, req *pb.SearchRebuildRequest) (*pb.SearchRebuildResponse, error) {
-	return &pb.SearchRebuildResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
-	return &pb.NotifyResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) CaptchaVerify(ctx context.Context, req *pb.CaptchaVerifyRequest) (*pb.CaptchaVerifyResponse, error) {
-	return &pb.CaptchaVerifyResponse{Error: "not implemented"}, nil
-}
-func (d *DirectClient) HandleHTTP(ctx context.Context, req *pb.HTTPRequest) (*pb.HTTPResponse, error) {
-	return &pb.HTTPResponse{StatusCode: 501}, nil
 }
 
 // --- Provider proxy types ---
@@ -238,7 +227,12 @@ func (p *grpcStorageProxy) Save(ctx context.Context, filename string, reader io.
 	if err != nil {
 		return "", fmt.Errorf("failed to read data: %w", err)
 	}
-	resp, err := p.host.rpcClient.StorageSave(ctx, &pb.StorageSaveRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	resp, err := svc.StorageSave(ctx, &pb.StorageSaveRequest{
 		Filename: filename,
 		Data:     data,
 		Size:     size,
@@ -253,19 +247,41 @@ func (p *grpcStorageProxy) Save(ctx context.Context, filename string, reader io.
 }
 
 func (p *grpcStorageProxy) Get(ctx context.Context, path string) (io.ReadCloser, error) {
-	chunks, err := p.host.rpcClient.StorageGet(ctx, &pb.StorageGetRequest{Path: path})
+	svc, release, err := p.host.acquireProviderClient()
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	for _, chunk := range chunks {
-		buf.Write(chunk.Data)
+	defer release()
+	stream, err := svc.StorageGet(ctx, &pb.StorageGetRequest{Path: path})
+	if err != nil {
+		return nil, err
 	}
-	return io.NopCloser(&buf), nil
+	var data bytes.Buffer
+	for {
+		chunk, recvErr := stream.Recv()
+		if recvErr == io.EOF {
+			break
+		}
+		if recvErr != nil {
+			return nil, recvErr
+		}
+		if chunk.Error != "" {
+			return nil, fmt.Errorf("%s", chunk.Error)
+		}
+		if _, err := data.Write(chunk.Data); err != nil {
+			return nil, err
+		}
+	}
+	return io.NopCloser(bytes.NewReader(data.Bytes())), nil
 }
 
 func (p *grpcStorageProxy) Delete(ctx context.Context, path string) error {
-	resp, err := p.host.rpcClient.StorageDelete(ctx, &pb.StorageDeleteRequest{Path: path})
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.StorageDelete(ctx, &pb.StorageDeleteRequest{Path: path})
 	if err != nil {
 		return err
 	}
@@ -276,15 +292,27 @@ func (p *grpcStorageProxy) Delete(ctx context.Context, path string) error {
 }
 
 func (p *grpcStorageProxy) URL(path string) string {
-	resp, err := p.host.rpcClient.StorageURL(context.Background(), &pb.StorageURLRequest{Path: path})
+	svc, release, err := p.host.acquireProviderClient()
 	if err != nil {
 		return ""
 	}
-	return resp.URL
+	defer release()
+	ctx, cancel := context.WithTimeout(context.Background(), pluginRPCTimeout)
+	defer cancel()
+	resp, err := svc.StorageURL(ctx, &pb.StorageURLRequest{Path: path})
+	if err != nil {
+		return ""
+	}
+	return resp.Url
 }
 
 func (p *grpcStorageProxy) Exists(ctx context.Context, path string) (bool, error) {
-	resp, err := p.host.rpcClient.StorageExists(ctx, &pb.StorageExistsRequest{Path: path})
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	resp, err := svc.StorageExists(ctx, &pb.StorageExistsRequest{Path: path})
 	if err != nil {
 		return false, err
 	}
@@ -300,7 +328,12 @@ type grpcSearchProxy struct {
 }
 
 func (p *grpcSearchProxy) Search(ctx context.Context, query string, locale string, contentType string, page int, pageSize int) (*provider.SearchResponse, error) {
-	resp, err := p.host.rpcClient.Search(ctx, &pb.SearchRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	resp, err := svc.Search(ctx, &pb.SearchRequest{
 		Query:       query,
 		Locale:      locale,
 		ContentType: contentType,
@@ -316,11 +349,11 @@ func (p *grpcSearchProxy) Search(ctx context.Context, query string, locale strin
 	results := make([]provider.SearchResult, len(resp.Results))
 	for i, r := range resp.Results {
 		results[i] = provider.SearchResult{
-			ID:      uint(r.ID),
+			ID:      uint(r.Id),
 			Type:    r.Type,
 			Title:   r.Title,
 			Snippet: r.Snippet,
-			URL:     r.URL,
+			URL:     r.Url,
 			Locale:  r.Locale,
 			Score:   r.Score,
 		}
@@ -335,7 +368,12 @@ func (p *grpcSearchProxy) Search(ctx context.Context, query string, locale strin
 }
 
 func (p *grpcSearchProxy) Suggest(ctx context.Context, prefix string, locale string, limit int) ([]string, error) {
-	resp, err := p.host.rpcClient.SearchSuggest(ctx, &pb.SearchSuggestRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	resp, err := svc.SearchSuggest(ctx, &pb.SearchSuggestRequest{
 		Prefix: prefix,
 		Locale: locale,
 		Limit:  int32(limit),
@@ -350,9 +388,14 @@ func (p *grpcSearchProxy) Suggest(ctx context.Context, prefix string, locale str
 }
 
 func (p *grpcSearchProxy) IndexArticle(ctx context.Context, id uint, locale string, title string, body string, slug string) error {
-	resp, err := p.host.rpcClient.SearchIndex(ctx, &pb.SearchIndexRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.SearchIndex(ctx, &pb.SearchIndexRequest{
 		ContentType: "article",
-		ID:          uint64(id),
+		Id:          uint64(id),
 		Locale:      locale,
 		Title:       title,
 		Body:        body,
@@ -368,9 +411,14 @@ func (p *grpcSearchProxy) IndexArticle(ctx context.Context, id uint, locale stri
 }
 
 func (p *grpcSearchProxy) IndexPage(ctx context.Context, id uint, locale string, title string, body string, slug string) error {
-	resp, err := p.host.rpcClient.SearchIndex(ctx, &pb.SearchIndexRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.SearchIndex(ctx, &pb.SearchIndexRequest{
 		ContentType: "page",
-		ID:          uint64(id),
+		Id:          uint64(id),
 		Locale:      locale,
 		Title:       title,
 		Body:        body,
@@ -386,9 +434,14 @@ func (p *grpcSearchProxy) IndexPage(ctx context.Context, id uint, locale string,
 }
 
 func (p *grpcSearchProxy) RemoveFromIndex(ctx context.Context, contentType string, id uint) error {
-	resp, err := p.host.rpcClient.SearchRemove(ctx, &pb.SearchRemoveRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.SearchRemove(ctx, &pb.SearchRemoveRequest{
 		ContentType: contentType,
-		ID:          uint64(id),
+		Id:          uint64(id),
 	})
 	if err != nil {
 		return err
@@ -400,7 +453,12 @@ func (p *grpcSearchProxy) RemoveFromIndex(ctx context.Context, contentType strin
 }
 
 func (p *grpcSearchProxy) RebuildIndex(ctx context.Context) error {
-	resp, err := p.host.rpcClient.SearchRebuild(ctx, &pb.SearchRebuildRequest{})
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.SearchRebuild(ctx, &pb.SearchRebuildRequest{})
 	if err != nil {
 		return err
 	}
@@ -416,7 +474,12 @@ type grpcNotifierProxy struct {
 }
 
 func (p *grpcNotifierProxy) Notify(ctx context.Context, event provider.NotifyEvent) error {
-	resp, err := p.host.rpcClient.Notify(ctx, &pb.NotifyRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.Notify(ctx, &pb.NotifyRequest{
 		Type:    event.Type,
 		Subject: event.Subject,
 		Body:    event.Body,
@@ -437,9 +500,14 @@ type grpcCaptchaProxy struct {
 }
 
 func (p *grpcCaptchaProxy) Verify(ctx context.Context, token string, remoteIP string) error {
-	resp, err := p.host.rpcClient.CaptchaVerify(ctx, &pb.CaptchaVerifyRequest{
+	svc, release, err := p.host.acquireProviderClient()
+	if err != nil {
+		return err
+	}
+	defer release()
+	resp, err := svc.CaptchaVerify(ctx, &pb.CaptchaVerifyRequest{
 		Token:    token,
-		RemoteIP: remoteIP,
+		RemoteIp: remoteIP,
 	})
 	if err != nil {
 		return err

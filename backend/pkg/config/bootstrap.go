@@ -112,6 +112,19 @@ func loadBase() (*Config, error) {
 
 	cfg.FrontendDir = strings.TrimSpace(os.Getenv("FRONTEND_DIR"))
 
+	cfg.PluginDir = strings.TrimSpace(os.Getenv("PLUGIN_DIR"))
+	if cfg.PluginDir == "" {
+		cfg.PluginDir = "./plugins"
+	}
+	cfg.PluginDataDir = strings.TrimSpace(os.Getenv("PLUGIN_DATA_DIR"))
+	if cfg.PluginDataDir == "" {
+		cfg.PluginDataDir = "./data/plugins"
+	}
+	cfg.ExternalPlugins = strings.EqualFold(
+		strings.TrimSpace(os.Getenv("ENABLE_EXTERNAL_PLUGINS")),
+		"true",
+	)
+
 	return cfg, nil
 }
 

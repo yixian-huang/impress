@@ -268,3 +268,66 @@ func TestValidateManifest_Wrapper(t *testing.T) {
 	bad := &PluginMeta{}
 	assert.Error(t, ValidateManifest(bad))
 }
+
+func TestValidateSupportedSettingsRejectsSecrets(t *testing.T) {
+	tests := []map[string]any{
+		{
+			"properties": map[string]any{
+				"token": map[string]any{"type": "string", "secret": true},
+			},
+		},
+		{
+			"properties": map[string]any{
+				"password": map[string]any{"type": "string", "format": "password"},
+			},
+		},
+	}
+
+	for _, schema := range tests {
+		meta := &PluginMeta{ID: "secret-plugin", SettingsSchema: schema}
+		err := ValidateSupportedSettings(meta)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "secret settings")
+	}
+}
+
+func TestValidateSupportedSettingsAllowsNonSecretSchema(t *testing.T) {
+	meta := &PluginMeta{
+		ID: "plain-plugin",
+		SettingsSchema: map[string]any{
+			"outputFile": map[string]any{"type": "string"},
+		},
+	}
+	require.NoError(t, ValidateSupportedSettings(meta))
+}
+
+func TestValidateExternalRuntimeContractRejectsUnwiredCapabilities(t *testing.T) {
+	tests := []PluginMeta{
+		{
+			ID:           "storage-plugin",
+			Providers:    []ProviderDecl{{Type: "storage", Name: "storage"}},
+			Dependencies: nil,
+		},
+		{
+			ID:        "route-plugin",
+			Providers: []ProviderDecl{{Type: "notifier", Name: "notifier"}},
+			Routes:    []RouteDecl{{Method: "GET", Path: "/status"}},
+		},
+		{
+			ID:        "named-plugin",
+			Providers: []ProviderDecl{{Type: "notifier", Name: "custom-notifier"}},
+		},
+	}
+
+	for _, meta := range tests {
+		require.Error(t, ValidateExternalRuntimeContract(&meta))
+	}
+}
+
+func TestValidateExternalRuntimeContractAllowsCanonicalNotifier(t *testing.T) {
+	meta := &PluginMeta{
+		ID:        "notifier-plugin",
+		Providers: []ProviderDecl{{Type: "notifier", Name: "notifier"}},
+	}
+	require.NoError(t, ValidateExternalRuntimeContract(meta))
+}

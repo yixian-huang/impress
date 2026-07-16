@@ -2,6 +2,7 @@ package provider
 
 import (
 	"log"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -38,6 +39,38 @@ func (r *Registry) Unregister(name string) {
 	defer r.mu.Unlock()
 	delete(r.providers, name)
 	log.Printf("[Registry] unregistered provider %q", name)
+}
+
+// ReplaceIf atomically replaces a provider only when the current value is the
+// expected instance. Passing nil as replacement removes the provider.
+func (r *Registry) ReplaceIf(name string, expected, replacement interface{}) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, ok := r.providers[name]
+	if !ok || !sameProviderInstance(current, expected) {
+		return false
+	}
+	if replacement == nil {
+		delete(r.providers, name)
+		log.Printf("[Registry] unregistered provider %q", name)
+		return true
+	}
+	r.providers[name] = replacement
+	log.Printf("[Registry] restored provider %q (%T)", name, replacement)
+	return true
+}
+
+func sameProviderInstance(left, right interface{}) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	leftValue := reflect.ValueOf(left)
+	rightValue := reflect.ValueOf(right)
+	if leftValue.Type() != rightValue.Type() || !leftValue.Type().Comparable() {
+		return false
+	}
+	return leftValue.Interface() == rightValue.Interface()
 }
 
 // Get retrieves a provider by name. Returns nil if not found.
