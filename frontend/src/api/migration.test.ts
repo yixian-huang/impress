@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { http } from "@/api/http";
+import { setStoredAccessToken } from "@/lib/browserStorage";
 import {
   getMigrationJob,
   getMigrationJobs,
@@ -52,7 +53,7 @@ describe("migration api", () => {
   });
 
   it("streams progress with bearer authentication and no token query parameter", async () => {
-    localStorage.setItem("accessToken", "secret-token");
+    setStoredAccessToken("secret-token");
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       [
         'event: progress\ndata: {"jobId":"mig-1","phase":"importing","processed":1}\n\n',

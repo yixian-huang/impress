@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // LogNotifier implements provider.NotifierProvider by logging notifications.

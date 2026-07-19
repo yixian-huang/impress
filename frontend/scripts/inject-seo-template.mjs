@@ -10,8 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outPath = join(root, "out", "index.html");
 const tmplPath = join(root, "index.seo.tmpl");
 
-const START = "<!-- impress-seo-meta-start -->";
-const END = "<!-- impress-seo-meta-end -->";
+const START = "<!-- inkless-seo-meta-start -->";
+const END = "<!-- inkless-seo-meta-end -->";
 
 const html = readFileSync(outPath, "utf8");
 const tmpl = readFileSync(tmplPath, "utf8");

@@ -1,6 +1,6 @@
 # Production Build and Deployment Guide
 
-This document provides instructions for building versioned artifacts and deploying the 印迹官网 (Blotting Consultancy) application to production environments.
+This document provides instructions for building versioned artifacts and deploying the Inkless CMS (Inkless CMS) application to production environments.
 
 ## Overview
 
@@ -37,7 +37,7 @@ For production on Quick-Box environment **`hk`** (`82.158.226.66`), prefer **`de
 On the deployment server, the following structure is maintained:
 
 ```
-/opt/blotting/
+/opt/inkless/
 ├── frontend/
 │   ├── versions/
 │   │   ├── v1.0.0/          # Extracted frontend builds
@@ -113,7 +113,7 @@ VERSION=v1.2.0 ./scripts/build-backend.sh
 
 - `artifacts/backend-v1.2.0.tar.gz` (versioned artifact)
 - `artifacts/backend-v1.2.0.tar.gz.sha256` (checksum)
-- `artifacts/blotting-api-v1.2.0` (standalone binary)
+- `artifacts/inkless-api-v1.2.0` (standalone binary)
 - `artifacts/backend-latest.tar.gz` (symlink to latest)
 
 ### Build Artifacts
@@ -145,8 +145,8 @@ export VERSION="v1.2.0"
 export ENVIRONMENT="production"
 
 # Optional overrides
-export DEPLOY_ROOT="/opt/blotting"
-export BACKEND_SERVICE="blotting-api"
+export DEPLOY_ROOT="/opt/inkless"
+export BACKEND_SERVICE="inkless-api"
 ```
 
 ### Deployment Script
@@ -251,8 +251,8 @@ DEPLOY_HOST=prod.example.com COMPONENT=list ./scripts/rollback.sh
 
 ```
 Frontend versions:
-  Current: /opt/blotting/frontend/versions/v1.2.0
-  Previous: /opt/blotting/frontend/versions/v1.1.0
+  Current: /opt/inkless/frontend/versions/v1.2.0
+  Previous: /opt/inkless/frontend/versions/v1.1.0
   Available:
     v1.2.0
     v1.1.0
@@ -260,8 +260,8 @@ Frontend versions:
     v1.0.0
 
 Backend versions:
-  Current: /opt/blotting/backend/versions/v1.2.0
-  Previous: /opt/blotting/backend/versions/v1.1.0
+  Current: /opt/inkless/backend/versions/v1.2.0
+  Previous: /opt/inkless/backend/versions/v1.1.0
   Available:
     v1.2.0
     v1.1.0
@@ -289,22 +289,22 @@ If automated rollback fails:
 2. Manually restore symlinks:
    ```bash
    # Frontend
-   cd /opt/blotting/frontend
+   cd /opt/inkless/frontend
    ln -snf $(readlink previous) current_tmp
    mv -Tf current_tmp current
    sudo systemctl reload nginx
 
    # Backend
-   cd /opt/blotting/backend
-   sudo systemctl stop blotting-api
+   cd /opt/inkless/backend
+   sudo systemctl stop inkless-api
    ln -snf $(readlink previous) current_tmp
    mv -Tf current_tmp current
-   sudo systemctl start blotting-api
+   sudo systemctl start inkless-api
    ```
 
 3. Verify services:
    ```bash
-   systemctl status blotting-api
+   systemctl status inkless-api
    curl http://localhost:8088/health
    ```
 
@@ -312,20 +312,20 @@ If automated rollback fails:
 
 ### Backend Systemd Service
 
-Create `/etc/systemd/system/blotting-api.service`:
+Create `/etc/systemd/system/inkless-api.service`:
 
 ```ini
 [Unit]
-Description=Blotting Consultancy API Server
+Description=Inkless CMS API Server
 After=network.target
 Wants=network.target
 
 [Service]
 Type=simple
 User=deploy
-WorkingDirectory=/opt/blotting/backend/current
-ExecStart=/opt/blotting/backend/current/blotting-api-latest
-EnvironmentFile=/opt/blotting/backend/.env
+WorkingDirectory=/opt/inkless/backend/current
+ExecStart=/opt/inkless/backend/current/inkless-api-latest
+EnvironmentFile=/opt/inkless/backend/.env
 Restart=on-failure
 RestartSec=5s
 
@@ -334,7 +334,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/blotting/backend/data
+ReadWritePaths=/opt/inkless/backend/data
 
 [Install]
 WantedBy=multi-user.target
@@ -344,20 +344,20 @@ Enable and start the service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable blotting-api
-sudo systemctl start blotting-api
+sudo systemctl enable inkless-api
+sudo systemctl start inkless-api
 ```
 
 ### Frontend Nginx Configuration
 
-Create `/etc/nginx/sites-available/blotting-frontend`:
+Create `/etc/nginx/sites-available/inkless-frontend`:
 
 ```nginx
 server {
     listen 80;
-    server_name blotting.example.com;
+    server_name inkless.example.com;
 
-    root /opt/blotting/frontend/current;
+    root /opt/inkless/frontend/current;
     index index.html;
 
     # SPA routing - serve index.html for all routes
@@ -386,23 +386,23 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/blotting-frontend /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/inkless-frontend /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
 ### Environment File
 
-Create `/opt/blotting/backend/.env` with production configuration:
+Create `/opt/inkless/backend/.env` with production configuration:
 
 ```env
 ENV=production
 PORT=8088
 # Option A: SQLite (lightweight/single-host)
-DB_DSN=file:/opt/blotting/backend/data/blotting.db?cache=shared&mode=rwc
+DB_DSN=file:/opt/inkless/backend/data/inkless.db?cache=shared&mode=rwc
 
 # Option B: PostgreSQL
-# DB_DSN=postgresql://blotting:password@localhost:5432/blotting?sslmode=require
+# DB_DSN=postgresql://inkless:password@localhost:5432/inkless?sslmode=require
 JWT_SECRET=<production-secret>
 JWT_REFRESH_SECRET=<production-refresh-secret>
 ```
@@ -456,14 +456,14 @@ Optional:
 - Test manual SSH: `ssh ${DEPLOY_USER}@${DEPLOY_HOST}`
 
 **Backend service fails to start:**
-- Check systemd logs: `journalctl -u blotting-api -n 50`
+- Check systemd logs: `journalctl -u inkless-api -n 50`
 - Verify `.env` file exists and contains correct configuration
 - Check database connectivity from server
 - Verify binary is executable and compatible with server architecture
 
 **Frontend not serving:**
 - Check nginx configuration: `sudo nginx -t`
-- Verify symlink: `ls -la /opt/blotting/frontend/current`
+- Verify symlink: `ls -la /opt/inkless/frontend/current`
 - Check nginx logs: `tail -f /var/log/nginx/error.log`
 
 ### Rollback Issues
@@ -501,10 +501,10 @@ Maintain version history on deployment servers:
 ```bash
 # Keep last 5 versions, remove older ones
 ssh deploy@prod.example.com '
-  cd /opt/blotting/frontend/versions
+  cd /opt/inkless/frontend/versions
   ls -t | tail -n +6 | xargs rm -rf
 
-  cd /opt/blotting/backend/versions
+  cd /opt/inkless/backend/versions
   ls -t | tail -n +6 | xargs rm -rf
 '
 ```

@@ -10,51 +10,52 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	aiHandler "blotting-consultancy/internal/handler/ai"
-	analyticsHandler "blotting-consultancy/internal/handler/analytics"
-	articleHandler "blotting-consultancy/internal/handler/article"
-	auditlogHandler "blotting-consultancy/internal/handler/auditlog"
-	authHandler "blotting-consultancy/internal/handler/auth"
-	bootstrapHandler "blotting-consultancy/internal/handler/bootstrap"
-	categoryHandler "blotting-consultancy/internal/handler/category"
-	chunkedUploadHandler "blotting-consultancy/internal/handler/chunked_upload"
-	emailSettingsHandler "blotting-consultancy/internal/handler/email_settings"
-	featuresHandler "blotting-consultancy/internal/handler/features"
-	feedHandler "blotting-consultancy/internal/handler/feed"
-	globalConfigHandler "blotting-consultancy/internal/handler/global_config"
-	installedThemeHandler "blotting-consultancy/internal/handler/installed_theme"
-	marketplaceHandler "blotting-consultancy/internal/handler/marketplace"
-	mediaHandler "blotting-consultancy/internal/handler/media"
-	mediaFolderHandler "blotting-consultancy/internal/handler/media_folder"
-	menuHandler "blotting-consultancy/internal/handler/menu"
-	migrationHandler "blotting-consultancy/internal/handler/migration"
-	pageTemplateHandler "blotting-consultancy/internal/handler/page_template"
-	pluginHandler "blotting-consultancy/internal/handler/plugin"
-	publicHandler "blotting-consultancy/internal/handler/public"
-	roleHandler "blotting-consultancy/internal/handler/role"
-	searchhandler "blotting-consultancy/internal/handler/search"
-	seoHandler "blotting-consultancy/internal/handler/seo"
-	siteHandler "blotting-consultancy/internal/handler/site"
-	sitemapHandler "blotting-consultancy/internal/handler/sitemap"
-	storageHandler "blotting-consultancy/internal/handler/storage"
-	systemHandler "blotting-consultancy/internal/handler/system"
-	tagHandler "blotting-consultancy/internal/handler/tag"
-	themeHandler "blotting-consultancy/internal/handler/theme"
-	themeExportHandler "blotting-consultancy/internal/handler/theme_export"
-	translationHandler "blotting-consultancy/internal/handler/translation"
-	unifiedPageHandler "blotting-consultancy/internal/handler/unified_page"
-	userHandler "blotting-consultancy/internal/handler/user"
-	wizardHandler "blotting-consultancy/internal/handler/wizard"
+	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
+	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
+	articleHandler "github.com/yixian-huang/inkless/backend/internal/handler/article"
+	auditlogHandler "github.com/yixian-huang/inkless/backend/internal/handler/auditlog"
+	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
+	bootstrapHandler "github.com/yixian-huang/inkless/backend/internal/handler/bootstrap"
+	categoryHandler "github.com/yixian-huang/inkless/backend/internal/handler/category"
+	chunkedUploadHandler "github.com/yixian-huang/inkless/backend/internal/handler/chunked_upload"
+	emailSettingsHandler "github.com/yixian-huang/inkless/backend/internal/handler/email_settings"
+	featuresHandler "github.com/yixian-huang/inkless/backend/internal/handler/features"
+	feedHandler "github.com/yixian-huang/inkless/backend/internal/handler/feed"
+	globalConfigHandler "github.com/yixian-huang/inkless/backend/internal/handler/global_config"
+	installedThemeHandler "github.com/yixian-huang/inkless/backend/internal/handler/installed_theme"
+	marketplaceHandler "github.com/yixian-huang/inkless/backend/internal/handler/marketplace"
+	mediaHandler "github.com/yixian-huang/inkless/backend/internal/handler/media"
+	mediaFolderHandler "github.com/yixian-huang/inkless/backend/internal/handler/media_folder"
+	menuHandler "github.com/yixian-huang/inkless/backend/internal/handler/menu"
+	migrationHandler "github.com/yixian-huang/inkless/backend/internal/handler/migration"
+	pageTemplateHandler "github.com/yixian-huang/inkless/backend/internal/handler/page_template"
+	pluginHandler "github.com/yixian-huang/inkless/backend/internal/handler/plugin"
+	publicHandler "github.com/yixian-huang/inkless/backend/internal/handler/public"
+	roleHandler "github.com/yixian-huang/inkless/backend/internal/handler/role"
+	searchhandler "github.com/yixian-huang/inkless/backend/internal/handler/search"
+	seoHandler "github.com/yixian-huang/inkless/backend/internal/handler/seo"
+	siteHandler "github.com/yixian-huang/inkless/backend/internal/handler/site"
+	sitemapHandler "github.com/yixian-huang/inkless/backend/internal/handler/sitemap"
+	storageHandler "github.com/yixian-huang/inkless/backend/internal/handler/storage"
+	systemHandler "github.com/yixian-huang/inkless/backend/internal/handler/system"
+	tagHandler "github.com/yixian-huang/inkless/backend/internal/handler/tag"
+	themeHandler "github.com/yixian-huang/inkless/backend/internal/handler/theme"
+	themeExportHandler "github.com/yixian-huang/inkless/backend/internal/handler/theme_export"
+	translationHandler "github.com/yixian-huang/inkless/backend/internal/handler/translation"
+	unifiedPageHandler "github.com/yixian-huang/inkless/backend/internal/handler/unified_page"
+	userHandler "github.com/yixian-huang/inkless/backend/internal/handler/user"
+	wizardHandler "github.com/yixian-huang/inkless/backend/internal/handler/wizard"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/db"
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/module"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/seo"
-	"blotting-consultancy/pkg/audit"
-	"blotting-consultancy/pkg/config"
-	"blotting-consultancy/pkg/metrics"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/module"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/seo"
+	"github.com/yixian-huang/inkless/backend/pkg/audit"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
+	"github.com/yixian-huang/inkless/backend/pkg/metrics"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -140,13 +141,15 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		// Check database connection
 		if err := deps.Database.HealthCheck(ctx); err != nil {
 			c.JSON(503, gin.H{
-				"status": "unhealthy",
-				"error":  "database connection failed",
+				"service": brand.APIService,
+				"status":  "unhealthy",
+				"error":   "database connection failed",
 			})
 			return
 		}
 
 		c.JSON(200, gin.H{
+			"service":   brand.APIService,
 			"status":    "healthy",
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 			"version":   Version,

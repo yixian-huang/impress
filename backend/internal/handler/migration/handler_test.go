@@ -15,9 +15,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	migrationPkg "blotting-consultancy/internal/migration"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
+	migrationPkg "github.com/yixian-huang/inkless/backend/internal/migration"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 type handlerArticleRepoStub struct {

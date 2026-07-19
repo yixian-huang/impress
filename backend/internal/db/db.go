@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 )
 
 // DB wraps the GORM database connection

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/pkg/apierror"
-	"blotting-consultancy/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )

@@ -9,11 +9,12 @@ import {
 } from "@/api/setup";
 import { clearSetupStatusCache, useSetupStatus } from "@/hooks/useSetupStatus";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { BROWSER_STORAGE_KEYS } from "@/lib/browserStorage";
 
 type Step = "welcome" | "database" | "restart" | "site" | "admin" | "content" | "done";
 
-const STEP_STORAGE_KEY = "impress.setup.step";
-const DRAFT_STORAGE_KEY = "impress.setup.draft";
+const STEP_STORAGE_KEY = BROWSER_STORAGE_KEYS.setupStep;
+const DRAFT_STORAGE_KEY = BROWSER_STORAGE_KEYS.setupDraft;
 
 type SetupDraft = {
   nameZh?: string;
@@ -58,12 +59,12 @@ export default function SetupPage() {
     draft.runtimeEnv ?? "development",
   );
   const [dbType, setDbType] = useState<"sqlite" | "postgres">(draft.dbType ?? "sqlite");
-  const [sqlitePath, setSqlitePath] = useState(draft.sqlitePath ?? "./data/impress.db");
+  const [sqlitePath, setSqlitePath] = useState(draft.sqlitePath ?? "./data/inkless.db");
   const [pgHost, setPgHost] = useState("localhost");
   const [pgPort, setPgPort] = useState("5432");
-  const [pgUser, setPgUser] = useState("impress");
+  const [pgUser, setPgUser] = useState("inkless");
   const [pgPassword, setPgPassword] = useState("");
-  const [pgDbName, setPgDbName] = useState("impress");
+  const [pgDbName, setPgDbName] = useState("inkless");
   const [pgSslMode, setPgSslMode] = useState("disable");
 
   const [nameZh, setNameZh] = useState(draft.nameZh ?? "");
@@ -91,7 +92,7 @@ export default function SetupPage() {
         },
       };
     }
-    return { type: "sqlite", sqlitePath: sqlitePath.trim() || "./data/impress.db" };
+    return { type: "sqlite", sqlitePath: sqlitePath.trim() || "./data/inkless.db" };
   }, [dbType, sqlitePath, pgHost, pgPort, pgUser, pgPassword, pgDbName, pgSslMode]);
 
   const stepOrder = useMemo((): Step[] => {

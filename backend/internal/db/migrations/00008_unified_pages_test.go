@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/pressly/goose/v3"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose/v3"
 
-	"blotting-consultancy/internal/db/migrations"
+	"github.com/yixian-huang/inkless/backend/internal/db/migrations"
 )
 
 func TestMigrationUnifiedPages(t *testing.T) {

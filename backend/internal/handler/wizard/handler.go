@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 // Handler handles AI site building wizard HTTP requests.

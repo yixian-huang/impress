@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // mockAIProvider is a test-only AI provider that returns a configurable response.

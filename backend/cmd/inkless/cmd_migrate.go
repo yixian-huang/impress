@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"gorm.io/gorm/logger"
 
-	"blotting-consultancy/internal/db"
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // allModels returns the list of GORM models used for AutoMigrate,
@@ -40,7 +40,7 @@ func openDatabase(dsn string) (*db.DB, error) {
 		dsn = os.Getenv("DB_DSN")
 	}
 	if dsn == "" {
-		dsn = "file:./data/impress.db?cache=shared&mode=rwc"
+		dsn = "file:./data/inkless.db?cache=shared&mode=rwc"
 	}
 
 	maxOpen := 1

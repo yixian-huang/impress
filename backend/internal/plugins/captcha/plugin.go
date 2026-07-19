@@ -1,4 +1,4 @@
-// Package captcha provides a CAPTCHA verification plugin for Impress CMS.
+// Package captcha provides a CAPTCHA verification plugin for Inkless CMS.
 // It implements the provider.CaptchaProvider interface supporting reCAPTCHA v2/v3 and hCaptcha.
 package captcha
 
@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/plugin"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Manifest describes this plugin's metadata.
@@ -23,7 +24,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "验证码插件",
 	Version:       "1.0.0",
 	Description:   "Verifies reCAPTCHA v2/v3 or hCaptcha tokens for comments and contact forms.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermNetworkOutbound},
@@ -68,8 +69,8 @@ type Config struct {
 // verifyResponse is the common response format for reCAPTCHA and hCaptcha.
 type verifyResponse struct {
 	Success     bool     `json:"success"`
-	Score       float64  `json:"score"`       // reCAPTCHA v3 only
-	Action      string   `json:"action"`      // reCAPTCHA v3 only
+	Score       float64  `json:"score"`  // reCAPTCHA v3 only
+	Action      string   `json:"action"` // reCAPTCHA v3 only
 	ChallengeTS string   `json:"challenge_ts"`
 	Hostname    string   `json:"hostname"`
 	ErrorCodes  []string `json:"error-codes"`

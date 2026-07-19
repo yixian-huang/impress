@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	featurespkg "blotting-consultancy/internal/handler/features"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	featurespkg "github.com/yixian-huang/inkless/backend/internal/handler/features"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Handler aggregates multiple public endpoints into a single response

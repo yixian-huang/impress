@@ -1,8 +1,8 @@
 package model_test
 
 import (
+	"github.com/yixian-huang/inkless/backend/internal/model"
 	"testing"
-	"blotting-consultancy/internal/model"
 )
 
 func TestPageTemplate_Validate_RequiresKey(t *testing.T) {

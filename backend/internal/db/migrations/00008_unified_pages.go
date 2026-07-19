@@ -9,8 +9,8 @@ import (
 
 	"github.com/pressly/goose/v3"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 func init() {
@@ -301,15 +301,15 @@ func migrateBlockPages(ctx context.Context, tx *sql.Tx) error {
 	nextID := uint(100)
 	for rows.Next() {
 		var (
-			oldID                                       uint
-			slug                                        string
-			titleJSON, configJSON                        sql.NullString
-			status                                      string
-			sortOrder                                   int
-			parentID                                    sql.NullInt64
-			seoTitleJSON, seoDescJSON, keywordsJSON     sql.NullString
-			createdAt, updatedAt                        string
-			publishedAt                                 sql.NullString
+			oldID                                   uint
+			slug                                    string
+			titleJSON, configJSON                   sql.NullString
+			status                                  string
+			sortOrder                               int
+			parentID                                sql.NullInt64
+			seoTitleJSON, seoDescJSON, keywordsJSON sql.NullString
+			createdAt, updatedAt                    string
+			publishedAt                             sql.NullString
 		)
 
 		if err := rows.Scan(&oldID, &slug, &titleJSON, &configJSON, &status,

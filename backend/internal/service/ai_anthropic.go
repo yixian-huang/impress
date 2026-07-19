@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // AnthropicProvider implements AIProvider using the Anthropic Messages API.
@@ -76,9 +76,9 @@ type anthropicResponse struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
-	Model        string `json:"model"`
-	StopReason   string `json:"stop_reason"`
-	Usage        struct {
+	Model      string `json:"model"`
+	StopReason string `json:"stop_reason"`
+	Usage      struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`

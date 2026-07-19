@@ -1,0 +1,45 @@
+{
+  "identity": {
+    "name": {
+      "zh": "Inkless",
+      "en": "Inkless"
+    },
+    "tagline": {
+      "zh": "无墨，内容自有形态",
+      "en": "Content without constraints"
+    },
+    "localeMode": "bilingual",
+    "defaultLocale": "en"
+  },
+  "brand": {
+    "logo": {
+      "light": "/brand/inkless-wordmark.svg",
+      "dark": "/brand/inkless-wordmark.svg"
+    },
+    "favicon": "/brand/favicon.svg",
+    "ogImage": "/brand/og-default.png",
+    "primaryColor": "#111827",
+    "accentColor": "#14b8a6"
+  },
+  "author": {
+    "name": "Inkless CMS",
+    "socials": [
+      {
+        "kind": "github",
+        "url": "https://github.com/yixian-huang/inkless"
+      }
+    ]
+  },
+  "footer": {},
+  "seo": {
+    "defaultTitle": {
+      "zh": "Inkless CMS",
+      "en": "Inkless CMS"
+    },
+    "titleTemplate": "%s · Inkless",
+    "defaultDescription": {
+      "zh": "现代、可扩展的内容管理系统。",
+      "en": "A modern, extensible content management system."
+    }
+  }
+}

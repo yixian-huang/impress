@@ -1,4 +1,4 @@
-# Impress external plugin SDK
+# Inkless external plugin SDK
 
 External plugin binaries are trusted server-side code. Manifest permissions
 are capability declarations for validation and audit; they are not an OS
@@ -9,8 +9,8 @@ External Go plugins import:
 
 ```go
 import (
-    pb "blotting-consultancy/pkg/pluginproto"
-    "blotting-consultancy/pkg/pluginsdk"
+    pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+    "github.com/yixian-huang/inkless/backend/pkg/pluginsdk"
 )
 ```
 
@@ -33,7 +33,7 @@ version 1. Removing or changing an existing field/RPC, changing lifecycle
 semantics, or changing the go-plugin handshake requires a new protocol version.
 Deprecated fields remain readable for at least one protocol version.
 
-The plugin package consumed by Impress is a zip containing:
+The plugin package consumed by Inkless is a zip containing:
 
 - `plugin.yaml`
 - an executable named after the manifest `id`, or named `plugin`

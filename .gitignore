@@ -7,7 +7,7 @@ out/
 artifacts/
 *.tar.gz
 *.sha256
-blotting-api-*
+inkless-api-*
 dist/
 
 # Go

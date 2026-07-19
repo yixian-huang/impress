@@ -1,4 +1,4 @@
-// Package s3storage provides an S3-compatible storage plugin for Impress CMS.
+// Package s3storage provides an S3-compatible storage plugin for Inkless CMS.
 // It implements the provider.StorageProvider interface and supports AWS S3,
 // MinIO, and Alibaba Cloud OSS via their S3-compatible APIs.
 package s3storage
@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/plugin"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Manifest describes this plugin's metadata.
@@ -23,7 +24,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "S3 存储插件",
 	Version:       "1.0.0",
 	Description:   "Stores uploaded files in any S3-compatible service: AWS S3, MinIO, Aliyun OSS.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermNetworkOutbound, plugin.PermFileSystemRead},

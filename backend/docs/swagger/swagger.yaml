@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  blotting-consultancy_internal_model.JSONMap:
+  github_com_yixian-huang_inkless_backend_internal_model.JSONMap:
     additionalProperties: true
     type: object
   internal_handler_article.createUpdateInput:
@@ -28,7 +28,7 @@ definitions:
       enTitle:
         type: string
       metadata:
-        $ref: '#/definitions/blotting-consultancy_internal_model.JSONMap'
+        $ref: '#/definitions/github_com_yixian-huang_inkless_backend_internal_model.JSONMap'
       ogImage:
         type: string
       pinned:
@@ -278,9 +278,9 @@ definitions:
 host: localhost:8088
 info:
   contact: {}
-  description: Bilingual CMS backend API for Impress. Supports content management,
-    articles, pages, themes, media, and more.
-  title: Impress CMS API
+  description: Extensible Inkless CMS API for content, themes, media, plugins, and
+    site management.
+  title: Inkless CMS API
   version: "1.0"
 paths:
   /admin/analytics/summary:
@@ -3078,6 +3078,10 @@ paths:
                 type: array
               themeTokens:
                 type: object
+              unifiedPages:
+                items:
+                  type: object
+                type: array
             type: object
       summary: Bootstrap SPA
       tags:

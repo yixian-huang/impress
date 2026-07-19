@@ -48,9 +48,9 @@ func (r *RBACRole) Validate() error {
 
 // UserRole represents the many-to-many relationship between users and roles
 type UserRole struct {
-	UserID uint  `gorm:"primaryKey" json:"userId"`
-	RoleID uint  `gorm:"primaryKey" json:"roleId"`
-	SiteID *uint `json:"siteId,omitempty"` // NULL = global assignment (Phase 4.2)
+	UserID uint     `gorm:"primaryKey" json:"userId"`
+	RoleID uint     `gorm:"primaryKey" json:"roleId"`
+	SiteID *uint    `json:"siteId,omitempty"` // NULL = global assignment (Phase 4.2)
 	Role   RBACRole `gorm:"foreignKey:RoleID" json:"role,omitempty"`
 }
 

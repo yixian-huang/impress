@@ -19,7 +19,7 @@ func serveCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Start the Impress CMS development server",
+		Short: "Start the Inkless CMS development server",
 		Long:  "Start the backend server. Loads .env file if present. Override with flags or env vars.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load .env file if it exists
@@ -38,7 +38,7 @@ func serveCmd() *cobra.Command {
 
 			// Set sensible defaults if not configured
 			setDefault("PORT", "8088")
-			setDefault("DB_DSN", "file:./data/impress.db?cache=shared&mode=rwc")
+			setDefault("DB_DSN", "file:./data/inkless.db?cache=shared&mode=rwc")
 			setDefault("JWT_SECRET", "dev-jwt-secret-change-in-production")
 			setDefault("JWT_REFRESH_SECRET", "dev-jwt-refresh-secret-change-in-production")
 			setDefault("ENV", "development")
@@ -47,10 +47,10 @@ func serveCmd() *cobra.Command {
 			// Find the server binary
 			serverBin := findServerBinary()
 			if serverBin == "" {
-				return fmt.Errorf("server binary not found. Build it first:\n  cd backend && go build -o server ./cmd/server/")
+				return fmt.Errorf("Inkless API binary not found. Build it first:\n  make build-backend")
 			}
 
-			fmt.Printf("Starting Impress CMS on port %s...\n", os.Getenv("PORT"))
+			fmt.Printf("Starting Inkless CMS on port %s...\n", os.Getenv("PORT"))
 
 			// Run the server binary with the current environment
 			proc := exec.Command(serverBin)
@@ -116,9 +116,11 @@ func setDefault(key, value string) {
 func findServerBinary() string {
 	// Check common locations
 	candidates := []string{
-		"./server",
-		"../server",
-		filepath.Join(".", "cmd", "server", "server"),
+		"./inkless-api-latest",
+		"../inkless-api-latest",
+		"./inkless-api-dev",
+		"../inkless-api-dev",
+		filepath.Join(".", "cmd", "server", "inkless-api-dev"),
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {

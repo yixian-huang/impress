@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // Halo JSON export structures
@@ -16,26 +16,26 @@ import (
 // document containing posts, categories, tags, and other metadata.
 
 type haloExport struct {
-	Version    int            `json:"version"`
-	Posts      []haloPost     `json:"posts"`
-	Categories []haloCategory `json:"categories"`
-	Tags       []haloTag      `json:"tags"`
-	PostTags   []haloPostTag  `json:"post_tags"`
+	Version        int                `json:"version"`
+	Posts          []haloPost         `json:"posts"`
+	Categories     []haloCategory     `json:"categories"`
+	Tags           []haloTag          `json:"tags"`
+	PostTags       []haloPostTag      `json:"post_tags"`
 	PostCategories []haloPostCategory `json:"post_categories"`
 }
 
 type haloPost struct {
-	ID             int    `json:"id"`
-	Title          string `json:"title"`
-	Slug           string `json:"slug"`
+	ID              int    `json:"id"`
+	Title           string `json:"title"`
+	Slug            string `json:"slug"`
 	OriginalContent string `json:"originalContent"` // Markdown source
-	FormatContent  string `json:"formatContent"`    // rendered HTML
-	Summary        string `json:"summary"`
-	Thumbnail      string `json:"thumbnail"`
-	Status         string `json:"status"` // "PUBLISHED", "DRAFT", "RECYCLE"
-	CreateTime     int64  `json:"createTime"`     // millis
-	UpdateTime     int64  `json:"updateTime"`     // millis
-	EditTime       int64  `json:"editTime"`
+	FormatContent   string `json:"formatContent"`   // rendered HTML
+	Summary         string `json:"summary"`
+	Thumbnail       string `json:"thumbnail"`
+	Status          string `json:"status"`     // "PUBLISHED", "DRAFT", "RECYCLE"
+	CreateTime      int64  `json:"createTime"` // millis
+	UpdateTime      int64  `json:"updateTime"` // millis
+	EditTime        int64  `json:"editTime"`
 }
 
 type haloCategory struct {

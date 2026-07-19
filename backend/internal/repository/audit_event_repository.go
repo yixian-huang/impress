@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // AuditEventRepository defines the interface for audit event data access

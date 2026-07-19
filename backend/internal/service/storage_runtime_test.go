@@ -7,9 +7,12 @@ import (
 	"io"
 	"testing"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/pkg/secretcipher"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
+	"github.com/yixian-huang/inkless/backend/pkg/secretcipher"
 )
 
 type fakeStorageConfigRepo struct {
@@ -34,6 +37,8 @@ func (r *fakeStorageConfigRepo) Upsert(ctx context.Context, config *model.Storag
 
 type fakeStorageProvider struct {
 	existsErr error
+	existing  map[string]bool
+	deleted   []string
 	savedKey  string
 	savedData []byte
 }
@@ -54,11 +59,29 @@ func (p *fakeStorageProvider) Get(ctx context.Context, key string) (io.ReadClose
 	return io.NopCloser(bytes.NewReader(p.savedData)), nil
 }
 
-func (p *fakeStorageProvider) Delete(ctx context.Context, key string) error { return nil }
-func (p *fakeStorageProvider) URL(key string) string                        { return "https://cdn.test/" + key }
+func (p *fakeStorageProvider) Delete(ctx context.Context, key string) error {
+	p.deleted = append(p.deleted, key)
+	return nil
+}
+func (p *fakeStorageProvider) URL(key string) string { return "https://cdn.test/" + key }
 
 func (p *fakeStorageProvider) Exists(ctx context.Context, key string) (bool, error) {
-	return false, p.existsErr
+	return p.existing[key], p.existsErr
+}
+
+func TestRestoreStartupConfigCleansOnlyLegacyProbe(t *testing.T) {
+	repo := &fakeStorageConfigRepo{config: &model.StorageConfig{Strategy: model.StorageS3}}
+	remote := &fakeStorageProvider{existing: map[string]bool{
+		brandcompat.LegacyStorageProbeKey: true,
+		"uploads/keep.jpg":                true,
+	}}
+	runtime := NewStorageRuntimeService(repo, provider.NewRegistry(), &fakeStorageProvider{}, nil)
+	runtime.remoteProviderFactory = func(config *model.StorageConfig) (provider.StorageProvider, error) {
+		return remote, nil
+	}
+
+	require.NoError(t, runtime.RestoreStartupConfig(context.Background()))
+	assert.Equal(t, []string{brandcompat.LegacyStorageProbeKey}, remote.deleted)
 }
 
 func TestStorageRuntimeProbeFailureKeepsOldProvider(t *testing.T) {
@@ -133,6 +156,34 @@ func TestStorageRuntimeEncryptsSecretAndRestoresPlaintext(t *testing.T) {
 	if restored.ActiveProviderName() != "s3" {
 		t.Fatalf("restored active provider = %q, want s3", restored.ActiveProviderName())
 	}
+}
+
+func TestEnvSecretCipherPrefersCanonicalBrandKey(t *testing.T) {
+	t.Setenv("STORAGE_SECRET_ENCRYPTION_KEY", "")
+	t.Setenv(brandcompat.SecretKeyVariable, "canonical-secret")
+	t.Setenv(brandcompat.LegacySecretVariable, "legacy-secret")
+
+	ciphertext, err := NewEnvSecretCipher().Encrypt("payload")
+	require.NoError(t, err)
+	canonical, err := secretcipher.New("canonical-secret")
+	require.NoError(t, err)
+	plaintext, err := canonical.Decrypt(ciphertext)
+	require.NoError(t, err)
+	assert.Equal(t, "payload", plaintext)
+}
+
+func TestEnvSecretCipherReadsLegacyBrandKey(t *testing.T) {
+	t.Setenv("STORAGE_SECRET_ENCRYPTION_KEY", "")
+	t.Setenv(brandcompat.SecretKeyVariable, "")
+	t.Setenv(brandcompat.LegacySecretVariable, "legacy-secret")
+
+	ciphertext, err := NewEnvSecretCipher().Encrypt("payload")
+	require.NoError(t, err)
+	legacy, err := secretcipher.New("legacy-secret")
+	require.NoError(t, err)
+	plaintext, err := legacy.Decrypt(ciphertext)
+	require.NoError(t, err)
+	assert.Equal(t, "payload", plaintext)
 }
 
 func TestStorageRuntimePreservesExistingSecret(t *testing.T) {

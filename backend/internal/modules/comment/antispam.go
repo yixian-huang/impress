@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // AntiSpamService provides rate-limiting and keyword-based spam checks for comments.

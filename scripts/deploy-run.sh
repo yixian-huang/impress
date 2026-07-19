@@ -18,7 +18,7 @@ WORKFLOW_FILE="$SCRIPT_DIR/deploy-workflow.json"
 CONF_FILE="$ROOT_DIR/.prod_server"
 
 # ── pCloud config ────────────────────────────────────
-PCLOUD_REMOTE="pcloud:/deploy/impress"
+PCLOUD_REMOTE="pcloud:/deploy/inkless"
 PCLOUD_API="https://eapi.pcloud.com"
 PCLOUD_USER="pcloudd@hotmail.com"
 PCLOUD_PASS="Gx62qo6mvvu@Pcloud"
@@ -73,7 +73,7 @@ pcloud_upload() {
 pcloud_get_link() {
   local filepath="$1"
   local resp
-  resp=$(curl -sf "${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/impress/${filepath}")
+  resp=$(curl -sf "${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/inkless/${filepath}")
   local url
   url=$(echo "$resp" | python3 -c "
 import sys, json
@@ -172,7 +172,7 @@ job_deploy_backend() {
 
   step_info "生产服务器从 pCloud 下载二进制..."
   remote_exec "
-    RESP=\$(curl -sk '${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/impress/server')
+    RESP=\$(curl -sk '${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/inkless/server')
     URL=\$(echo \"\$RESP\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print('https://'+d['hosts'][0]+d['path'])\")
     curl -sk -o $REMOTE_BASE/backend/server.new \"\$URL\"
   "
@@ -185,7 +185,7 @@ job_deploy_backend() {
   step_ok "下载完成 ($(numfmt --to=iec "$remote_size" 2>/dev/null || echo "${remote_size}B"))"
 
   step_info "替换二进制并重启服务..."
-  remote_exec "cd $REMOTE_BASE/backend && mv server.new server && chmod +x server && systemctl restart impress-backend"
+  remote_exec "cd $REMOTE_BASE/backend && mv server.new server && chmod +x server && systemctl restart inkless-backend"
   sleep 3
   step_ok "服务已重启"
 
@@ -198,7 +198,7 @@ job_deploy_backend() {
     fi
     [ "$i" -lt "$retries" ] && sleep 2
   done
-  step_fail "健康检查失败（请检查 systemctl status impress-backend）"
+  step_fail "健康检查失败（请检查 systemctl status inkless-backend）"
   exit 1
 }
 
@@ -220,7 +220,7 @@ job_deploy_frontend() {
 
   step_info "生产服务器从 pCloud 下载前端包..."
   remote_exec "
-    RESP=\$(curl -sk '${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/impress/frontend-out.tar.gz')
+    RESP=\$(curl -sk '${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/inkless/frontend-out.tar.gz')
     URL=\$(echo \"\$RESP\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print('https://'+d['hosts'][0]+d['path'])\")
     curl -sk -o $REMOTE_BASE/frontend-out.tar.gz \"\$URL\"
   "
@@ -235,7 +235,7 @@ job_deploy_frontend() {
   step_ok "Nginx 已重载"
 
   step_info "重启后端（刷新 index.html 模板缓存）..."
-  remote_exec "systemctl restart impress-backend" 2>/dev/null
+  remote_exec "systemctl restart inkless-backend" 2>/dev/null
   sleep 3
   if remote_exec "curl -sf http://127.0.0.1:8088/public/pages > /dev/null" 2>/dev/null; then
     step_ok "后端已重启"
@@ -253,7 +253,7 @@ main() {
   parse_server_conf
 
   echo -e "${CYAN}══════════════════════════════════════════${NC}"
-  echo -e "${CYAN}  印迹官网 · 生产部署${NC}"
+  echo -e "${CYAN}  Inkless CMS · 生产部署${NC}"
   echo -e "${CYAN}══════════════════════════════════════════${NC}"
   echo -e "  工作流: ${YELLOW}${workflow}${NC}"
   echo -e "  目标:   ${SERVER_USER}@${SERVER_IP} → ${REMOTE_BASE}"

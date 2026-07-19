@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 type Handler struct {

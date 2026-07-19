@@ -3,7 +3,7 @@ package audit
 import (
 	"time"
 
-	"blotting-consultancy/pkg/logger"
+	"github.com/yixian-huang/inkless/backend/pkg/logger"
 )
 
 // Event represents a structured audit event
@@ -108,9 +108,9 @@ func (a *Logger) LogValidation(pageKey string, actor string, valid bool, errorCo
 		Resource: pageKey,
 		Result:   result,
 		Details: map[string]interface{}{
-			"valid":                     valid,
-			"error_count":               errorCount,
-			"translation_issue_count":   translationIssueCount,
+			"valid":                   valid,
+			"error_count":             errorCount,
+			"translation_issue_count": translationIssueCount,
 		},
 	})
 }

@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/pkg/config"
-	install "blotting-consultancy/internal/setup"
+	install "github.com/yixian-huang/inkless/backend/internal/setup"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 )
 
 // Handler serves first-run web setup endpoints.

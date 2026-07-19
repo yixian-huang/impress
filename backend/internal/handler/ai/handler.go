@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 // Handler handles AI-related HTTP requests.

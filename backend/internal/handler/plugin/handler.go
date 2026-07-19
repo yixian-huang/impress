@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
-	pluginruntime "blotting-consultancy/internal/plugin"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	pluginruntime "github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 const maxUploadSize = int64(101 << 20)
@@ -57,7 +57,7 @@ func (h *Handler) Install(c *gin.Context) {
 	}
 	defer source.Close()
 
-	tempFile, err := os.CreateTemp("", "impress-plugin-*.zip")
+	tempFile, err := os.CreateTemp("", "inkless-plugin-*.zip")
 	if err != nil {
 		writeError(c, http.StatusInternalServerError, "failed to stage plugin package")
 		return
@@ -166,7 +166,7 @@ func (h *Handler) TestNotification(c *gin.Context) {
 		event.Type = "plugin.test"
 	}
 	if event.Subject == "" {
-		event.Subject = "Impress plugin test"
+		event.Subject = "Inkless plugin test"
 	}
 	if event.Body == "" {
 		event.Body = "The active notifier provider handled this test event."

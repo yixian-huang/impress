@@ -9,8 +9,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 func newScheduledJobRepository(t *testing.T) (repository.ScheduledPublishJobRepository, *gorm.DB) {

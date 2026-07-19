@@ -1,4 +1,4 @@
-name: blotting-sqlite
+name: inkless-sqlite
 
 services:
   # Backend API service (SQLite for lightweight/local deployments)
@@ -6,24 +6,24 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: blotting-backend-sqlite
+    container_name: inkless-backend-sqlite
     environment:
       PORT: 8088
-      DB_DSN: "file:/app/data/blotting.db?cache=shared&mode=rwc"
+      DB_DSN: "file:/app/data/inkless.db?cache=shared&mode=rwc"
       JWT_SECRET: "dev_jwt_secret_change_in_production"
       JWT_REFRESH_SECRET: "dev_jwt_refresh_secret_change_in_production"
       ENV: "development"
     ports:
       - "8088:8088"
     volumes:
-      - sqlite_data:/app/data
+      - inkless-sqlite-data:/app/data
       - ./backend/cmd:/app/cmd
       - ./backend/internal:/app/internal
       - ./backend/pkg:/app/pkg
       - ./backend/go.mod:/app/go.mod
       - ./backend/go.sum:/app/go.sum
     networks:
-      - blotting-network
+      - inkless-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8088/health"]
@@ -37,7 +37,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: development
-    container_name: blotting-frontend-sqlite
+    container_name: inkless-frontend-sqlite
     environment:
       VITE_API_BASE_URL: "http://localhost:8088"
     ports:
@@ -56,14 +56,14 @@ services:
       - ./frontend/postcss.config.ts:/app/frontend/postcss.config.ts
       - /app/frontend/node_modules
     networks:
-      - blotting-network
+      - inkless-network
     restart: unless-stopped
     command: pnpm dev --host 0.0.0.0
 
 volumes:
-  sqlite_data:
+  inkless-sqlite-data:
     driver: local
 
 networks:
-  blotting-network:
+  inkless-network:
     driver: bridge

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func validBase() model.JSONMap {

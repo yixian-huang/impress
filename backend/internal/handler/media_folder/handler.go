@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Handler handles media folder HTTP requests
@@ -214,11 +214,11 @@ func (h *Handler) MoveMedia(c *gin.Context) {
 
 // folderNode is used to build the folder tree response
 type folderNode struct {
-	ID        uint          `json:"id"`
-	Name      string        `json:"name"`
-	ParentID  *uint         `json:"parentId,omitempty"`
-	Path      string        `json:"path"`
-	Children  []*folderNode `json:"children"`
+	ID       uint          `json:"id"`
+	Name     string        `json:"name"`
+	ParentID *uint         `json:"parentId,omitempty"`
+	Path     string        `json:"path"`
+	Children []*folderNode `json:"children"`
 }
 
 // buildTree constructs a tree structure from a flat list of folders

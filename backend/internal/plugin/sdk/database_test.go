@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,12 +38,12 @@ func TestPrefixedTable(t *testing.T) {
 }
 
 func TestPluginDB_Table(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"abc-plugin", plugin.PermDatabaseRead)
+	pdb, _ := newTestPluginDB(t, "abc-plugin", plugin.PermDatabaseRead)
 	assert.Equal(t, "plg_abc-plugin_notes", pdb.Table("notes"))
 }
 
 func TestPluginDB_AutoMigrate_Denied(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"test-plugin", plugin.PermDatabaseRead) // no write
+	pdb, _ := newTestPluginDB(t, "test-plugin", plugin.PermDatabaseRead) // no write
 	type Row struct {
 		ID   uint   `gorm:"primaryKey"`
 		Name string `gorm:"size:100"`
@@ -53,7 +53,7 @@ func TestPluginDB_AutoMigrate_Denied(t *testing.T) {
 }
 
 func TestPluginDB_CRUD(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"test-plugin", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
+	pdb, _ := newTestPluginDB(t, "test-plugin", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
 
 	type Row struct {
 		ID    uint   `gorm:"primaryKey;autoIncrement"`
@@ -102,14 +102,14 @@ func TestPluginDB_CRUD(t *testing.T) {
 }
 
 func TestPluginDB_Find_NoPerm(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"test-plugin") // no perms
+	pdb, _ := newTestPluginDB(t, "test-plugin") // no perms
 	var rows []map[string]any
 	err := pdb.Find("rows", &rows)
 	assert.Error(t, err)
 }
 
 func TestPluginDB_ListTables(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"myplugin", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
+	pdb, _ := newTestPluginDB(t, "myplugin", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
 
 	type Row struct {
 		ID uint `gorm:"primaryKey;autoIncrement"`
@@ -125,7 +125,7 @@ func TestPluginDB_ListTables(t *testing.T) {
 }
 
 func TestPluginDB_DropTable(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"drop-test", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
+	pdb, _ := newTestPluginDB(t, "drop-test", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
 
 	type Row struct {
 		ID uint `gorm:"primaryKey;autoIncrement"`
@@ -142,7 +142,7 @@ func TestPluginDB_DropTable(t *testing.T) {
 }
 
 func TestPluginDB_Save(t *testing.T) {
-	pdb, _ := newTestPluginDB(t,"save-test", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
+	pdb, _ := newTestPluginDB(t, "save-test", plugin.PermDatabaseRead, plugin.PermDatabaseWrite)
 
 	type Row struct {
 		ID    uint   `gorm:"primaryKey;autoIncrement"`

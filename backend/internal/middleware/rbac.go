@@ -5,10 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/apierror"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 )
 
 // loadUserWithCache loads a user with roles/permissions, using a short-lived cache

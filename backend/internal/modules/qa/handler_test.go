@@ -3,7 +3,7 @@ package qa
 import (
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"github.com/stretchr/testify/assert"
 )

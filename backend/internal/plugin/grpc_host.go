@@ -5,15 +5,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
 
 	goplugin "github.com/hashicorp/go-plugin"
 
-	"blotting-consultancy/internal/provider"
-	pb "blotting-consultancy/pkg/pluginproto"
-	"blotting-consultancy/pkg/pluginsdk"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/pkg/pluginsdk"
 )
 
 // GRPCHost manages a single plugin process via hashicorp/go-plugin.
@@ -49,20 +52,17 @@ func (h *GRPCHost) Start(settings map[string]string, dataDir string) error {
 	if h.client != nil {
 		return fmt.Errorf("plugin %s is already running", h.meta.ID)
 	}
+	handshake := pluginsdk.Handshake
+	if usesLegacy, err := binaryUsesLegacyPluginHandshake(h.binaryPath); err != nil {
+		log.Printf("plugin %s handshake marker preflight failed, using Inkless handshake: %v", h.meta.ID, err)
+	} else if usesLegacy {
+		handshake = brandcompat.LegacyPluginHandshake
+		log.Printf("plugin %s uses legacy plugin handshake marker (compatibility path)", h.meta.ID)
+	}
 
-	client := goplugin.NewClient(&goplugin.ClientConfig{
-		HandshakeConfig: pluginsdk.Handshake,
-		Plugins: map[string]goplugin.Plugin{
-			pluginsdk.ProviderPluginName: &pluginsdk.GRPCProviderPlugin{},
-		},
-		Cmd:              exec.Command(h.binaryPath),
-		AllowedProtocols: []goplugin.Protocol{goplugin.ProtocolGRPC},
-		StartTimeout:     pluginStartTimeout,
-	})
-
-	rpcClient, err := client.Client()
+	client, rpcClient, err := h.startClientWithHandshake(handshake)
 	if err != nil {
-		client.Kill()
+		killPluginClient(client)
 		return fmt.Errorf("failed to create plugin client for %s: %w", h.meta.ID, err)
 	}
 
@@ -99,6 +99,44 @@ func (h *GRPCHost) Start(settings map[string]string, dataDir string) error {
 	h.rpcClient = svc
 	h.stopping = false
 	return nil
+}
+
+func (h *GRPCHost) startClientWithHandshake(handshake goplugin.HandshakeConfig) (*goplugin.Client, goplugin.ClientProtocol, error) {
+	client := goplugin.NewClient(&goplugin.ClientConfig{
+		HandshakeConfig: handshake,
+		Plugins: map[string]goplugin.Plugin{
+			pluginsdk.ProviderPluginName: &pluginsdk.GRPCProviderPlugin{},
+		},
+		Cmd:              exec.Command(h.binaryPath),
+		AllowedProtocols: []goplugin.Protocol{goplugin.ProtocolGRPC},
+		StartTimeout:     pluginStartTimeout,
+	})
+
+	rpcClient, err := client.Client()
+	if err != nil {
+		client.Kill()
+		return nil, nil, err
+	}
+
+	return client, rpcClient, nil
+}
+
+func killPluginClient(client *goplugin.Client) {
+	if client != nil {
+		client.Kill()
+	}
+}
+
+func binaryUsesLegacyPluginHandshake(binaryPath string) (bool, error) {
+	data, err := os.ReadFile(binaryPath)
+	if err != nil {
+		return false, err
+	}
+	hasCanonical := bytes.Contains(data, []byte(pluginsdk.Handshake.MagicCookieKey)) &&
+		bytes.Contains(data, []byte(pluginsdk.Handshake.MagicCookieValue))
+	hasLegacy := bytes.Contains(data, []byte(brandcompat.LegacyPluginHandshake.MagicCookieKey)) &&
+		bytes.Contains(data, []byte(brandcompat.LegacyPluginHandshake.MagicCookieValue))
+	return hasLegacy && !hasCanonical, nil
 }
 
 // Stop gracefully shuts down the plugin process.

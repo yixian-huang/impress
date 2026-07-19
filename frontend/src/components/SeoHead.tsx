@@ -9,6 +9,7 @@ export interface SeoHeadProps {
   ogType?: string;
   canonicalUrl?: string;
   locale?: string;
+  favicon?: string;
 }
 
 function setMetaTag(attr: string, key: string, content: string): HTMLMetaElement {
@@ -31,6 +32,7 @@ export default function SeoHead({
   ogType,
   canonicalUrl,
   locale,
+  favicon,
 }: SeoHeadProps) {
   const originalTitleRef = useRef<string>(document.title);
   const addedElementsRef = useRef<HTMLElement[]>([]);
@@ -57,6 +59,7 @@ export default function SeoHead({
 
     if (ogImage) {
       added.push(setMetaTag("property", "og:image", ogImage));
+      added.push(setMetaTag("name", "twitter:image", ogImage));
     }
 
     if (ogType) {
@@ -65,6 +68,25 @@ export default function SeoHead({
 
     if (locale) {
       added.push(setMetaTag("property", "og:locale", locale));
+    }
+
+    if (title || ogTitle) {
+      added.push(setMetaTag("name", "twitter:title", ogTitle || title || ""));
+    }
+
+    if (description || ogDescription) {
+      added.push(setMetaTag("name", "twitter:description", ogDescription || description || ""));
+    }
+
+    if (favicon) {
+      let icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (!icon) {
+        icon = document.createElement("link");
+        icon.setAttribute("rel", "icon");
+        document.head.appendChild(icon);
+      }
+      icon.setAttribute("href", favicon);
+      icon.setAttribute("type", favicon.endsWith(".svg") ? "image/svg+xml" : "image/png");
     }
 
     if (canonicalUrl) {
@@ -86,7 +108,7 @@ export default function SeoHead({
         el.remove();
       }
     };
-  }, [title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, locale]);
+  }, [title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, locale, favicon]);
 
   return null;
 }

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // vectorEntry stores a single vector with its metadata.

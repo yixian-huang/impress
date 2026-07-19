@@ -21,6 +21,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check legacy brand residue
+        run: bash scripts/check-brand-residue.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -170,22 +173,22 @@ jobs:
         run: pnpm -C frontend build
 
       - name: Build backend
-        run: cd backend && go build -v -o ../server ./cmd/server
+        run: cd backend && go build -v -o ../inkless-api-ci ./cmd/server
 
       - name: Verify backend binary
         run: |
-          if [ ! -f ./server ]; then
+          if [ ! -f ./inkless-api-ci ]; then
             echo "Backend binary not found"
             exit 1
           fi
           echo "Backend binary built successfully"
 
       - name: Build CLI
-        run: cd backend && go build -v -o ../impress ./cmd/impress
+        run: cd backend && go build -v -o ../inkless ./cmd/inkless
 
       - name: Verify CLI binary
         run: |
-          ./impress --help
+          ./inkless --help
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -193,7 +196,8 @@ jobs:
           name: build-artifacts
           path: |
             frontend/out
-            server
+            inkless-api-ci
+            inkless
           retention-days: 7
 
   quality-gate-summary:

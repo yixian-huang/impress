@@ -1816,7 +1816,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\x06Notify\x12\x15.plugin.NotifyRequest\x1a\x16.plugin.NotifyResponse\x12L\n" +
 	"\rCaptchaVerify\x12\x1c.plugin.CaptchaVerifyRequest\x1a\x1d.plugin.CaptchaVerifyResponse\x127\n" +
 	"\n" +
-	"HandleHTTP\x12\x13.plugin.HTTPRequest\x1a\x14.plugin.HTTPResponseB&Z$blotting-consultancy/pkg/pluginprotob\x06proto3"
+	"HandleHTTP\x12\x13.plugin.HTTPRequest\x1a\x14.plugin.HTTPResponseB9Z7github.com/yixian-huang/inkless/backend/pkg/pluginprotob\x06proto3"
 
 var (
 	file_plugin_proto_rawDescOnce sync.Once

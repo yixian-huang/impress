@@ -1,4 +1,4 @@
-// Package webhook provides a Webhook plugin for Impress CMS.
+// Package webhook provides a Webhook plugin for Inkless CMS.
 // It subscribes to EventBus events and pushes notifications to user-configured HTTP endpoints.
 // Useful for integrating with Slack, Discord, CI/CD pipelines, or custom automation.
 package webhook
@@ -16,8 +16,17 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/eventbus"
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
+)
+
+const (
+	userAgent       = "Inkless-CMS-Webhook/1.0"
+	headerEvent     = "X-Inkless-Event"
+	headerTimestamp = "X-Inkless-Timestamp"
+	headerSignature = "X-Inkless-Signature"
 )
 
 // Manifest describes this plugin's metadata.
@@ -27,7 +36,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "Webhook 推送插件",
 	Version:       "1.0.0",
 	Description:   "Subscribes to CMS events and POSTs JSON payloads to configured webhook URLs.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermEventSubscribe, plugin.PermNetworkOutbound},
@@ -39,7 +48,7 @@ type WebhookTarget struct {
 	URL string
 
 	// Secret is an optional HMAC-SHA256 signing secret.
-	// When set, the plugin adds an "X-Impress-Signature" header to requests.
+	// When set, the plugin adds an Inkless HMAC signature header to requests.
 	Secret string
 
 	// Events is the list of event types to subscribe to (e.g. "content.published").
@@ -230,13 +239,13 @@ func (p *Plugin) deliver(target WebhookTarget, payload WebhookPayload) error {
 		return fmt.Errorf("webhook: failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Impress-CMS-Webhook/1.0")
-	req.Header.Set("X-Impress-Event", payload.Event)
-	req.Header.Set("X-Impress-Timestamp", payload.Timestamp.Format(time.RFC3339))
+	req.Header.Set("User-Agent", userAgent)
+	setTransitionHeader(req.Header, headerEvent, brandcompat.LegacyWebhookEvent, payload.Event)
+	setTransitionHeader(req.Header, headerTimestamp, brandcompat.LegacyWebhookTime, payload.Timestamp.Format(time.RFC3339))
 
 	if target.Secret != "" {
 		sig := computeHMAC(data, target.Secret)
-		req.Header.Set("X-Impress-Signature", "sha256="+sig)
+		setTransitionHeader(req.Header, headerSignature, brandcompat.LegacyWebhookSig, "sha256="+sig)
 	}
 
 	resp, err := p.httpClient.Do(req)
@@ -250,6 +259,11 @@ func (p *Plugin) deliver(target WebhookTarget, payload WebhookPayload) error {
 		return fmt.Errorf("webhook: target %s returned HTTP %d", target.URL, resp.StatusCode)
 	}
 	return nil
+}
+
+func setTransitionHeader(header http.Header, canonical, legacy, value string) {
+	header.Set(canonical, value)
+	header.Set(legacy, value)
 }
 
 // computeHMAC computes HMAC-SHA256 of data using secret, returning hex string.

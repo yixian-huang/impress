@@ -9,7 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // SearchService implements provider.SearchProvider using SQLite FTS5

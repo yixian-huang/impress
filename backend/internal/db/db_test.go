@@ -17,7 +17,7 @@ func TestIsPostgresDSN(t *testing.T) {
 	assert.True(t, IsPostgresDSN("postgres://user:pass@localhost:5432/dbname?sslmode=disable"))
 	assert.True(t, IsPostgresDSN("host=localhost user=app password=secret dbname=appdb port=5432 sslmode=disable"))
 	assert.False(t, IsPostgresDSN(":memory:"))
-	assert.False(t, IsPostgresDSN("file:./data/impress.db?cache=shared&mode=rwc"))
+	assert.False(t, IsPostgresDSN("file:./data/inkless.db?cache=shared&mode=rwc"))
 }
 
 func TestInit_SQLite(t *testing.T) {

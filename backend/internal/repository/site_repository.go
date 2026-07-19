@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // SiteRepository defines the interface for site data access

@@ -16,10 +16,10 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 type handlerHarness struct {

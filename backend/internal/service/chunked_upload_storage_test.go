@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 type fakeChunkedUploadRepo struct {

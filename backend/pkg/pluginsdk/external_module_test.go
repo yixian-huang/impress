@@ -17,13 +17,13 @@ func TestSDKBuildsFromIndependentModule(t *testing.T) {
 
 	moduleRoot := repositoryModuleRoot(t)
 	externalDir := t.TempDir()
-	goMod := "module external-plugin\n\ngo 1.25.0\n\nrequire blotting-consultancy v0.0.0\n\nreplace blotting-consultancy => " + moduleRoot + "\n"
+	goMod := "module external-plugin\n\ngo 1.25.0\n\nrequire github.com/yixian-huang/inkless/backend v0.0.0\n\nreplace github.com/yixian-huang/inkless/backend => " + moduleRoot + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(externalDir, "go.mod"), []byte(goMod), 0o640))
 	require.NoError(t, os.WriteFile(filepath.Join(externalDir, "main.go"), []byte(`package main
 
 import (
-	pb "blotting-consultancy/pkg/pluginproto"
-	"blotting-consultancy/pkg/pluginsdk"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/pkg/pluginsdk"
 )
 
 type server struct {

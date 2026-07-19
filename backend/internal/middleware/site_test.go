@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // mockSiteRepository is a test double for repository.SiteRepository
@@ -41,8 +41,8 @@ func (m *mockSiteRepository) FindBySubPath(_ context.Context, subPath string) (*
 	}
 	return nil, errors.New("site not found")
 }
-func (m *mockSiteRepository) Update(_ context.Context, _ *model.Site) error  { return nil }
-func (m *mockSiteRepository) Delete(_ context.Context, _ uint) error          { return nil }
+func (m *mockSiteRepository) Update(_ context.Context, _ *model.Site) error { return nil }
+func (m *mockSiteRepository) Delete(_ context.Context, _ uint) error        { return nil }
 func (m *mockSiteRepository) List(_ context.Context, _ string) ([]*model.Site, error) {
 	return nil, nil
 }

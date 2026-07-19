@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/pkg/auth"
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

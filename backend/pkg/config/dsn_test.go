@@ -10,23 +10,29 @@ import (
 func TestBuildDSN_SQLiteDefault(t *testing.T) {
 	dsn, err := BuildDSN(DatabaseInput{Type: "sqlite"})
 	require.NoError(t, err)
-	assert.Contains(t, dsn, "file:./data/impress.db")
+	assert.Contains(t, dsn, "file:./data/inkless.db")
 }
 
 func TestBuildDSN_Postgres(t *testing.T) {
 	dsn, err := BuildDSN(DatabaseInput{
 		Type: "postgres",
 		Postgres: &PostgresInput{
-			Host:   "localhost",
-			Port:   5432,
-			User:   "impress",
+			Host:     "localhost",
+			Port:     5432,
+			User:     "inkless",
 			Password: "secret",
-			DBName: "impress",
+			DBName:   "inkless",
 		},
 	})
 	require.NoError(t, err)
 	assert.Contains(t, dsn, "postgres://")
-	assert.Contains(t, dsn, "impress")
+	assert.Contains(t, dsn, "inkless")
+}
+
+func TestBuildDSN_LegacySQLitePathRemainsExplicitlyUsable(t *testing.T) {
+	dsn, err := BuildDSN(DatabaseInput{Type: "sqlite", SQLitePath: "./data/impress.db"})
+	require.NoError(t, err)
+	assert.Equal(t, "file:./data/impress.db?cache=shared&mode=rwc", dsn)
 }
 
 func TestBuildDSN_PostgresMissingFields(t *testing.T) {

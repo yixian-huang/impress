@@ -1,6 +1,6 @@
 syntax = "proto3";
 package plugin;
-option go_package = "blotting-consultancy/pkg/pluginproto";
+option go_package = "github.com/yixian-huang/inkless/backend/pkg/pluginproto";
 
 // ProviderService is the main plugin service interface.
 // Each plugin process serves this via go-plugin.

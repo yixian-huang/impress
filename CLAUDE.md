@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-印迹官网 (Blotting Consultancy) is a bilingual (`zh`/`en`) React SPA with a Go/Gin/GORM CMS backend.
+Inkless CMS is a bilingual (`zh`/`en`) React SPA with a Go/Gin/GORM CMS backend.
 - **frontend/** — Vite + React SPA (pnpm workspace member)
 - **backend/** — Go/Gin REST API with GORM ORM
 - **docs/** — Architecture and API specs

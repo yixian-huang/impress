@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"blotting-consultancy/internal/eventbus"
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

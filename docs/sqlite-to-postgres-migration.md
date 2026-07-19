@@ -48,8 +48,8 @@ This playbook documents the migration strategy from SQLite (development) to Post
 #### SQLite DSN Examples
 ```bash
 # File-based database
-DB_DSN="data/blotting.db"
-DB_DSN="file:./data/blotting.db?cache=shared&mode=rwc"
+DB_DSN="data/inkless.db"
+DB_DSN="file:./data/inkless.db?cache=shared&mode=rwc"
 
 # In-memory database (testing)
 DB_DSN=":memory:"
@@ -58,13 +58,13 @@ DB_DSN=":memory:"
 #### PostgreSQL DSN Examples
 ```bash
 # Standard format (used in docker-compose)
-DB_DSN="host=db user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+DB_DSN="host=db user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 
 # Connection string format
-DB_DSN="postgres://blotting_user:blotting_dev_password@db:5432/blotting_cms?sslmode=disable&TimeZone=Asia/Shanghai"
+DB_DSN="postgres://inkless:inkless_dev_password@db:5432/inkless?sslmode=disable&TimeZone=Asia/Shanghai"
 
 # Production with SSL
-DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbname=blotting_cms port=5432 sslmode=require TimeZone=UTC"
+DB_DSN="host=prod-db.example.com user=inkless password=SECURE_PASSWORD dbname=inkless port=5432 sslmode=require TimeZone=UTC"
 ```
 
 **Implementation**: The `internal/db/db.go` Init function auto-detects database type from DSN prefix (`postgres` vs file path).
@@ -93,7 +93,7 @@ DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbn
 
 ```bash
 # Check SQLite database schema
-sqlite3 data/blotting.db ".schema"
+sqlite3 data/inkless.db ".schema"
 
 # Expected tables:
 # - users
@@ -107,10 +107,10 @@ sqlite3 data/blotting.db ".schema"
 
 ```bash
 # Dump data to SQL file
-sqlite3 data/blotting.db ".dump" > sqlite_dump.sql
+sqlite3 data/inkless.db ".dump" > sqlite_dump.sql
 
 # Count records per table
-sqlite3 data/blotting.db <<EOF
+sqlite3 data/inkless.db <<EOF
 SELECT 'users', COUNT(*) FROM users
 UNION ALL
 SELECT 'refresh_tokens', COUNT(*) FROM refresh_tokens
@@ -127,8 +127,8 @@ EOF
 # Create timestamped backup
 BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
-cp data/blotting.db "$BACKUP_DIR/blotting.db.backup"
-sqlite3 data/blotting.db ".dump" > "$BACKUP_DIR/blotting_dump.sql"
+cp data/inkless.db "$BACKUP_DIR/inkless.db.backup"
+sqlite3 data/inkless.db ".dump" > "$BACKUP_DIR/inkless_dump.sql"
 echo "Backup saved to $BACKUP_DIR"
 ```
 
@@ -143,18 +143,18 @@ docker compose up -d db
 
 # Verify database is ready
 docker compose logs db
-docker compose exec db pg_isready -U blotting_user -d blotting_cms
+docker compose exec db pg_isready -U inkless -d inkless
 ```
 
 **Option B: Standalone Docker**
 ```bash
 docker run -d \
-  --name blotting-postgres \
-  -e POSTGRES_DB=blotting_cms \
-  -e POSTGRES_USER=blotting_user \
-  -e POSTGRES_PASSWORD=blotting_dev_password \
+  --name inkless-postgres \
+  -e POSTGRES_DB=inkless \
+  -e POSTGRES_USER=inkless \
+  -e POSTGRES_PASSWORD=inkless_dev_password \
   -p 5432:5432 \
-  -v blotting_postgres_data:/var/lib/postgresql/data \
+  -v inkless_postgres_data:/var/lib/postgresql/data \
   postgres:15-alpine
 ```
 
@@ -171,7 +171,7 @@ The backend application automatically creates schema on first connection via GOR
 
 ```bash
 # Set PostgreSQL DSN
-export DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+export DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 export JWT_SECRET="dev_jwt_secret_change_in_production"
 export JWT_REFRESH_SECRET="dev_jwt_refresh_secret_change_in_production"
 export ENV="development"
@@ -187,7 +187,7 @@ Verify schema creation:
 
 ```bash
 # Connect to PostgreSQL
-docker compose exec db psql -U blotting_user -d blotting_cms
+docker compose exec db psql -U inkless -d inkless
 
 # List tables
 \dt
@@ -256,16 +256,16 @@ import (
   "os"
   "time"
 
-  "blotting-cms/internal/db"
-  "blotting-cms/internal/model"
-  "blotting-cms/internal/repository"
+  "inkless-cms/internal/db"
+  "inkless-cms/internal/model"
+  "inkless-cms/internal/repository"
 )
 
 func main() {
   // Source: SQLite
   srcDSN := os.Getenv("SOURCE_DB_DSN")
   if srcDSN == "" {
-    srcDSN = "data/blotting.db"
+    srcDSN = "data/inkless.db"
   }
 
   // Target: PostgreSQL
@@ -358,8 +358,8 @@ func main() {
 
 ```bash
 # Set environment variables
-export SOURCE_DB_DSN="data/blotting.db"
-export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+export SOURCE_DB_DSN="data/inkless.db"
+export TARGET_DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable"
 
 # Run migration script
 go run scripts/migrate-sqlite-to-postgres.go
@@ -388,7 +388,7 @@ go run scripts/migrate-sqlite-to-postgres.go
 
 ```bash
 # PostgreSQL record counts
-docker compose exec db psql -U blotting_user -d blotting_cms -c "
+docker compose exec db psql -U inkless -d inkless -c "
 SELECT 'users' AS table_name, COUNT(*) AS count FROM users
 UNION ALL
 SELECT 'content_documents', COUNT(*) FROM content_documents
@@ -403,7 +403,7 @@ SELECT 'content_versions', COUNT(*) FROM content_versions;
 
 ```bash
 # Verify JSONB data is queryable
-docker compose exec db psql -U blotting_user -d blotting_cms -c "
+docker compose exec db psql -U inkless -d inkless -c "
 SELECT
   page_key,
   draft_version,
@@ -501,13 +501,13 @@ Update `.env` or environment configuration:
 
 ```bash
 # Old (SQLite)
-DB_DSN="data/blotting.db"
+DB_DSN="data/inkless.db"
 
 # New (PostgreSQL - Docker Compose)
-DB_DSN="host=db user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+DB_DSN="host=db user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 
 # New (PostgreSQL - Production)
-DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbname=blotting_cms port=5432 sslmode=require TimeZone=UTC"
+DB_DSN="host=prod-db.example.com user=inkless password=SECURE_PASSWORD dbname=inkless port=5432 sslmode=require TimeZone=UTC"
 ```
 
 #### 5.2 Restart Backend Service
@@ -523,11 +523,11 @@ curl http://localhost:8088/health
 **Standalone**
 ```bash
 # Stop old process
-pkill -f blotting-api
+pkill -f inkless-api
 
 # Start with new DSN
-export DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
-./blotting-api-linux-amd64
+export DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable"
+./inkless-api-linux-amd64
 ```
 
 #### 5.3 Monitor Logs
@@ -552,12 +552,12 @@ If PostgreSQL migration encounters critical issues:
 
 ```bash
 # Update environment to use SQLite DSN
-export DB_DSN="data/blotting.db"
+export DB_DSN="data/inkless.db"
 
 # Restart backend
 docker compose restart backend
 # OR
-pkill -f blotting-api && ./blotting-api-linux-amd64
+pkill -f inkless-api && ./inkless-api-linux-amd64
 ```
 
 #### 2. Restore SQLite Data (if corrupted)
@@ -565,10 +565,10 @@ pkill -f blotting-api && ./blotting-api-linux-amd64
 ```bash
 # Restore from backup
 BACKUP_DIR="backups/YYYYMMDD_HHMMSS"  # Use appropriate timestamp
-cp "$BACKUP_DIR/blotting.db.backup" data/blotting.db
+cp "$BACKUP_DIR/inkless.db.backup" data/inkless.db
 
 # Verify restore
-sqlite3 data/blotting.db "SELECT COUNT(*) FROM users;"
+sqlite3 data/inkless.db "SELECT COUNT(*) FROM users;"
 ```
 
 #### 3. Verify Service Recovery
@@ -591,7 +591,7 @@ If data in PostgreSQL is corrupted but PostgreSQL itself is viable:
 
 ```bash
 # Connect to PostgreSQL
-docker compose exec db psql -U blotting_user -d blotting_cms
+docker compose exec db psql -U inkless -d inkless
 
 # Drop all tables
 DROP TABLE IF EXISTS content_versions CASCADE;
@@ -607,11 +607,11 @@ DROP TABLE IF EXISTS migration_history CASCADE;
 
 ```bash
 # Ensure SQLite backup is intact
-ls -lh backups/YYYYMMDD_HHMMSS/blotting.db.backup
+ls -lh backups/YYYYMMDD_HHMMSS/inkless.db.backup
 
 # Use backup as source
-export SOURCE_DB_DSN="file:backups/YYYYMMDD_HHMMSS/blotting.db.backup?mode=ro"
-export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+export SOURCE_DB_DSN="file:backups/YYYYMMDD_HHMMSS/inkless.db.backup?mode=ro"
+export TARGET_DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable"
 
 # Re-run migration
 go run scripts/migrate-sqlite-to-postgres.go
@@ -649,7 +649,7 @@ Before migrating production data:
 **Solutions**:
 1. Verify PostgreSQL is running: `docker compose ps db`
 2. Check PostgreSQL logs: `docker compose logs db`
-3. Test direct connection: `psql -h localhost -U blotting_user -d blotting_cms`
+3. Test direct connection: `psql -h localhost -U inkless -d inkless`
 4. Ensure DSN uses correct host (`localhost` for host machine, `db` for Docker Compose internal network)
 
 ### Issue: JSON data appears as string in PostgreSQL
@@ -686,7 +686,7 @@ Before migrating production data:
 **Symptoms**: Slow query response times in PostgreSQL vs SQLite
 
 **Solutions**:
-1. Run `ANALYZE` on all tables: `docker compose exec db psql -U blotting_user -d blotting_cms -c "ANALYZE;"`
+1. Run `ANALYZE` on all tables: `docker compose exec db psql -U inkless -d inkless -c "ANALYZE;"`
 2. Check query plans: Add indexes if full table scans detected
 3. Review connection pool settings in `internal/db/db.go`
 4. Consider adding JSONB GIN indexes for complex queries (if needed in future)
@@ -704,7 +704,7 @@ docker compose down
 
 # Reset PostgreSQL data (WARNING: destructive)
 docker compose down -v
-docker volume rm blotting_postgres_data
+docker volume rm inkless_postgres_data
 
 # View logs
 docker compose logs -f backend
@@ -712,13 +712,13 @@ docker compose logs -f db
 
 # Execute commands in containers
 docker compose exec backend /bin/sh
-docker compose exec db psql -U blotting_user -d blotting_cms
+docker compose exec db psql -U inkless -d inkless
 
 # Backup PostgreSQL (production)
-docker compose exec db pg_dump -U blotting_user -d blotting_cms > postgres_backup.sql
+docker compose exec db pg_dump -U inkless -d inkless > postgres_backup.sql
 
 # Restore PostgreSQL from backup
-cat postgres_backup.sql | docker compose exec -T db psql -U blotting_user -d blotting_cms
+cat postgres_backup.sql | docker compose exec -T db psql -U inkless -d inkless
 ```
 
 ---

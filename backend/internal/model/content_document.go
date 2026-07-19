@@ -52,12 +52,12 @@ func (pk PageKey) String() string {
 
 // ContentDocument represents a page configuration document
 type ContentDocument struct {
-	PageKey         PageKey        `gorm:"primaryKey;size:50"`
-	DraftConfig     JSONMap        `gorm:"type:jsonb"`
-	DraftVersion    int            `gorm:"not null;default:0"`
-	PublishedConfig JSONMap        `gorm:"type:jsonb"`
-	PublishedVersion int           `gorm:"not null;default:0"`
-	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
+	PageKey          PageKey   `gorm:"primaryKey;size:50"`
+	DraftConfig      JSONMap   `gorm:"type:jsonb"`
+	DraftVersion     int       `gorm:"not null;default:0"`
+	PublishedConfig  JSONMap   `gorm:"type:jsonb"`
+	PublishedVersion int       `gorm:"not null;default:0"`
+	UpdatedAt        time.Time `gorm:"autoUpdateTime"`
 }
 
 // TableName overrides the default table name

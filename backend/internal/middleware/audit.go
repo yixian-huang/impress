@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/pkg/audit"
+	"github.com/yixian-huang/inkless/backend/pkg/audit"
 )
 
 const auditActorHintKey = "audit_actor_hint"

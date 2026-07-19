@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/seed"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/seed"
 )
 
 func seedBlogSamplesCmd() *cobra.Command {

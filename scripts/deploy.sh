@@ -11,13 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENVIRONMENT="${ENVIRONMENT:-production}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 DEPLOY_HOST="${DEPLOY_HOST:?DEPLOY_HOST environment variable is required}"
-DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/blotting}"
+DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/inkless}"
 VERSION="${VERSION:?VERSION environment variable is required}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-./artifacts}"
 DEPLOY_AUTO_APPROVE="${DEPLOY_AUTO_APPROVE:-false}"
 
 # Service control
-BACKEND_SERVICE="${BACKEND_SERVICE:-blotting-api}"
+BACKEND_SERVICE="${BACKEND_SERVICE:-inkless-api}"
 FRONTEND_PATH="${FRONTEND_PATH:-${DEPLOY_ROOT}/frontend}"
 BACKEND_PATH="${BACKEND_PATH:-${DEPLOY_ROOT}/backend}"
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:8088/health}"
@@ -179,13 +179,13 @@ tar -xzf "${DEPLOY_ROOT}/backend-${VERSION}.tar.gz" \
   -C "${BACKEND_PATH}/versions/${VERSION}"
 
 # Ensure stable backend executable symlink exists for systemd
-BACKEND_BIN=\$(find "${BACKEND_PATH}/versions/${VERSION}" -maxdepth 1 -type f -name "blotting-api-*" | head -n 1)
+BACKEND_BIN=\$(find "${BACKEND_PATH}/versions/${VERSION}" -maxdepth 1 -type f -name "inkless-api-*" | head -n 1)
 if [ -z "\${BACKEND_BIN}" ]; then
   echo "ERROR: Backend binary not found in extracted artifact"
   exit 1
 fi
 chmod +x "\${BACKEND_BIN}"
-ln -snf "\$(basename "\${BACKEND_BIN}")" "${BACKEND_PATH}/versions/${VERSION}/blotting-api-latest"
+ln -snf "\$(basename "\${BACKEND_BIN}")" "${BACKEND_PATH}/versions/${VERSION}/inkless-api-latest"
 
 # Create backup symlink of current version
 if [ -L "${BACKEND_PATH}/current" ]; then

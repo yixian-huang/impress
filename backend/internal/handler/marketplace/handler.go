@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 // Handler handles marketplace HTTP requests
@@ -53,9 +53,9 @@ func (h *Handler) AdminListItems(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"items": items,
-		"total": total,
-		"page":  page,
+		"items":    items,
+		"total":    total,
+		"page":     page,
 		"pageSize": pageSize,
 	})
 }

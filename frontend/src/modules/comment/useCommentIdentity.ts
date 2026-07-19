@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { BROWSER_STORAGE_KEYS } from "@/lib/browserStorage";
 
-const STORAGE_KEY = "impress.comment.guest";
+const STORAGE_KEY = BROWSER_STORAGE_KEYS.commentGuest;
 
 export interface CommentGuestIdentity {
   authorName: string;

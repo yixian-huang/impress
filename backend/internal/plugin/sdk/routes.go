@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 )
 
 // RouteHandler is the HTTP handler signature used by plugin routes.

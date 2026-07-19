@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	migrationPkg "blotting-consultancy/internal/migration"
-	"blotting-consultancy/internal/provider"
+	migrationPkg "github.com/yixian-huang/inkless/backend/internal/migration"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // Handler handles data migration HTTP requests.

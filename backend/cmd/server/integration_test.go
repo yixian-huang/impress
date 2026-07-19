@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/seed"
-	"blotting-consultancy/internal/service"
-	"blotting-consultancy/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/seed"
+	"github.com/yixian-huang/inkless/backend/internal/service"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
 )
 
 // TestAuthWorkflow tests the complete authentication flow

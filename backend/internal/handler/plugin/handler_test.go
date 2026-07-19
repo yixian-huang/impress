@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func TestExternalPluginMutationIsDisabledByDefault(t *testing.T) {
@@ -28,7 +28,7 @@ func TestExternalPluginMutationIsDisabledByDefault(t *testing.T) {
 func TestPluginResponseMasksSettingsAndBinaryPath(t *testing.T) {
 	response := pluginResponse(model.Plugin{
 		PluginID:   "test-plugin",
-		BinaryPath: "/srv/impress/plugins/test-plugin/plugin",
+		BinaryPath: "/srv/inkless/plugins/test-plugin/plugin",
 		Settings:   model.JSONMap{"outputFile": "events.jsonl"},
 	})
 

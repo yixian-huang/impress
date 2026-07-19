@@ -1,5 +1,5 @@
 export const setup = {
-  title: "Set up Impress",
+  title: "Set up Inkless",
   subtitle: "Create an admin account and configure basic site info",
   steps: {
     welcome: "Welcome",
@@ -11,7 +11,7 @@ export const setup = {
     finish: "Done",
   },
   welcome: {
-    heading: "Welcome to Impress",
+    heading: "Welcome to Inkless",
     body: "Complete the steps below. If no .env exists yet, you will configure the database first.",
     bodyConfigured: "The database is connected. Continue with site and admin setup.",
     database: "Database type",
@@ -42,7 +42,7 @@ export const setup = {
   },
   restart: {
     heading: "Restart required",
-    body: "Configuration saved to {{path}}. Restart the Impress backend — this page will detect it automatically.",
+    body: "Configuration saved to {{path}}. Restart the Inkless backend — this page will detect it automatically.",
     waiting: "Waiting for the server to restart with persisted configuration…",
     reload: "Refresh manually",
   },

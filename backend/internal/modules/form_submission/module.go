@@ -5,12 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/module"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/module"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 // Module is the self-contained form submission feature module.

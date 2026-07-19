@@ -67,13 +67,13 @@ deploy_backend() {
   tar -xzf "${tar_path}" -C "${version_dir}"
 
   local backend_bin
-  backend_bin="$(find "${version_dir}" -maxdepth 1 -type f -name 'blotting-api-*' ! -name 'blotting-api-latest' | head -1)"
+  backend_bin="$(find "${version_dir}" -maxdepth 1 -type f -name 'inkless-api-*' ! -name 'inkless-api-latest' | head -1)"
   if [[ -z "${backend_bin}" ]]; then
     qb_log_error "backend binary not found in ${version_dir}"
     return 1
   fi
   chmod +x "${backend_bin}"
-  ln -snf "$(basename "${backend_bin}")" "${version_dir}/blotting-api-latest"
+  ln -snf "$(basename "${backend_bin}")" "${version_dir}/inkless-api-latest"
 
   qb_backup_current_symlink "${backend_base}"
   qb_atomic_symlink "${backend_base}/versions/${VERSION}" "${backend_base}/current"
@@ -102,10 +102,10 @@ ensure_layout() {
   mkdir -p "${RELEASE_ROOT}/data" "${RELEASE_ROOT}/uploads"
   mkdir -p "${RELEASE_ROOT}/backend/versions" "${RELEASE_ROOT}/frontend/versions"
 
-  if ! id impress >/dev/null 2>&1; then
-    qb_log_warn "user 'impress' not found; systemd may need User= adjustment"
+  if ! id inkless >/dev/null 2>&1; then
+    qb_log_warn "user 'inkless' not found; systemd may need User= adjustment"
   else
-    chown -R impress:impress "${RELEASE_ROOT}/data" "${RELEASE_ROOT}/uploads" 2>/dev/null || true
+    chown -R inkless:inkless "${RELEASE_ROOT}/data" "${RELEASE_ROOT}/uploads" 2>/dev/null || true
   fi
 }
 
@@ -115,10 +115,10 @@ install_systemd_unit() {
   local unit_path="/etc/systemd/system/${unit}.service"
   local template="${QB_SYSTEMD_UNIT_FILE:-}"
   if [[ -z "${template}" ]]; then
-    if [[ -f "${INCOMING}/ops/systemd/impress.service" ]]; then
-      template="${INCOMING}/ops/systemd/impress.service"
+    if [[ -f "${INCOMING}/ops/systemd/inkless.service" ]]; then
+      template="${INCOMING}/ops/systemd/inkless.service"
     else
-      template="${SCRIPT_DIR}/../ops/systemd/impress.service"
+      template="${SCRIPT_DIR}/../ops/systemd/inkless.service"
     fi
   fi
 
@@ -131,8 +131,8 @@ install_systemd_unit() {
   fi
   qb_log_info "installing systemd unit ${unit} from ${template}"
   cp "${template}" "${unit_path}"
-  sed -i "s|/opt/impress|${RELEASE_ROOT}|g" "${unit_path}" 2>/dev/null || \
-    sed -i '' "s|/opt/impress|${RELEASE_ROOT}|g" "${unit_path}"
+  sed -i "s|/opt/inkless|${RELEASE_ROOT}|g" "${unit_path}" 2>/dev/null || \
+    sed -i '' "s|/opt/inkless|${RELEASE_ROOT}|g" "${unit_path}"
   systemctl daemon-reload
   systemctl enable "${unit}"
 }
@@ -152,7 +152,7 @@ main() {
   export PORT="${PORT:-8088}"
 
   if [[ -z "${DB_DSN:-}" ]]; then
-    export DB_DSN="file:${RELEASE_ROOT}/data/impress.db?cache=shared&mode=rwc"
+    export DB_DSN="file:${RELEASE_ROOT}/data/inkless.db?cache=shared&mode=rwc"
   fi
 
   local env_file="${RELEASE_ROOT}/backend/.env"

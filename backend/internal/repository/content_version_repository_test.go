@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func TestContentVersionRepository_CRUD(t *testing.T) {

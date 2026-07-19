@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func TestUserRepository_CreateAndFind(t *testing.T) {
@@ -60,7 +60,7 @@ func TestUserRepository_UpdateAndDelete(t *testing.T) {
 
 	user := &model.User{
 		Username:     "testuser",
-		PasswordHash:  "hashedpassword",
+		PasswordHash: "hashedpassword",
 		Role:         model.RoleAdmin,
 	}
 

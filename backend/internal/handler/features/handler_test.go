@@ -11,17 +11,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/handler/features"
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/handler/features"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // MockSiteConfigRepository is a minimal in-memory mock satisfying repository.SiteConfigRepository.
 type MockSiteConfigRepository struct {
-	FindByKeyFunc    func(ctx context.Context, key string) (*model.SiteConfig, error)
-	UpsertFunc       func(ctx context.Context, sc *model.SiteConfig) error
-	UpdateFunc       func(ctx context.Context, sc *model.SiteConfig) error
-	UpdateDraftFunc  func(ctx context.Context, key string, expectedVersion int, draftConfig model.JSONMap) (int, error)
+	FindByKeyFunc       func(ctx context.Context, key string) (*model.SiteConfig, error)
+	UpsertFunc          func(ctx context.Context, sc *model.SiteConfig) error
+	UpdateFunc          func(ctx context.Context, sc *model.SiteConfig) error
+	UpdateDraftFunc     func(ctx context.Context, key string, expectedVersion int, draftConfig model.JSONMap) (int, error)
 	UpdatePublishedFunc func(ctx context.Context, key string, publishedConfig model.JSONMap, publishedVersion int) error
 }
 

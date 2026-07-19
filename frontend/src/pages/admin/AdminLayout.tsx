@@ -3,6 +3,7 @@ import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
+import { BROWSER_STORAGE_KEYS } from "@/lib/browserStorage";
 import { getAdminRoutePermission, hasAdminRoutePermission } from "@/router/adminAccess";
 import AdminSidebar from "./components/AdminSidebar";
 
@@ -14,14 +15,14 @@ export default function AdminLayout() {
   const branding = useBranding();
 
   const [collapsed, setCollapsed] = useState(() =>
-    localStorage.getItem("admin_sidebar_collapsed") === "true"
+    localStorage.getItem(BROWSER_STORAGE_KEYS.adminSidebarCollapsed) === "true"
   );
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleToggle = () => {
     setCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem("admin_sidebar_collapsed", String(next));
+      localStorage.setItem(BROWSER_STORAGE_KEYS.adminSidebarCollapsed, String(next));
       return next;
     });
   };

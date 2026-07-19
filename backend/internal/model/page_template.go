@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"time"
 	"gorm.io/gorm"
+	"time"
 )
 
 const (

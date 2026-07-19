@@ -6,7 +6,7 @@ import { pickLocaleValue } from "@/lib/locale";
 
 export default function Footer() {
   const branding = useBranding();
-  const logoSrc = branding.logo.light || '/images/logo.png';
+  const logoSrc = branding.logo.light;
   const logoAlt = branding.siteName || 'Site';
 
   return (
@@ -14,7 +14,11 @@ export default function Footer() {
       <div className="max-w-layout mx-auto px-4 md:px-6 py-12">
         <div className="flex flex-col md:flex-row md:items-start gap-8">
           <div>
-            <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+            {logoSrc ? (
+              <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+            ) : (
+              <div className="mb-4 text-lg font-semibold">{logoAlt}</div>
+            )}
             {branding.author.bio && <p className="text-sm text-gray-300 max-w-md">{branding.author.bio}</p>}
           </div>
           {branding.footer.extraLinks.length > 0 && (

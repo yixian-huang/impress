@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/audit"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/audit"
 )
 
 const (

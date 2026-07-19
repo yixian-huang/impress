@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 // Handler handles chunked upload HTTP requests

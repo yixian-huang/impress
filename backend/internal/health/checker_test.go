@@ -129,7 +129,7 @@ type mockSchedulerInfo struct {
 	next    time.Time
 }
 
-func (m *mockSchedulerInfo) IsRunning() bool   { return m.running }
+func (m *mockSchedulerInfo) IsRunning() bool    { return m.running }
 func (m *mockSchedulerInfo) Enabled() bool      { return m.enabled }
 func (m *mockSchedulerInfo) NextRun() time.Time { return m.next }
 

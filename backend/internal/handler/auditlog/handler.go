@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Handler handles audit log HTTP requests

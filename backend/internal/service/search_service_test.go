@@ -8,8 +8,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 func setupSearchTestDB(t *testing.T) *gorm.DB {

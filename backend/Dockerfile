@@ -1,5 +1,5 @@
 # Multi-stage build for Go backend
-FROM golang:1.24.1-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git gcc musl-dev
@@ -16,7 +16,7 @@ COPY internal/ ./internal/
 COPY pkg/ ./pkg/
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o inkless-api ./cmd/server
 
 # Final stage - minimal runtime image
 FROM alpine:latest
@@ -27,10 +27,10 @@ ENV TZ=Asia/Shanghai
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/server .
+COPY --from=builder /app/inkless-api .
 
 # Expose port
 EXPOSE 8088
 
 # Run the server
-CMD ["./server"]
+CMD ["./inkless-api"]

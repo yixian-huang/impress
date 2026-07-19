@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in Impress CMS
+about: Report a bug in Inkless CMS
 title: "[Bug] "
 labels: bug
 assignees: ''

@@ -1,8 +1,8 @@
 package model_test
 
 import (
+	"github.com/yixian-huang/inkless/backend/internal/model"
 	"testing"
-	"blotting-consultancy/internal/model"
 )
 
 func TestUnifiedPage_Validate_RequiresSlug(t *testing.T) {

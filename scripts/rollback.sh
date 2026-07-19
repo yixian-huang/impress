@@ -8,12 +8,12 @@ set -euo pipefail
 ENVIRONMENT="${ENVIRONMENT:-production}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 DEPLOY_HOST="${DEPLOY_HOST:?DEPLOY_HOST environment variable is required}"
-DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/blotting}"
+DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/inkless}"
 COMPONENT="${COMPONENT:?COMPONENT environment variable is required (frontend|backend|all)}"
 TARGET_VERSION="${TARGET_VERSION:-previous}"
 
 # Service control
-BACKEND_SERVICE="${BACKEND_SERVICE:-blotting-api}"
+BACKEND_SERVICE="${BACKEND_SERVICE:-inkless-api}"
 FRONTEND_PATH="${FRONTEND_PATH:-${DEPLOY_ROOT}/frontend}"
 BACKEND_PATH="${BACKEND_PATH:-${DEPLOY_ROOT}/backend}"
 

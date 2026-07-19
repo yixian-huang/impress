@@ -3,10 +3,10 @@ package backup
 import (
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/module"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/module"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Module is the self-contained backup feature module.

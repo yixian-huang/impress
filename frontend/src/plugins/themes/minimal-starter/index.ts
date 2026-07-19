@@ -39,7 +39,7 @@ export const minimalStarterTheme: ThemePlugin = {
     nameZh: "极简起步",
     description: "Bare-bones theme demonstrating the extension path (layoutChrome + dynamic home)",
     descriptionZh: "最简主题，演示扩展路径（layoutChrome + 动态首页）",
-    author: "Impress CMS",
+    author: "Inkless CMS",
     version: "1.0.0",
     type: "theme",
     preview: "linear-gradient(135deg, #374151 0%, #9ca3af 100%)",

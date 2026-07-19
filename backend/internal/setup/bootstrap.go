@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/db"
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 	"gorm.io/gorm/logger"
 )
 

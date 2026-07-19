@@ -3,7 +3,7 @@ package eventbus_test
 import (
 	"testing"
 
-	"blotting-consultancy/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 )
 
 func TestContentEventTypes(t *testing.T) {

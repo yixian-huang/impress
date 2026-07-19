@@ -6,7 +6,7 @@ const loadedUrls = new Set<string>();
 export function loadCustomFonts(fonts: CustomFontRef[]): void {
   if (typeof document === "undefined" || fonts.length === 0) return;
 
-  const sheetId = "impress-custom-fonts";
+  const sheetId = "inkless-custom-fonts";
   let sheet = document.getElementById(sheetId) as HTMLStyleElement | null;
   if (!sheet) {
     sheet = document.createElement("style");

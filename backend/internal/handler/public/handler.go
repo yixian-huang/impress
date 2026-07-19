@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"time"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
-	"blotting-consultancy/pkg/apierror"
-	"blotting-consultancy/pkg/metrics"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+	"github.com/yixian-huang/inkless/backend/pkg/metrics"
 
 	"github.com/gin-gonic/gin"
 )

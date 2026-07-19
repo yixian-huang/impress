@@ -59,23 +59,23 @@ func (s *SiteSettings) Scan(value interface{}) error {
 
 // Site represents a managed website in the multi-site system
 type Site struct {
-	ID        uint          `gorm:"primaryKey" json:"id"`
+	ID uint `gorm:"primaryKey" json:"id"`
 	// Domain is the primary hostname (e.g. "example.com" or "sub.example.com")
-	Domain    string        `gorm:"uniqueIndex;not null;size:255" json:"domain"`
+	Domain string `gorm:"uniqueIndex;not null;size:255" json:"domain"`
 	// SubPath is the URL prefix when running in subpath mode (e.g. "/blog")
-	SubPath   string        `gorm:"size:100;default:''" json:"subPath"`
-	Name      string        `gorm:"not null;size:200" json:"name"`
+	SubPath string `gorm:"size:100;default:''" json:"subPath"`
+	Name    string `gorm:"not null;size:200" json:"name"`
 	// Locale is the default locale for this site (e.g. "zh", "en")
-	Locale    string        `gorm:"not null;size:10;default:'zh'" json:"locale"`
+	Locale string `gorm:"not null;size:10;default:'zh'" json:"locale"`
 	// ThemeID references the active installed theme for this site
-	ThemeID   string        `gorm:"size:100" json:"themeId"`
+	ThemeID string `gorm:"size:100" json:"themeId"`
 	// Mode controls how the site is addressed: subdomain or subpath
-	Mode      SiteMode      `gorm:"not null;size:20;default:'subdomain'" json:"mode"`
+	Mode SiteMode `gorm:"not null;size:20;default:'subdomain'" json:"mode"`
 	// Settings stores arbitrary JSON config (SEO defaults, feature flags, etc.)
-	Settings  SiteSettings  `gorm:"type:text" json:"settings"`
-	Status    SiteStatus    `gorm:"not null;size:20;default:'active';index" json:"status"`
-	CreatedAt time.Time     `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt time.Time     `gorm:"autoUpdateTime" json:"updatedAt"`
+	Settings  SiteSettings `gorm:"type:text" json:"settings"`
+	Status    SiteStatus   `gorm:"not null;size:20;default:'active';index" json:"status"`
+	CreatedAt time.Time    `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time    `gorm:"autoUpdateTime" json:"updatedAt"`
 }
 
 // TableName overrides the default table name

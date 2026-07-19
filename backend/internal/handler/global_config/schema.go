@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func jsonStdMarshal(v any) ([]byte, error)      { return json.Marshal(v) }
@@ -32,10 +32,10 @@ type LocalizedString struct {
 }
 
 type Identity struct {
-	Name          LocalizedString `json:"name"`
+	Name          LocalizedString  `json:"name"`
 	Tagline       *LocalizedString `json:"tagline,omitempty"`
-	LocaleMode    LocaleMode      `json:"localeMode"`
-	DefaultLocale string          `json:"defaultLocale"`
+	LocaleMode    LocaleMode       `json:"localeMode"`
+	DefaultLocale string           `json:"defaultLocale"`
 }
 
 type LogoRef struct {
@@ -58,11 +58,11 @@ type Social struct {
 }
 
 type Author struct {
-	Name     string          `json:"name"`
-	Avatar   string          `json:"avatar,omitempty"`
+	Name     string           `json:"name"`
+	Avatar   string           `json:"avatar,omitempty"`
 	Bio      *LocalizedString `json:"bio,omitempty"`
-	Location string          `json:"location,omitempty"`
-	Socials  []Social        `json:"socials"`
+	Location string           `json:"location,omitempty"`
+	Socials  []Social         `json:"socials"`
 }
 
 type ExtraLink struct {
@@ -72,15 +72,15 @@ type ExtraLink struct {
 
 type Footer struct {
 	Copyright  *LocalizedString `json:"copyright,omitempty"`
-	ICP        string          `json:"icp,omitempty"`
-	ExtraLinks []ExtraLink     `json:"extraLinks,omitempty"`
+	ICP        string           `json:"icp,omitempty"`
+	ExtraLinks []ExtraLink      `json:"extraLinks,omitempty"`
 }
 
 type SEO struct {
 	DefaultTitle       *LocalizedString `json:"defaultTitle,omitempty"`
-	TitleTemplate      string          `json:"titleTemplate,omitempty"`
+	TitleTemplate      string           `json:"titleTemplate,omitempty"`
 	DefaultDescription *LocalizedString `json:"defaultDescription,omitempty"`
-	TwitterHandle      string          `json:"twitterHandle,omitempty"`
+	TwitterHandle      string           `json:"twitterHandle,omitempty"`
 }
 
 type SiteConfigGlobal struct {

@@ -81,14 +81,17 @@ export class ThemeManager {
 
       const cleanup = () => {
         clearTimeout(timeout);
+        delete (window as any).__INKLESS_THEME_REGISTER__;
         delete (window as any).__IMPRESS_THEME_REGISTER__;
       };
 
-      (window as any).__IMPRESS_THEME_REGISTER__ = (theme: ThemePlugin) => {
+      const registerTheme = (theme: ThemePlugin) => {
         cleanup();
         this.registerExternal(theme);
         resolve(theme);
       };
+      (window as any).__INKLESS_THEME_REGISTER__ = registerTheme;
+      (window as any).__IMPRESS_THEME_REGISTER__ = registerTheme;
 
       const script = document.createElement("script");
       script.src = url;

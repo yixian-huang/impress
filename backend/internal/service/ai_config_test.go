@@ -12,10 +12,10 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/secretcipher"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/secretcipher"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

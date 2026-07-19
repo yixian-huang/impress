@@ -1,7 +1,7 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "Impress CMS",
+  title: "Inkless CMS",
   description: "A bilingual CMS built with Go and React",
   lang: "en-US",
 
@@ -9,7 +9,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "API", link: "/api/" },
-      { text: "GitHub", link: "https://github.com/your-org/impress" },
+      { text: "GitHub", link: "https://github.com/yixian-huang/inkless" },
     ],
 
     sidebar: [
@@ -27,7 +27,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/your-org/impress" },
+      { icon: "github", link: "https://github.com/yixian-huang/inkless" },
     ],
   },
 });

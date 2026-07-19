@@ -1,4 +1,4 @@
-# Multi-stage build for impress: frontend SPA + Go backend served from one binary.
+# Multi-stage build for inkless: frontend SPA + Go backend served from one binary.
 # Build context: repo root.
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ COPY backend/internal ./internal
 COPY backend/pkg ./pkg
 COPY backend/docs ./docs
 
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o /out/server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o /out/inkless-api ./cmd/server
 
 # ────────────────────────────────────────────────────────────────────────────
 # Stage 3: minimal runtime
@@ -51,7 +51,7 @@ ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-COPY --from=backend-builder /out/server /app/server
+COPY --from=backend-builder /out/inkless-api /app/inkless-api
 COPY --from=frontend-builder /src/frontend/out /app/frontend/out
 
 # Persistent data dir for uploads (and SQLite if DB_DSN ever points to local file).
@@ -65,4 +65,4 @@ ENV FRONTEND_DIR=/app/frontend/out \
 
 EXPOSE 8088
 
-CMD ["/app/server"]
+CMD ["/app/inkless-api"]

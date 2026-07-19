@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
-	pb "blotting-consultancy/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
 )
 
 var errPluginNoLongerEnabled = errors.New("plugin is no longer enabled")

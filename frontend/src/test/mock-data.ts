@@ -172,7 +172,7 @@ export const mockGlobalConfig = {
     ],
   },
   branding: {
-    logo: "/images/logo.png",
+    logo: "/images/test-company-logo.png",
     companyName: "Test Company",
   },
   footer: {

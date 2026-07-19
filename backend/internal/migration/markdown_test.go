@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,7 +91,7 @@ No front matter here.
 	require.Len(t, result.Articles, 1)
 
 	a := result.Articles[0]
-	assert.Equal(t, "my-post", a.Slug) // derived from filename
+	assert.Equal(t, "my-post", a.Slug)  // derived from filename
 	assert.Equal(t, "my-post", a.Title) // derived from filename
 	assert.Equal(t, model.ArticleStatusDraft, a.Status)
 	assert.Contains(t, a.Body, "# Just Content")
@@ -110,8 +110,8 @@ title: Second
 status: published
 ---
 Content 2`,
-		"readme.txt":    "This is not markdown",
-		"images/a.png":  "binary data",
+		"readme.txt":   "This is not markdown",
+		"images/a.png": "binary data",
 	}
 
 	zr := createTestZip(t, files)
@@ -172,10 +172,10 @@ func TestMarkdownProvider_Parse_CancelledContext(t *testing.T) {
 
 func TestSplitFrontMatter(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		wantFM    bool
-		wantBody  string
+		name     string
+		input    string
+		wantFM   bool
+		wantBody string
 	}{
 		{
 			name:     "with front matter",

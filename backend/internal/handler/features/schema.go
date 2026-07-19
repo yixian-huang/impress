@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 type PublicPages struct {
@@ -19,10 +19,10 @@ type PublicPages struct {
 }
 
 type BlogFeatures struct {
-	Comments         bool `json:"comments"`
-	RSS              bool `json:"rss"`
-	ReadingMeta      bool `json:"readingMeta"`
-	WordsPerMinute   int  `json:"wordsPerMinute,omitempty"`
+	Comments       bool `json:"comments"`
+	RSS            bool `json:"rss"`
+	ReadingMeta    bool `json:"readingMeta"`
+	WordsPerMinute int  `json:"wordsPerMinute,omitempty"`
 }
 
 type Features struct {

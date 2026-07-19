@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +32,7 @@ func TestSaveEnv_BootstrapWritesFile(t *testing.T) {
 		Env:  "production",
 		Database: config.DatabaseInput{
 			Type:       "sqlite",
-			SQLitePath: filepath.Join(dir, "data", "impress.db"),
+			SQLitePath: filepath.Join(dir, "data", "inkless.db"),
 		},
 	})
 	require.NoError(t, err)

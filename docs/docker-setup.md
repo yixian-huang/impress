@@ -1,6 +1,6 @@
 # Docker Compose Development Environment
 
-This document provides instructions for running the 印迹官网 (Blotting Consultancy) application stack using Docker Compose.
+This document provides instructions for running the Inkless CMS (Inkless CMS) application stack using Docker Compose.
 
 ## Overview
 
@@ -43,7 +43,7 @@ docker compose -f docker-compose.sqlite.yml up --build
 ```
 
 This mode runs only:
-- `backend` (SQLite database at `/app/data/blotting.db`)
+- `backend` (SQLite database at `/app/data/inkless.db`)
 - `frontend`
 
 It is suitable for local demos, low-traffic deployments, or environments where running PostgreSQL is unnecessary.
@@ -134,13 +134,13 @@ The `-v` flag removes named volumes, including `postgres_data`.
 - **Port**: 5432 (exposed to host)
 - **Credentials**: See `.env` file
 - **Persistent Volume**: `postgres_data` (survives `docker-compose down`)
-- **Connection String**: `host=db user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai`
+- **Connection String**: `host=db user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable TimeZone=Asia/Shanghai`
 
 To connect with `psql` from host:
 
 ```bash
-psql -h localhost -U blotting_user -d blotting_cms
-# Password: blotting_dev_password
+psql -h localhost -U inkless -d inkless
+# Password: inkless_dev_password
 ```
 
 ### Database (SQLite mode)
@@ -148,7 +148,7 @@ psql -h localhost -U blotting_user -d blotting_cms
 When using `docker-compose.sqlite.yml`:
 
 - No separate DB service is required
-- Backend DSN defaults to `file:/app/data/blotting.db?cache=shared&mode=rwc`
+- Backend DSN defaults to `file:/app/data/inkless.db?cache=shared&mode=rwc`
 - Persistent volume: `sqlite_data`
 - Reset database:
 
@@ -235,7 +235,7 @@ If services fail dependency health checks:
 
 1. Increase health check timeout in `docker-compose.yml`
 2. Check service logs for startup errors
-3. Verify network connectivity: `docker network ls` and `docker network inspect blotting-network`
+3. Verify network connectivity: `docker network ls` and `docker network inspect inkless-network`
 
 ## Production Build (Optional)
 
@@ -243,13 +243,13 @@ To build production-ready images:
 
 ```bash
 # Build frontend production image (from repo root, if Dockerfile.frontend exists)
-# docker build -f Dockerfile.frontend --target production -t blotting-frontend:prod frontend
+# docker build -f Dockerfile.frontend --target production -t inkless-frontend:prod frontend
 
 # Build backend production image
-# docker build -t blotting-backend:prod backend
+# docker build -t inkless-backend:prod backend
 
 # Test production frontend
-docker run -p 80:80 blotting-frontend:prod
+docker run -p 80:80 inkless-frontend:prod
 ```
 
 ## Cleanup

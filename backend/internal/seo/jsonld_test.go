@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"blotting-consultancy/internal/seo"
+	"github.com/yixian-huang/inkless/backend/internal/seo"
 )
 
 func TestOrganizationJSONLD(t *testing.T) {

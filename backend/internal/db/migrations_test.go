@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/pressly/goose/v3"
-	"blotting-consultancy/internal/db/migrations"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose/v3"
+	"github.com/yixian-huang/inkless/backend/internal/db/migrations"
 )
 
 func TestGooseMigrationsEmbed(t *testing.T) {

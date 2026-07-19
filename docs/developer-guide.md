@@ -1,6 +1,6 @@
-# Impress CMS Developer Guide
+# Inkless CMS Developer Guide
 
-This document provides a comprehensive architecture overview for developers who want to understand, extend, or contribute to Impress CMS.
+This document provides a comprehensive architecture overview for developers who want to understand, extend, or contribute to Inkless CMS.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This document provides a comprehensive architecture overview for developers who 
 
 ## System Architecture
 
-Impress CMS is a bilingual (Chinese/English) content management system with a clear separation between backend and frontend:
+Inkless CMS is a bilingual (Chinese/English) content management system with a clear separation between backend and frontend:
 
 ```
                     ┌─────────────────────────────────────┐
@@ -177,7 +177,7 @@ GORM models with struct tags. Key models include:
 
 ## Provider Pattern
 
-Impress uses a **Provider** pattern to abstract external dependencies behind interfaces. This allows swapping implementations without changing business logic.
+Inkless uses a **Provider** pattern to abstract external dependencies behind interfaces. This allows swapping implementations without changing business logic.
 
 ### Available Provider Interfaces
 
@@ -274,8 +274,8 @@ Providers are registered in `cmd/server/main.go` during initialization. The regi
 
 | Database | Use Case | DSN Example |
 |----------|----------|-------------|
-| SQLite | Local development | `file:./data/blotting.db?cache=shared&mode=rwc` |
-| PostgreSQL | Production / Docker | `postgres://user:pass@localhost:5432/impress?sslmode=disable` |
+| SQLite | Local development | `file:./data/inkless.db?cache=shared&mode=rwc` |
+| PostgreSQL | Production / Docker | `postgres://inkless:CHANGE_ME@localhost:5432/inkless?sslmode=disable` |
 
 The `DB_DSN` environment variable determines which database is used. GORM abstracts the differences.
 
@@ -407,7 +407,7 @@ Create `backend/internal/repository/<domain>_repository.go`:
 ```go
 package repository
 
-import "impress/internal/model"
+import "inkless/internal/model"
 
 type WidgetRepository interface {
     Create(widget *model.Widget) error
@@ -427,7 +427,7 @@ package repository
 
 import (
     "gorm.io/gorm"
-    "impress/internal/model"
+    "inkless/internal/model"
 )
 
 type widgetRepositoryImpl struct {
@@ -458,7 +458,7 @@ package widget
 
 import (
     "github.com/gin-gonic/gin"
-    "impress/internal/repository"
+    "inkless/internal/repository"
 )
 
 type Handler struct {

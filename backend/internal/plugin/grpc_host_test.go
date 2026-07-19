@@ -3,12 +3,19 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/provider"
-	pb "blotting-consultancy/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -243,6 +250,146 @@ func TestSearchProxy_Search(t *testing.T) {
 	assert.Equal(t, int64(1), resp.Total)
 	assert.Len(t, resp.Results, 1)
 	assert.Equal(t, "Test", resp.Results[0].Title)
+}
+
+func TestGRPCHostStart_LoadsCanonicalInklessPlugin(t *testing.T) {
+	binaryPath := buildTestProviderPlugin(t, `package main
+
+import (
+	"context"
+
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/pkg/pluginsdk"
+)
+
+type server struct {
+	pb.UnimplementedProviderServiceServer
+}
+
+func (server) Initialize(context.Context, *pb.InitRequest) (*pb.InitResponse, error) {
+	return &pb.InitResponse{Success: true}, nil
+}
+
+func (server) Shutdown(context.Context, *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
+	return &pb.ShutdownResponse{}, nil
+}
+
+func main() {
+	pluginsdk.Serve(server{})
+}
+`)
+	host := NewGRPCHost(&PluginMeta{ID: "canonical-plugin", Name: "Canonical", Version: "1.0.0"}, binaryPath)
+	require.NoError(t, host.Start(nil, t.TempDir()))
+	require.True(t, host.IsRunning())
+	require.NoError(t, host.Stop())
+}
+
+func TestGRPCHostStart_LoadsLegacyHandshakePluginWithLog(t *testing.T) {
+	binaryPath := buildTestProviderPlugin(t, `package main
+
+import (
+	"context"
+
+	goplugin "github.com/hashicorp/go-plugin"
+	"google.golang.org/grpc"
+
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
+)
+
+type server struct {
+	pb.UnimplementedProviderServiceServer
+}
+
+type providerPlugin struct {
+	goplugin.NetRPCUnsupportedPlugin
+	Impl pb.ProviderServiceServer
+}
+
+func (p *providerPlugin) GRPCServer(_ *goplugin.GRPCBroker, server *grpc.Server) error {
+	pb.RegisterProviderServiceServer(server, p.Impl)
+	return nil
+}
+
+func (p *providerPlugin) GRPCClient(_ context.Context, _ *goplugin.GRPCBroker, connection *grpc.ClientConn) (interface{}, error) {
+	return pb.NewProviderServiceClient(connection), nil
+}
+
+func (server) Initialize(context.Context, *pb.InitRequest) (*pb.InitResponse, error) {
+	return &pb.InitResponse{Success: true}, nil
+}
+
+func (server) Shutdown(context.Context, *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
+	return &pb.ShutdownResponse{}, nil
+}
+
+func main() {
+	goplugin.Serve(&goplugin.ServeConfig{
+		HandshakeConfig: brandcompat.LegacyPluginHandshake,
+		Plugins: map[string]goplugin.Plugin{
+			"provider": &providerPlugin{Impl: server{}},
+		},
+		GRPCServer: goplugin.DefaultGRPCServer,
+	})
+}
+`)
+
+	var logs bytes.Buffer
+	previousWriter := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(previousWriter) })
+
+	host := NewGRPCHost(&PluginMeta{ID: "legacy-plugin", Name: "Legacy", Version: "1.0.0"}, binaryPath)
+	require.NoError(t, host.Start(nil, t.TempDir()))
+	require.True(t, host.IsRunning())
+	require.NoError(t, host.Stop())
+	assert.Contains(t, logs.String(), "uses legacy plugin handshake marker")
+}
+
+func TestGRPCHostStart_DoesNotFallbackForPluginRuntimeError(t *testing.T) {
+	tmpDir := t.TempDir()
+	countFile := filepath.Join(tmpDir, "starts")
+	binaryPath := filepath.Join(tmpDir, "bad-plugin")
+	script := fmt.Sprintf("#!/bin/sh\nprintf x >> %q\nexit 2\n", countFile)
+	require.NoError(t, os.WriteFile(binaryPath, []byte(script), 0o750))
+
+	host := NewGRPCHost(&PluginMeta{ID: "bad-plugin", Name: "Bad", Version: "1.0.0"}, binaryPath)
+	err := host.Start(nil, tmpDir)
+	require.Error(t, err)
+
+	starts, readErr := os.ReadFile(countFile)
+	require.NoError(t, readErr)
+	assert.Len(t, string(starts), 1)
+	assert.NotContains(t, strings.ToLower(err.Error()), "legacy")
+}
+
+func buildTestProviderPlugin(t *testing.T, source string) string {
+	t.Helper()
+
+	externalDir := t.TempDir()
+	moduleRoot := repositoryModuleRoot(t)
+	goMod := "module host-fixture\n\ngo 1.25.0\n\nrequire github.com/yixian-huang/inkless/backend v0.0.0\n\nreplace github.com/yixian-huang/inkless/backend => " + moduleRoot + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(externalDir, "go.mod"), []byte(goMod), 0o640))
+	require.NoError(t, os.WriteFile(filepath.Join(externalDir, "main.go"), []byte(source), 0o640))
+
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = externalDir
+	output, err := tidy.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	binaryPath := filepath.Join(externalDir, "provider-plugin")
+	build := exec.Command("go", "build", "-o", binaryPath, ".")
+	build.Dir = externalDir
+	output, err = build.CombinedOutput()
+	require.NoError(t, err, string(output))
+	return binaryPath
+}
+
+func repositoryModuleRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 }
 
 func TestSearchProxy_Suggest(t *testing.T) {

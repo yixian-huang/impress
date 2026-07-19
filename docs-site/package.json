@@ -1,5 +1,5 @@
 {
-  "name": "impress-docs",
+  "name": "inkless-docs",
   "private": true,
   "scripts": {
     "dev": "vitepress dev",

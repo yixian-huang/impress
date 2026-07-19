@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
 )
 
 const testJWTSecret = "test-secret-key-for-middleware-tests"

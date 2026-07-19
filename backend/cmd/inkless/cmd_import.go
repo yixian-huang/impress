@@ -21,7 +21,7 @@ func importCmd() *cobra.Command {
 				inputFile = args[0]
 			}
 			if inputFile == "" {
-				return fmt.Errorf("input file is required: impress import <file.json>")
+				return fmt.Errorf("input file is required: inkless import <file.json>")
 			}
 
 			data, err := os.ReadFile(inputFile)

@@ -1,6 +1,6 @@
 # Build and Deployment Scripts
 
-This directory contains production build and deployment automation scripts for the 印迹官网 (Blotting Consultancy) application.
+This directory contains production build and deployment automation scripts for the Inkless CMS (Inkless CMS) application.
 
 ## Scripts Overview
 
@@ -67,13 +67,13 @@ Build server compiles; deploy server (`82.158.226.66`) only activates. See `OPS.
 ```bash
 # Local dry-run (build only)
 export VERSION="$(git describe --tags --always --dirty)"
-export QB_ARTIFACT_STAGING="/tmp/impress-artifact-${VERSION}"
+export QB_ARTIFACT_STAGING="/tmp/inkless-artifact-${VERSION}"
 ./scripts/qb-artifact-build.sh
 
 # Activate dry-run (as root on deploy host)
-export QB_ARTIFACT_INCOMING="/tmp/impress-artifact-${VERSION}"
+export QB_ARTIFACT_INCOMING="/tmp/inkless-artifact-${VERSION}"
 export QB_VERSION="${VERSION}"
-export QB_RELEASE_ROOT="/opt/impress"
+export QB_RELEASE_ROOT="/opt/inkless"
 export PORT=8088
 sudo -E ./scripts/qb-artifact-activate.sh
 ```
@@ -97,11 +97,11 @@ DEPLOY_HOST=prod.example.com COMPONENT=list pnpm rollback
 
 ```bash
 # Migrate from SQLite to PostgreSQL
-export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+export TARGET_DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable"
 pnpm migrate:db
 
 # Custom source database
-export SOURCE_DB_DSN="backups/20260212_120000/blotting.db.backup"
+export SOURCE_DB_DSN="backups/20260212_120000/inkless.db.backup"
 export TARGET_DB_DSN="postgres://user:pass@host:5432/dbname"
 pnpm migrate:db
 ```
@@ -149,7 +149,7 @@ Builds the Go backend binary with embedded version metadata.
 **Output:**
 - `artifacts/backend-{version}.tar.gz`
 - `artifacts/backend-{version}.tar.gz.sha256`
-- `artifacts/blotting-api-{version}` (standalone binary)
+- `artifacts/inkless-api-{version}` (standalone binary)
 - `artifacts/backend-latest.tar.gz` (symlink)
 
 **Version Metadata:**
@@ -169,9 +169,9 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 
 **Optional Environment Variables:**
 - `DEPLOY_USER`: SSH user (default: `deploy`)
-- `DEPLOY_ROOT`: Base deployment directory (default: `/opt/blotting`)
+- `DEPLOY_ROOT`: Base deployment directory (default: `/opt/inkless`)
 - `ENVIRONMENT`: Environment name (default: `production`)
-- `BACKEND_SERVICE`: Systemd service name (default: `blotting-api`)
+- `BACKEND_SERVICE`: Systemd service name (default: `inkless-api`)
 - `FRONTEND_PATH`: Frontend deployment path (default: `${DEPLOY_ROOT}/frontend`)
 - `BACKEND_PATH`: Backend deployment path (default: `${DEPLOY_ROOT}/backend`)
 - `BACKEND_HEALTH_URL`: HTTP health check URL on remote host (default: `http://127.0.0.1:8088/health`)
@@ -187,7 +187,7 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 - Atomic symlink swap ensures zero-downtime updates
 - Previous version backed up to `previous` symlink for rollback
 - Backend service health check after restart
-- Automatic `blotting-api-latest` symlink creation in each backend release directory
+- Automatic `inkless-api-latest` symlink creation in each backend release directory
 - Interactive confirmation prompt (can be disabled with `DEPLOY_AUTO_APPROVE=true`)
 
 ### deploy-http.sh
@@ -220,8 +220,8 @@ Rolls back frontend and/or backend to a previous version.
 **Optional Environment Variables:**
 - `TARGET_VERSION`: Specific version to rollback to (default: `previous`)
 - `DEPLOY_USER`: SSH user (default: `deploy`)
-- `DEPLOY_ROOT`: Base deployment directory (default: `/opt/blotting`)
-- `BACKEND_SERVICE`: Systemd service name (default: `blotting-api`)
+- `DEPLOY_ROOT`: Base deployment directory (default: `/opt/inkless`)
+- `BACKEND_SERVICE`: Systemd service name (default: `inkless-api`)
 
 **Rollback Process:**
 1. Validates target version exists on server
@@ -281,7 +281,7 @@ Follow semantic versioning (SemVer) for releases:
 After running build scripts, the following structure is created:
 
 ```
-/Users/yixian.huang/code/印迹官网/
+/Users/yixian.huang/code/Inkless CMS/
 ├── artifacts/                           # Build artifacts directory
 │   ├── frontend-v1.2.3.tar.gz           # Versioned frontend artifact
 │   ├── frontend-v1.2.3.tar.gz.sha256    # Frontend checksum
@@ -289,8 +289,8 @@ After running build scripts, the following structure is created:
 │   ├── backend-v1.2.3.tar.gz            # Versioned backend artifact
 │   ├── backend-v1.2.3.tar.gz.sha256     # Backend checksum
 │   ├── backend-latest.tar.gz → ...      # Symlink to latest backend
-│   ├── blotting-api-v1.2.3              # Standalone backend binary
-│   ├── blotting-api-latest → ...        # Symlink to latest binary
+│   ├── inkless-api-v1.2.3              # Standalone backend binary
+│   ├── inkless-api-latest → ...        # Symlink to latest binary
 │   └── build-info.json                  # Build metadata
 ├── frontend/out/                        # Frontend build output (temporary)
 │   ├── index.html
@@ -348,7 +348,7 @@ ssh ${DEPLOY_USER}@${DEPLOY_HOST}
 **Backend service fails to start:**
 ```bash
 # Check systemd logs on server
-ssh deploy@prod.example.com 'journalctl -u blotting-api -n 50'
+ssh deploy@prod.example.com 'journalctl -u inkless-api -n 50'
 ```
 
 **Artifact not found:**
@@ -424,37 +424,37 @@ Migrates data from SQLite (development) to PostgreSQL (production).
 5. Provides detailed migration summary
 
 **Environment Variables:**
-- `SOURCE_DB_DSN` (optional): Path to SQLite database (default: `data/blotting.db`)
+- `SOURCE_DB_DSN` (optional): Path to SQLite database (default: `data/inkless.db`)
 - `TARGET_DB_DSN` (required): PostgreSQL connection string
 
 **Usage Examples:**
 
 ```bash
 # Migrate to local PostgreSQL (Docker Compose)
-export TARGET_DB_DSN="host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable"
+export TARGET_DB_DSN="host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable"
 pnpm migrate:db
 
 # Migrate from backup to production PostgreSQL
-export SOURCE_DB_DSN="backups/20260212_120000/blotting.db.backup"
-export TARGET_DB_DSN="host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbname=blotting_cms port=5432 sslmode=require"
+export SOURCE_DB_DSN="backups/20260212_120000/inkless.db.backup"
+export TARGET_DB_DSN="host=prod-db.example.com user=inkless password=SECURE_PASSWORD dbname=inkless port=5432 sslmode=require"
 ./scripts/migrate-db.sh
 
 # Migration with custom timezone
-export TARGET_DB_DSN="host=localhost user=blotting_user password=pass dbname=blotting_cms port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+export TARGET_DB_DSN="host=localhost user=inkless password=pass dbname=inkless port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 pnpm migrate:db
 ```
 
 **Output:**
 - Backup directory: `backups/YYYYMMDD_HHMMSS/`
-  - `blotting.db.backup` (SQLite binary copy)
-  - `blotting_dump.sql` (SQL text dump)
+  - `inkless.db.backup` (SQLite binary copy)
+  - `inkless_dump.sql` (SQL text dump)
 - Migration summary with success/failure counts per table
 - Exit code 0 on success, 1 on errors
 
 **Pre-Migration Checklist:**
 - [ ] Backup source SQLite database
 - [ ] Start PostgreSQL instance (e.g., `docker compose up -d db`)
-- [ ] Verify PostgreSQL is accessible (`pg_isready -h localhost -U blotting_user`)
+- [ ] Verify PostgreSQL is accessible (`pg_isready -h localhost -U inkless`)
 - [ ] Set `TARGET_DB_DSN` environment variable
 - [ ] Review `docs/sqlite-to-postgres-migration.md` for full migration guide
 
@@ -474,6 +474,6 @@ pnpm migrate:db
 
 For issues or questions:
 1. Check `docs/deployment.md` troubleshooting section
-2. Review server logs (`journalctl -u blotting-api`)
+2. Review server logs (`journalctl -u inkless-api`)
 3. Verify environment configuration (`.env` files)
 4. Check GitHub Actions workflow runs for CI/CD issues

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 var ErrArticleVersionConflict = errors.New("article version conflict")

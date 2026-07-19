@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Impress CMS
+  name: Inkless CMS
   text: Bilingual CMS for the modern web
   tagline: A self-hosted, extensible content management system built with Go and React
   actions:
@@ -11,7 +11,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/your-org/impress
+      link: https://github.com/yixian-huang/inkless
 
 features:
   - title: Bilingual by Default

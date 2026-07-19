@@ -38,7 +38,7 @@ export default function BrandMark({
         <img src={logoSrc} alt={displayName} className={logoClassName} />
       )}
       {brandMode === "logo" && !logoSrc && !hideDefaultLogo && (
-        <img src="/images/logo.png" alt={displayName} className={logoClassName} />
+        <span className={textClassName}>{displayName}</span>
       )}
       {brandMode === "avatar" && avatarSrc && (
         <img src={avatarSrc} alt={displayName} className={avatarClassName} />

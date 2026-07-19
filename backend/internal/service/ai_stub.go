@@ -5,7 +5,7 @@ import (
 	"hash/fnv"
 	"math"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // StubAIProvider is a development/testing stub that implements the AIProvider interface.

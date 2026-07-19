@@ -14,11 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/plugins/s3storage"
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/secretcipher"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/plugins/s3storage"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
+	"github.com/yixian-huang/inkless/backend/pkg/secretcipher"
 )
 
 const (
@@ -26,7 +27,7 @@ const (
 	storageProviderS3    = "s3"
 	storageProviderOSS   = "oss"
 
-	storageProbeKey     = ".impress-storage-probe"
+	storageProbeKey     = ".inkless-storage-probe"
 	defaultProbeTimeout = 5 * time.Second
 )
 
@@ -138,6 +139,7 @@ func (s *StorageRuntimeService) RestoreStartupConfig(ctx context.Context) error 
 	if err := s.probe(ctx, config.Strategy, storage); err != nil {
 		return err
 	}
+	s.cleanupLegacyStorageProbe(ctx, config.Strategy, storage)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -311,6 +313,18 @@ func (s *StorageRuntimeService) probe(ctx context.Context, strategy model.Storag
 	return nil
 }
 
+func (s *StorageRuntimeService) cleanupLegacyStorageProbe(ctx context.Context, strategy model.StorageStrategy, storage provider.StorageProvider) {
+	if strategy == model.StorageLocal {
+		return
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, s.probeTimeout)
+	defer cancel()
+	exists, err := storage.Exists(probeCtx, brandcompat.LegacyStorageProbeKey)
+	if err == nil && exists {
+		_ = storage.Delete(probeCtx, brandcompat.LegacyStorageProbeKey)
+	}
+}
+
 func (s *StorageRuntimeService) decryptConfig(config *model.StorageConfig) (*model.StorageConfig, error) {
 	cp := *config
 	if cp.SecretKey == "" {
@@ -407,7 +421,7 @@ func (p *prefixStorageProvider) withPrefix(key string) string {
 func NewEnvSecretCipher() SecretCipher {
 	material := os.Getenv("STORAGE_SECRET_ENCRYPTION_KEY")
 	if material == "" {
-		material = os.Getenv("IMPRESS_SECRET_KEY")
+		material = brandcompat.EnvValue(brandcompat.SecretKeyVariable, brandcompat.LegacySecretVariable)
 	}
 	if material == "" {
 		material = os.Getenv("JWT_SECRET")

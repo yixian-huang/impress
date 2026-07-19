@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	pb "blotting-consultancy/pkg/pluginproto"
-	"blotting-consultancy/pkg/pluginsdk"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
+	"github.com/yixian-huang/inkless/backend/pkg/pluginsdk"
 )
 
 type fileNotifier struct {

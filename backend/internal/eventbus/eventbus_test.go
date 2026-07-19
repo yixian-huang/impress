@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 )
 
 func TestPublishSync(t *testing.T) {

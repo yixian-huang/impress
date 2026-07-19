@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"github.com/robfig/cron/v3"
 )

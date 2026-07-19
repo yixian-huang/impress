@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/handler/feed"
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/handler/feed"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 type mockArticleRepo struct {

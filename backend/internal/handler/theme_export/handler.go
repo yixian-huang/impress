@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

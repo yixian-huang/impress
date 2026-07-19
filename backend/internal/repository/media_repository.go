@@ -3,12 +3,12 @@ package repository
 import (
 	"context"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // MediaUsage represents a reference to a media item from another entity
 type MediaUsage struct {
-	Type  string `json:"type"`  // "article", "page", "content_document"
+	Type  string `json:"type"` // "article", "page", "content_document"
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	Field string `json:"field"`

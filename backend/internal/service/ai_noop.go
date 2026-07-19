@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // ErrAINotConfigured is returned when no AI provider is configured.

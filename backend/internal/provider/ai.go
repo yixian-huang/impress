@@ -4,7 +4,7 @@ import "context"
 
 // ChatMessage represents a single message in a chat conversation.
 type ChatMessage struct {
-	Role    string `json:"role"`    // "system", "user", "assistant"
+	Role    string `json:"role"` // "system", "user", "assistant"
 	Content string `json:"content"`
 }
 

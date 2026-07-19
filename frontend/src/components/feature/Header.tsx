@@ -37,7 +37,7 @@ export default function Header() {
     if (!key) return true;
     return isFeatureEnabled(features, key);
   });
-  const logoSrc = branding.logo.light || '/images/logo.png';
+  const logoSrc = branding.logo.light;
   const logoAlt = branding.siteName || 'Site';
 
   useEffect(() => {
@@ -86,11 +86,15 @@ export default function Header() {
             {/* Logo */}
             <div className="flex items-center">
               <Link to="/">
-                <img
-                  src={logoSrc}
-                  alt={logoAlt}
-                  className="h-10 w-auto"
-                />
+                {logoSrc ? (
+                  <img
+                    src={logoSrc}
+                    alt={logoAlt}
+                    className="h-10 w-auto"
+                  />
+                ) : (
+                  <span className="text-lg font-semibold text-gray-900">{logoAlt}</span>
+                )}
               </Link>
             </div>
 

@@ -51,7 +51,7 @@ export const blogFirstTheme: ThemePlugin = {
     nameZh: "博客优先",
     description: "Minimal personal blog with author intro and article list at home",
     descriptionZh: "极简个人博客，首页展示作者介绍与最近文章",
-    author: "Impress CMS",
+    author: "Inkless CMS",
     version: "1.0.0",
     type: "theme",
     preview: "linear-gradient(135deg, #44403c 0%, #a8a29e 100%)",

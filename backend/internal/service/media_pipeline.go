@@ -56,12 +56,12 @@ type ProcessingJob struct {
 
 // MediaPipeline processes images asynchronously with bounded concurrency
 type MediaPipeline struct {
-	queue      chan *ProcessingJob
-	jobs       map[string]*ProcessingJob
-	mu         sync.RWMutex
+	queue       chan *ProcessingJob
+	jobs        map[string]*ProcessingJob
+	mu          sync.RWMutex
 	workerCount int
-	stopCh     chan struct{}
-	wg         sync.WaitGroup
+	stopCh      chan struct{}
+	wg          sync.WaitGroup
 }
 
 // NewMediaPipeline creates a new media processing pipeline

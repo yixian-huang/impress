@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ADMIN_DEFAULT_PATH } from "@/router/adminAccess";
+import { PRODUCT_BRAND } from "@/config/productBrand";
 
 export default function LoginPage() {
-  useDocumentTitle("登录");
+  useDocumentTitle(`${PRODUCT_BRAND.name} 登录`);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,8 +33,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
+          <div className="flex justify-center">
+            <img className="h-12 w-auto" src="/brand/inkless-wordmark.svg" alt="Inkless" />
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            管理后台
+            {PRODUCT_BRAND.name} 管理后台
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             请登录以继续

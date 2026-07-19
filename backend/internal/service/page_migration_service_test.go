@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 func TestConvertContentDocConfig_Home(t *testing.T) {

@@ -56,12 +56,12 @@ func TestNew_Valid(t *testing.T) {
 
 func TestNewFromSettings(t *testing.T) {
 	settings := map[string]string{
-		"endpoint":         "http://localhost:9000",
-		"bucket":           "my-bucket",
-		"access_key_id":    "key",
+		"endpoint":          "http://localhost:9000",
+		"bucket":            "my-bucket",
+		"access_key_id":     "key",
 		"secret_access_key": "secret",
-		"region":           "us-east-1",
-		"use_path_style":   "true",
+		"region":            "us-east-1",
+		"use_path_style":    "true",
 	}
 	p, err := NewFromSettings(settings)
 	require.NoError(t, err)

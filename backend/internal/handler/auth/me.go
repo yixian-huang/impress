@@ -3,8 +3,8 @@ package auth
 import (
 	"net/http"
 
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/pkg/apierror"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 
 	"github.com/gin-gonic/gin"
 )

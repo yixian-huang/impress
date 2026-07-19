@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"blotting-consultancy/internal/seo"
+	"github.com/yixian-huang/inkless/backend/internal/seo"
 )
 
 const testTemplate = `<!DOCTYPE html>

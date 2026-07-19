@@ -10,11 +10,11 @@ import (
 	"time"
 	"unicode"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/seed"
-	"blotting-consultancy/pkg/auth"
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/seed"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 	"gorm.io/gorm"
 )
 

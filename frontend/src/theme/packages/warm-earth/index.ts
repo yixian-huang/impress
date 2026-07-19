@@ -31,7 +31,7 @@ const warmEarthTheme: ThemePackage = {
   id: "warm-earth",
   name: "暖色大地",
   description: "温暖的大地色调，适合文化、教育、餐饮类网站",
-  author: "impress",
+  author: "inkless",
   version: "1.0.0",
   preview: "linear-gradient(135deg, #92400e 0%, #d97706 100%)",
   tokens,

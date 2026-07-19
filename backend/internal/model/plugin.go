@@ -11,24 +11,24 @@ import (
 
 // Plugin stores installed plugin state in the database.
 type Plugin struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	PluginID    string         `gorm:"uniqueIndex;size:100;not null" json:"pluginId"`
-	Name        string         `gorm:"size:200;not null" json:"name"`
-	NameZh      string         `gorm:"size:200" json:"nameZh"`
-	Version     string         `gorm:"size:50;not null" json:"version"`
-	Description string         `gorm:"size:1000" json:"description"`
-	Author      string         `gorm:"size:200" json:"author"`
-	License     string         `gorm:"size:100" json:"license"`
-	Homepage    string         `gorm:"size:500" json:"homepage"`
-	State       string         `gorm:"size:20;not null;default:'installed'" json:"state"`
-	Source      string         `gorm:"size:20;not null;default:'local'" json:"source"` // local, marketplace
-	BinaryPath  string         `gorm:"size:500" json:"binaryPath"`
+	ID          uint            `gorm:"primaryKey" json:"id"`
+	PluginID    string          `gorm:"uniqueIndex;size:100;not null" json:"pluginId"`
+	Name        string          `gorm:"size:200;not null" json:"name"`
+	NameZh      string          `gorm:"size:200" json:"nameZh"`
+	Version     string          `gorm:"size:50;not null" json:"version"`
+	Description string          `gorm:"size:1000" json:"description"`
+	Author      string          `gorm:"size:200" json:"author"`
+	License     string          `gorm:"size:100" json:"license"`
+	Homepage    string          `gorm:"size:500" json:"homepage"`
+	State       string          `gorm:"size:20;not null;default:'installed'" json:"state"`
+	Source      string          `gorm:"size:20;not null;default:'local'" json:"source"` // local, marketplace
+	BinaryPath  string          `gorm:"size:500" json:"binaryPath"`
 	Permissions JSONStringSlice `gorm:"type:text" json:"permissions"`
-	Settings    JSONMap        `gorm:"type:text" json:"settings"`
-	ErrorMsg    string         `gorm:"size:2000" json:"errorMsg,omitempty"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	Settings    JSONMap         `gorm:"type:text" json:"settings"`
+	ErrorMsg    string          `gorm:"size:2000" json:"errorMsg,omitempty"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
+	DeletedAt   gorm.DeletedAt  `gorm:"index" json:"-"`
 }
 
 // TableName overrides the default table name.

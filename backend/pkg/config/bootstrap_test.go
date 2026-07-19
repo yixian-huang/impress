@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
 )
 
 func TestLoadWithBootstrap_GeneratesEphemeralJWT(t *testing.T) {
@@ -70,6 +72,18 @@ func TestWriteEnvFile_CreatesEnvAndDirs(t *testing.T) {
 	content := string(data)
 	assert.Contains(t, content, "PORT=9090")
 	assert.Contains(t, content, "JWT_SECRET=secret")
+}
+
+func TestDefaultEnvFilePathPrefersCanonicalOverride(t *testing.T) {
+	t.Setenv(brandcompat.EnvFileVariable, "/tmp/inkless.env")
+	t.Setenv(brandcompat.LegacyEnvFileVariable, "/tmp/legacy.env")
+	assert.Equal(t, "/tmp/inkless.env", DefaultEnvFilePath())
+}
+
+func TestDefaultEnvFilePathReadsLegacyOverride(t *testing.T) {
+	t.Setenv(brandcompat.EnvFileVariable, "")
+	t.Setenv(brandcompat.LegacyEnvFileVariable, "/tmp/legacy.env")
+	assert.Equal(t, "/tmp/legacy.env", DefaultEnvFilePath())
 }
 
 func cleanupBootstrapEnv() {

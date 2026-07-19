@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -114,11 +114,11 @@ func TestSMTPConfig_IsConfigured(t *testing.T) {
 		{
 			name: "fully configured",
 			cfg: SMTPConfig{
-				Host:        "smtp.example.com",
-				Port:        465,
-				Username:    "user",
-				Password:    "pass",
-				From: "noreply@example.com",
+				Host:     "smtp.example.com",
+				Port:     465,
+				Username: "user",
+				Password: "pass",
+				From:     "noreply@example.com",
 			},
 			expected: true,
 		},
@@ -130,20 +130,20 @@ func TestSMTPConfig_IsConfigured(t *testing.T) {
 		{
 			name: "missing host",
 			cfg: SMTPConfig{
-				Port:        465,
-				Username:    "user",
-				Password:    "pass",
-				From: "noreply@example.com",
+				Port:     465,
+				Username: "user",
+				Password: "pass",
+				From:     "noreply@example.com",
 			},
 			expected: false,
 		},
 		{
 			name: "missing port",
 			cfg: SMTPConfig{
-				Host:        "smtp.example.com",
-				Username:    "user",
-				Password:    "pass",
-				From: "noreply@example.com",
+				Host:     "smtp.example.com",
+				Username: "user",
+				Password: "pass",
+				From:     "noreply@example.com",
 			},
 			expected: false,
 		},
@@ -167,7 +167,7 @@ func TestSMTPConfig_IsConfigured(t *testing.T) {
 func TestBuildHTMLMessage_WithReplyToAndFromName(t *testing.T) {
 	msg := buildHTMLMessage(
 		"noreply@example.com",
-		"Impress CMS",
+		"Example Sender",
 		"user@example.com",
 		"reply@example.com",
 		"Test Subject",
@@ -175,7 +175,7 @@ func TestBuildHTMLMessage_WithReplyToAndFromName(t *testing.T) {
 	)
 
 	msgStr := string(msg)
-	assert.Contains(t, msgStr, "From: Impress CMS <noreply@example.com>\r\n")
+	assert.Contains(t, msgStr, "From: Example Sender <noreply@example.com>\r\n")
 	assert.Contains(t, msgStr, "To: user@example.com\r\n")
 	assert.Contains(t, msgStr, "Reply-To: reply@example.com\r\n")
 	assert.Contains(t, msgStr, "Subject: Test Subject\r\n")

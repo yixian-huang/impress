@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // StorageConfigRepository defines the interface for storage config data access

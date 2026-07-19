@@ -15,17 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm/logger"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/db"
-	authHandler "blotting-consultancy/internal/handler/auth"
-	publicHandler "blotting-consultancy/internal/handler/public"
-	"blotting-consultancy/internal/middleware"
-	"blotting-consultancy/internal/model"
-	commentMod "blotting-consultancy/internal/modules/comment"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/apierror"
-	"blotting-consultancy/pkg/config"
-	appLogger "blotting-consultancy/pkg/logger"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
+	publicHandler "github.com/yixian-huang/inkless/backend/internal/handler/public"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	commentMod "github.com/yixian-huang/inkless/backend/internal/modules/comment"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
+	appLogger "github.com/yixian-huang/inkless/backend/pkg/logger"
 )
 
 // setupTestRouter creates a test router with all routes wired
@@ -82,11 +83,11 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *db.DB) {
 		defer cancel()
 
 		if err := database.HealthCheck(ctx); err != nil {
-			c.JSON(503, gin.H{"status": "unhealthy", "error": "database connection failed"})
+			c.JSON(503, gin.H{"service": brand.APIService, "status": "unhealthy", "error": "database connection failed"})
 			return
 		}
 
-		c.JSON(200, gin.H{"status": "healthy"})
+		c.JSON(200, gin.H{"service": brand.APIService, "status": "healthy"})
 	})
 
 	// Public routes
@@ -134,6 +135,7 @@ func TestHealthEndpoint(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	assert.Equal(t, "healthy", response["status"])
+	assert.Equal(t, brand.APIService, response["service"])
 }
 
 func TestPublicRouteWiring(t *testing.T) {

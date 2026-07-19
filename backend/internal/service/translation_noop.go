@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // NoopTranslationProvider is a no-op implementation of TranslationProvider.

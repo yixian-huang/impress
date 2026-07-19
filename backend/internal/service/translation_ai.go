@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // AITranslationProvider implements TranslationProvider using an AIProvider.

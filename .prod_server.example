@@ -3,5 +3,5 @@
 ip=your.host:22
 user=deploy
 passwd=your-ssh-password
-path=/home/app/impress
+path=/home/app/inkless
 port=18090

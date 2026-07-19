@@ -1,21 +1,21 @@
 {
   "name": "production-deploy",
-  "description": "印迹官网生产环境部署工作流",
+  "description": "Inkless CMS生产环境部署工作流",
   "version": "1.0.0",
 
   "env": {
     "SERVER_CONF": ".prod_server",
     "LOCAL_BACKEND_DIR": "backend",
     "LOCAL_FRONTEND_DIR": "frontend",
-    "REMOTE_BASE": "/home/app/impress",
+    "REMOTE_BASE": "/home/app/inkless",
     "BACKEND_PORT": "8088",
     "BACKEND_ENV": {
       "PORT": "8088",
-      "DB_DSN": "file:/home/app/impress/data/blotting.db?cache=shared&mode=rwc",
+      "DB_DSN": "file:/home/app/inkless/data/inkless.db?cache=shared&mode=rwc",
       "JWT_SECRET": "dev_jwt_secret_change_in_production",
       "JWT_REFRESH_SECRET": "dev_jwt_refresh_secret_change_in_production",
       "ENV": "production",
-      "UPLOAD_DIR": "/home/app/impress/uploads"
+      "UPLOAD_DIR": "/home/app/inkless/uploads"
     }
   },
 

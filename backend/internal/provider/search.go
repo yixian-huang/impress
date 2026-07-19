@@ -5,7 +5,7 @@ import "context"
 // SearchResult represents a single search hit.
 type SearchResult struct {
 	ID      uint    `json:"id"`
-	Type    string  `json:"type"`    // "article", "page"
+	Type    string  `json:"type"` // "article", "page"
 	Title   string  `json:"title"`
 	Snippet string  `json:"snippet"` // highlighted text excerpt
 	URL     string  `json:"url"`

@@ -10,7 +10,7 @@ export default function CorporateFooter({ config }: FooterChromeProps) {
   const globalFooter = globalConfig.footer || {};
 
   const style = config?.style ?? "full";
-  const logoSrc = (config?.logo ?? branding.logo.light?.trim()) || "/images/logo.png";
+  const logoSrc = config?.logo ?? branding.logo.light?.trim();
   const logoAlt = branding.siteName || "Site";
   const address = config?.address ?? globalFooter.address;
   const phone = config?.phone ?? globalFooter.phone;
@@ -46,7 +46,11 @@ export default function CorporateFooter({ config }: FooterChromeProps) {
         {sections.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 xl:gap-10">
             <div>
-              <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+              {logoSrc ? (
+                <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+              ) : (
+                <div className="mb-4 text-lg font-semibold">{logoAlt}</div>
+              )}
               <div className="space-y-2 text-sm text-on-primary/70">
                 {address && <p>{address}</p>}
                 {phone && <p>{phone}</p>}
@@ -79,7 +83,11 @@ export default function CorporateFooter({ config }: FooterChromeProps) {
         ) : (
           <div className="flex flex-col md:flex-row md:items-start gap-8 xl:gap-10">
             <div>
-              <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+              {logoSrc ? (
+                <img src={logoSrc} alt={logoAlt} className="h-10 w-auto mb-4" />
+              ) : (
+                <div className="mb-4 text-lg font-semibold">{logoAlt}</div>
+              )}
               <div className="space-y-2 text-sm text-gray-300">
                 {address && <p>{address}</p>}
                 {phone && <p>{phone}</p>}

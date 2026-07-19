@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 )
 
 // Handler handles auth-related HTTP requests

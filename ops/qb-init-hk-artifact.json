@@ -1,10 +1,10 @@
 {
-  "repoUrl": "https://github.com/yixian-huang/impress.git",
+  "repoUrl": "https://github.com/yixian-huang/inkless.git",
   "environmentName": "hk-artifact",
   "deployMethod": "artifact",
   "buildServerName": "223.244.7.122",
   "deployServerNames": ["VIP Cloud - 82.158.226.66"],
-  "workDir": "/home/impress",
+  "workDir": "/home/inkless",
   "artifactDeployConfig": {
     "manifestPath": "ops/artifact-manifest.json",
     "buildCommand": "QB_SKIP_BACKEND_TESTS=true bash ./scripts/qb-artifact-build.sh",
@@ -15,12 +15,12 @@
       "manifestFile": "artifact-manifest.json"
     },
     "stagingPath": "/var/lib/quickbox/staging/{deploymentId}",
-    "releaseRoot": "/opt/impress",
+    "releaseRoot": "/opt/inkless",
     "versionLayout": "symlink-current",
     "runtime": {
       "type": "systemd",
-      "unitName": "impress",
-      "user": "impress"
+      "unitName": "inkless",
+      "user": "inkless"
     },
     "healthCheckUrl": "http://127.0.0.1:8088/health",
     "healthCheckGraceSec": 10,
@@ -34,16 +34,18 @@
     "checksum": "sha256"
   },
   "deployTimeout": 1800,
-  "preDeployScript": "bash -c 'set -euo pipefail; R=/opt/impress; mkdir -p \"$R/data\" \"$R/uploads\" \"$R/backend\" /var/lib/quickbox/incoming /var/lib/quickbox/staging; id impress >/dev/null 2>&1 || useradd --system --home \"$R\" --shell /usr/sbin/nologin impress 2>/dev/null || true; chown -R impress:impress \"$R/data\" \"$R/uploads\" 2>/dev/null || true'",
+  "preDeployScript": "bash -c 'set -euo pipefail; R=/opt/inkless; mkdir -p \"$R/data\" \"$R/uploads\" \"$R/backend\" /var/lib/quickbox/incoming /var/lib/quickbox/staging; id inkless >/dev/null 2>&1 || useradd --system --home \"$R\" --shell /usr/sbin/nologin inkless 2>/dev/null || true; chown -R inkless:inkless \"$R/data\" \"$R/uploads\" 2>/dev/null || true'",
   "envVars": {
     "PORT": { "value": "8088", "isSecret": false },
     "ENV": { "value": "production", "isSecret": false },
+    "BASE_URL": { "value": "https://inkless.run", "isSecret": false },
+    "CORS_ALLOWED_ORIGINS": { "value": "https://inkless.run", "isSecret": false },
     "SEED_MODE": { "value": "blank", "isSecret": false },
     "SETUP_BOOTSTRAP": { "value": "true", "isSecret": false },
-    "FRONTEND_DIR": { "value": "/opt/impress/frontend/current", "isSecret": false },
-    "UPLOAD_DIR": { "value": "/opt/impress/uploads", "isSecret": false },
+    "FRONTEND_DIR": { "value": "/opt/inkless/frontend/current", "isSecret": false },
+    "UPLOAD_DIR": { "value": "/opt/inkless/uploads", "isSecret": false },
     "DB_DSN": {
-      "value": "file:/opt/impress/data/impress.db?cache=shared&mode=rwc",
+      "value": "file:/opt/inkless/data/inkless.db?cache=shared&mode=rwc",
       "isSecret": false
     },
     "JWT_SECRET": { "value": "REPLACE_ME", "isSecret": true },

@@ -1,4 +1,4 @@
-// Package email provides an email notification plugin for Impress CMS.
+// Package email provides an email notification plugin for Inkless CMS.
 // It implements the provider.NotifierProvider interface using SMTP.
 // Supported: any SMTP server including Gmail, SendGrid, and self-hosted servers.
 package email
@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/plugin"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Manifest describes this plugin's metadata.
@@ -23,7 +24,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "邮件通知插件",
 	Version:       "1.0.0",
 	Description:   "Sends email notifications on comment submission and form events via SMTP.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermNetworkOutbound},
@@ -49,7 +50,7 @@ type Config struct {
 	// From is the sender email address (e.g. "no-reply@example.com").
 	From string
 
-	// FromName is the sender display name (e.g. "Impress CMS").
+	// FromName is the sender display name (e.g. "Inkless CMS").
 	FromName string
 
 	// To is the default recipient email address. Used when the event meta has no "to" key.

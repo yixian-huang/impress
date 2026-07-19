@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"blotting-consultancy/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 )
 
 func TestHookChainExecutesInOrder(t *testing.T) {

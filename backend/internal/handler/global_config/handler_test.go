@@ -12,8 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // MockContentDocumentRepository — minimal in-memory mock with per-method override functions.

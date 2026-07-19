@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/pkg/brandcompat"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,7 +118,10 @@ func TestDeliver_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, "content.published", r.Header.Get("X-Impress-Event"))
+		assert.Equal(t, userAgent, r.Header.Get("User-Agent"))
+		assert.Equal(t, "content.published", r.Header.Get(headerEvent))
+		assert.Equal(t, r.Header.Get(headerEvent), r.Header.Get(brandcompat.LegacyWebhookEvent))
+		assert.Equal(t, r.Header.Get(headerTimestamp), r.Header.Get(brandcompat.LegacyWebhookTime))
 
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &received)
@@ -148,7 +152,8 @@ func TestDeliver_WithSignature(t *testing.T) {
 	var receivedSig string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedSig = r.Header.Get("X-Impress-Signature")
+		receivedSig = r.Header.Get(headerSignature)
+		assert.Equal(t, receivedSig, r.Header.Get(brandcompat.LegacyWebhookSig))
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()

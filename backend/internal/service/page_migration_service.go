@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // sectionMapping describes how to create a section from a content doc key.

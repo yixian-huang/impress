@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"blotting-consultancy/internal/db"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	// Source: SQLite
 	srcDSN := os.Getenv("SOURCE_DB_DSN")
 	if srcDSN == "" {
-		srcDSN = "data/blotting.db"
+		srcDSN = "data/inkless.db"
 		fmt.Printf("Using default SOURCE_DB_DSN: %s\n", srcDSN)
 	} else {
 		fmt.Printf("Source database: %s\n", srcDSN)
@@ -27,7 +27,7 @@ func main() {
 	targetDSN := os.Getenv("TARGET_DB_DSN")
 	if targetDSN == "" {
 		log.Fatal("ERROR: TARGET_DB_DSN environment variable required\n" +
-			"Example: export TARGET_DB_DSN=\"host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable\"")
+			"Example: export TARGET_DB_DSN=\"host=localhost user=inkless password=change-me dbname=inkless port=5432 sslmode=disable\"")
 	}
 	fmt.Printf("Target database: PostgreSQL\n\n")
 
@@ -85,9 +85,9 @@ func main() {
 
 	// Statistics
 	stats := struct {
-		UsersOK, UsersFailed         int
-		DocsOK, DocsFailed           int
-		VersionsOK, VersionsFailed   int
+		UsersOK, UsersFailed       int
+		DocsOK, DocsFailed         int
+		VersionsOK, VersionsFailed int
 	}{}
 
 	// Migrate Users

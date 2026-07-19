@@ -13,12 +13,12 @@ Server id: `4eaa0086-d435-4249-a76f-356fddde5261`
 |-------|--------|------|
 | build | QB build server | `scripts/qb-artifact-build.sh` → tarballs + `artifact-manifest.json` |
 | transfer | QB | scp/rsync bundle to hk |
-| activate | hk VPS | `scripts/qb-artifact-activate.sh` → `/opt/impress` + `systemctl restart impress` |
+| activate | hk VPS | `scripts/qb-artifact-activate.sh` → `/opt/inkless` + `systemctl restart inkless` |
 
 Layout on hk:
 
 ```text
-/opt/impress/
+/opt/inkless/
 ├── backend/versions/{version}/, current/, previous/
 ├── frontend/versions/{version}/, current/
 ├── data/          # SQLite (default)
@@ -68,7 +68,7 @@ First boot: open `http://82.158.226.66:8088/setup` (`SEED_MODE=blank`, `SETUP_BO
 | `scripts/qb-artifact-rollback.sh` | hk: symlink rollback |
 | `scripts/qb-artifact-manifest.sh` | Emit `artifact-manifest.json` |
 | `ops/artifact-manifest.json` | Static schema reference |
-| `ops/systemd/impress.service` | systemd unit template |
+| `ops/systemd/inkless.service` | systemd unit template |
 
 Spec: [`docs/quick-box-artifact-deploy-method.md`](../docs/quick-box-artifact-deploy-method.md)
 
@@ -80,9 +80,9 @@ Spec: [`docs/quick-box-artifact-deploy-method.md`](../docs/quick-box-artifact-de
 | `ENV` | `production` |
 | `SEED_MODE` | `blank` |
 | `SETUP_BOOTSTRAP` | `true` |
-| `FRONTEND_DIR` | `/opt/impress/frontend/current` |
-| `UPLOAD_DIR` | `/opt/impress/uploads` |
-| `DB_DSN` | `file:/opt/impress/data/impress.db?...` |
+| `FRONTEND_DIR` | `/opt/inkless/frontend/current` |
+| `UPLOAD_DIR` | `/opt/inkless/uploads` |
+| `DB_DSN` | `file:/opt/inkless/data/inkless.db?...` |
 | `JWT_SECRET` | secret |
 | `JWT_REFRESH_SECRET` | secret |
 

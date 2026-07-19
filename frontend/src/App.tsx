@@ -8,6 +8,7 @@ import { ThemePagesProvider } from "@/contexts/ThemePagesContext";
 import { BootstrapProvider } from "@/contexts/BootstrapContext";
 import { ThemeProvider } from "@/theme";
 import { ThemeManagerProvider } from "@/plugins/ThemeManagerContext";
+import DocumentBranding from "@/components/DocumentBranding";
 
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
             <ThemeProvider>
               <ThemePagesProvider>
                 <GlobalConfigProvider>
+                  <DocumentBranding />
                   <AuthProvider>
                     <AppRoutes />
                   </AuthProvider>

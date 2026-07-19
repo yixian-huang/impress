@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 
 	"github.com/spf13/cobra"
 )
@@ -17,7 +17,7 @@ func initCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a new Impress CMS project",
+		Short: "Initialize a new Inkless CMS project",
 		Long:  "Interactive project initialization: choose database, port, and generate .env configuration file.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
@@ -35,9 +35,9 @@ func initCmd() *cobra.Command {
 				}
 				envName = runtimeEnv
 				if dbType == "postgres" {
-					dsn = "postgres://impress:impress@localhost:5432/impress?sslmode=disable"
+					dsn = "postgres://inkless:inkless@localhost:5432/inkless?sslmode=disable"
 				} else {
-					dsn, err = config.BuildDSN(config.DatabaseInput{Type: "sqlite", SQLitePath: "./data/impress.db"})
+					dsn, err = config.BuildDSN(config.DatabaseInput{Type: "sqlite", SQLitePath: "./data/inkless.db"})
 					if err != nil {
 						return err
 					}
@@ -61,16 +61,16 @@ func initCmd() *cobra.Command {
 				input, _ = reader.ReadString('\n')
 				dbChoice := strings.TrimSpace(input)
 				if dbChoice == "" || dbChoice == "sqlite" {
-					dsn, err = config.BuildDSN(config.DatabaseInput{Type: "sqlite", SQLitePath: "./data/impress.db"})
+					dsn, err = config.BuildDSN(config.DatabaseInput{Type: "sqlite", SQLitePath: "./data/inkless.db"})
 					if err != nil {
 						return err
 					}
 				} else {
-					fmt.Print("PostgreSQL DSN [postgres://impress:impress@localhost:5432/impress?sslmode=disable]: ")
+					fmt.Print("PostgreSQL DSN [postgres://inkless:inkless@localhost:5432/inkless?sslmode=disable]: ")
 					input, _ = reader.ReadString('\n')
 					dsn = strings.TrimSpace(input)
 					if dsn == "" {
-						dsn = "postgres://impress:impress@localhost:5432/impress?sslmode=disable"
+						dsn = "postgres://inkless:inkless@localhost:5432/inkless?sslmode=disable"
 					}
 				}
 			}
@@ -101,9 +101,9 @@ func initCmd() *cobra.Command {
 			fmt.Println("Directories created: data/, uploads/")
 			fmt.Println("\nNext steps:")
 			fmt.Println("  1. Review and update .env (especially JWT secrets)")
-			fmt.Println("  2. Run: impress migrate up")
-			fmt.Println("  3. Open /setup in the browser or run: impress seed")
-			fmt.Println("  4. Run: impress serve")
+			fmt.Println("  2. Run: inkless migrate up")
+			fmt.Println("  3. Open /setup in the browser or run: inkless seed")
+			fmt.Println("  4. Run: inkless serve")
 			return nil
 		},
 	}

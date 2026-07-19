@@ -1,5 +1,5 @@
-// Package pluginsdk exposes the versioned beta process boundary used by
-// external Impress plugins.
+// Package pluginsdk exposes the versioned process boundary used by
+// external Inkless plugins.
 package pluginsdk
 
 import (
@@ -8,15 +8,15 @@ import (
 	goplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	pb "blotting-consultancy/pkg/pluginproto"
+	pb "github.com/yixian-huang/inkless/backend/pkg/pluginproto"
 )
 
-// Handshake is the versioned handshake shared by Impress and plugin processes.
+// Handshake is the canonical handshake shared by Inkless and plugin processes.
 // Changing it is a breaking plugin protocol change.
 var Handshake = goplugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "IMPRESS_PLUGIN",
-	MagicCookieValue: "impress-cms-v1",
+	MagicCookieKey:   "INKLESS_PLUGIN",
+	MagicCookieValue: "inkless-cms-v1",
 }
 
 // ProviderPluginName is the go-plugin dispatch key for provider plugins.
@@ -42,7 +42,7 @@ func (p *GRPCProviderPlugin) GRPCClient(
 	return pb.NewProviderServiceClient(connection), nil
 }
 
-// Serve starts an external Impress plugin process.
+// Serve starts an external Inkless plugin process.
 func Serve(implementation pb.ProviderServiceServer) {
 	goplugin.Serve(&goplugin.ServeConfig{
 		HandshakeConfig: Handshake,

@@ -3,7 +3,7 @@ package analytics
 import (
 	"time"
 
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { ProductLogo } from "@/components/product/ProductLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { commentModuleConfig } from "@/modules/comment";
 import {
@@ -312,11 +313,7 @@ function SidebarContent({ collapsed, onToggle, onMobileClose }: {
     <div className="flex flex-col h-full">
       {/* Logo / Brand */}
       <div className="h-14 flex items-center px-4 border-b border-gray-700 shrink-0">
-        {collapsed ? (
-          <span className="text-lg font-bold text-blue-400 mx-auto">印</span>
-        ) : (
-          <span className="text-lg font-bold text-blue-400 truncate">管理后台</span>
-        )}
+        <ProductLogo collapsed={collapsed} className={collapsed ? "mx-auto" : ""} />
       </div>
 
       {/* Navigation */}

@@ -5,11 +5,12 @@ import (
 	"log"
 	"strings"
 
-	"blotting-consultancy/internal/builtinthemes"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
-	"blotting-consultancy/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/internal/builtinthemes"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
+	"github.com/yixian-huang/inkless/backend/pkg/auth"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Seeder handles idempotent seeding of initial data
@@ -195,12 +196,12 @@ func (s *Seeder) SeedUnifiedPages(ctx context.Context) error {
 			existingTpl, tplErr := s.templateRepo.FindByKey(ctx, templateKey)
 			if tplErr != nil || existingTpl == nil {
 				tpl := &model.PageTemplate{
-					ID:            def.ID,
-					Key:           templateKey,
-					NameZh:        def.ZhName,
-					NameEn:        def.EnName,
-					Category:      "builtin",
-					Config:        sectionsConfig,
+					ID:       def.ID,
+					Key:      templateKey,
+					NameZh:   def.ZhName,
+					NameEn:   def.EnName,
+					Category: "builtin",
+					Config:   sectionsConfig,
 				}
 				if err := s.templateRepo.Create(ctx, tpl); err != nil {
 					log.Printf("Warning: failed to create page template %s: %v", templateKey, err)
@@ -244,7 +245,7 @@ func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
 		Name:        "Corporate Classic",
 		NameZh:      "企业经典",
 		Description: "专业企业官网，含首页、关于、优势、服务、案例、专家、联系",
-		Author:      "Blotting Consultancy",
+		Author:      brand.ProductName,
 		Version:     "1.0.0",
 		Source:      "built-in",
 		IsActive:    true,
@@ -258,7 +259,7 @@ func (s *Seeder) SeedInstalledThemes(ctx context.Context) error {
 		Name:        "Blog First",
 		NameZh:      "博客优先",
 		Description: "极简个人博客，首页展示作者介绍与最近文章",
-		Author:      "Impress CMS",
+		Author:      brand.ProductName,
 		Version:     "1.0.0",
 		Source:      "built-in",
 		IsActive:    false,
@@ -276,7 +277,7 @@ func (s *Seeder) seedMinimalStarterTheme(ctx context.Context) error {
 		Name:        "Minimal Starter",
 		NameZh:      "极简起步",
 		Description: "最简内置主题，演示第三方主题扩展路径",
-		Author:      "Impress CMS",
+		Author:      brand.ProductName,
 		Version:     "1.0.0",
 		Source:      "built-in",
 		IsActive:    false,
@@ -461,8 +462,8 @@ func getInitialConfig(pageKey model.PageKey) model.JSONMap {
 		return model.JSONMap{
 			"hero": model.JSONMap{
 				"title": model.JSONMap{
-					"zh": "欢迎来到印迹咨询",
-					"en": "Welcome to Blotting Consultancy",
+					"zh": "欢迎来到北辰工作室",
+					"en": "Welcome to Northstar Studio",
 				},
 				"subtitle": model.JSONMap{
 					"zh": "专业的咨询服务",
@@ -483,8 +484,8 @@ func getInitialConfig(pageKey model.PageKey) model.JSONMap {
 				},
 				"descriptions": []interface{}{
 					model.JSONMap{
-						"zh": "印迹咨询提供专业的咨询服务",
-						"en": "Blotting Consultancy provides professional consulting services",
+						"zh": "北辰工作室提供专业的咨询服务",
+						"en": "Northstar Studio provides professional consulting services",
 					},
 				},
 				"image": model.JSONMap{
@@ -539,8 +540,8 @@ func getInitialConfig(pageKey model.PageKey) model.JSONMap {
 					"en": "Company Profile",
 				},
 				"content": model.JSONMap{
-					"zh": "印迹咨询成立于2020年",
-					"en": "Blotting Consultancy was established in 2020",
+					"zh": "北辰工作室成立于2020年",
+					"en": "Northstar Studio was established in 2020",
 				},
 			},
 			"blocks": []interface{}{},
@@ -598,7 +599,7 @@ func getInitialConfig(pageKey model.PageKey) model.JSONMap {
 				},
 			},
 			"contactInfo": model.JSONMap{
-				"email": "info@blotting.com",
+				"email": "hello@example.com",
 				"phone": "+86 123 4567 8900",
 			},
 		}
@@ -608,8 +609,8 @@ func getInitialConfig(pageKey model.PageKey) model.JSONMap {
 				"logo": model.JSONMap{
 					"url": "/images/logo.svg",
 					"alt": model.JSONMap{
-						"zh": "印迹咨询",
-						"en": "Blotting Consultancy",
+						"zh": "北辰工作室",
+						"en": "Northstar Studio",
 					},
 				},
 				"navLinks": []interface{}{},

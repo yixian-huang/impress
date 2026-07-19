@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

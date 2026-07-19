@@ -1,4 +1,12 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
+import {
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  removeStoredAccessToken,
+  removeStoredRefreshToken,
+  setStoredAccessToken,
+  setStoredRefreshToken,
+} from "@/lib/browserStorage";
 
 const apiBaseURL = (import.meta.env.VITE_API_BASE_URL || "").trim();
 
@@ -7,7 +15,7 @@ export const http = axios.create({
 });
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+  const token = getStoredAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -63,7 +71,7 @@ http.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = getStoredRefreshToken();
       if (!refreshToken) {
         throw new Error("No refresh token");
       }
@@ -71,9 +79,9 @@ http.interceptors.response.use(
       const res = await http.post("/auth/refresh", { refreshToken });
       const { accessToken, refreshToken: newRefreshToken } = res.data;
 
-      localStorage.setItem("accessToken", accessToken);
+      setStoredAccessToken(accessToken);
       if (newRefreshToken) {
-        localStorage.setItem("refreshToken", newRefreshToken);
+        setStoredRefreshToken(newRefreshToken);
       }
 
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -82,8 +90,8 @@ http.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
       // Clear tokens and redirect to login only for admin routes
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+      removeStoredAccessToken();
+      removeStoredRefreshToken();
       if (originalRequest.url?.includes("/admin") || window.location.pathname.startsWith("/admin")) {
         window.location.href = "/admin/login";
       }

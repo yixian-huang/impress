@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 type siteExport struct {
@@ -18,7 +18,7 @@ type siteExport struct {
 	Pages           []model.Page            `json:"pages"`
 	Categories      []model.Category        `json:"categories"`
 	Tags            []model.Tag             `json:"tags"`
-	InstalledThemes []model.InstalledTheme   `json:"installedThemes"`
+	InstalledThemes []model.InstalledTheme  `json:"installedThemes"`
 	ContentDocs     []model.ContentDocument `json:"contentDocuments"`
 }
 
@@ -53,7 +53,7 @@ func exportCmd() *cobra.Command {
 			}
 
 			if outputFile == "" {
-				outputFile = fmt.Sprintf("impress-export-%s.json", time.Now().Format("20060102-150405"))
+				outputFile = fmt.Sprintf("inkless-export-%s.json", time.Now().Format("20060102-150405"))
 			}
 
 			if err := os.WriteFile(outputFile, data, 0644); err != nil {
@@ -70,6 +70,6 @@ func exportCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN")
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: impress-export-TIMESTAMP.json)")
+	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: inkless-export-TIMESTAMP.json)")
 	return cmd
 }

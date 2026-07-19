@@ -8,7 +8,7 @@ export default function CorporateHeader({ config }: HeaderChromeProps) {
   const style = config?.style ?? "sticky";
   const showScrollEffect = style !== "static";
   const scrolled = useHeaderScroll(showScrollEffect);
-  const logoSrc = (config?.logo ?? branding.logo.light?.trim()) || "/images/logo.png";
+  const logoSrc = config?.logo ?? branding.logo.light?.trim();
   const logoAlt = branding.siteName || "Site";
   const isSticky = style === "sticky" || style === "transparent";
 
@@ -25,7 +25,11 @@ export default function CorporateHeader({ config }: HeaderChromeProps) {
       }`}
       brand={(
         <Link to="/">
-          <img src={logoSrc} alt={logoAlt} className="h-10 w-auto" />
+          {logoSrc ? (
+            <img src={logoSrc} alt={logoAlt} className="h-10 w-auto" />
+          ) : (
+            <span className="text-lg font-semibold text-on-surface">{logoAlt}</span>
+          )}
         </Link>
       )}
     />

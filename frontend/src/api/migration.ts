@@ -1,4 +1,5 @@
 import { http } from "@/api/http";
+import { getStoredAccessToken } from "@/lib/browserStorage";
 
 const apiBaseURL = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 
@@ -59,7 +60,7 @@ export async function streamMigrationJob(
   signal: AbortSignal,
   onProgress: (job: Partial<MigrationJob>) => void,
 ): Promise<void> {
-  const accessToken = localStorage.getItem("accessToken");
+  const accessToken = getStoredAccessToken();
   const response = await fetch(
     `${apiBaseURL}/admin/migration/jobs/${encodeURIComponent(jobId)}/stream`,
     {

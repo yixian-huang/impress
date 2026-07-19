@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/eventbus"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/internal/service"
-	"blotting-consultancy/pkg/audit"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
+	"github.com/yixian-huang/inkless/backend/pkg/audit"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"

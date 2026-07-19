@@ -11,8 +11,8 @@ import (
 	"sort"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // ChunkedUploadService manages chunked file uploads

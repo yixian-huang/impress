@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "project": "impress",
+  "project": "inkless",
   "components": [
     {
       "name": "backend",
@@ -9,8 +9,8 @@
       "checksumPattern": "artifacts/backend-{version}.tar.gz.sha256",
       "deployPath": "backend/versions/{version}",
       "runtime": {
-        "binaryName": "blotting-api-{version}",
-        "symlink": "backend/current/blotting-api-latest"
+        "binaryName": "inkless-api-{version}",
+        "symlink": "backend/current/inkless-api-latest"
       }
     },
     {

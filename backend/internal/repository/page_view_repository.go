@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 // PageViewStats holds aggregated view counts for a single page key

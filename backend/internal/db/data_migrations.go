@@ -1,7 +1,7 @@
 package db
 
 import (
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"gorm.io/gorm"
 )
@@ -48,6 +48,38 @@ func DataMigrations() []Migration {
 			Down: func(db *gorm.DB) error {
 				return db.Migrator().DropTable(&model.AIConfig{})
 			},
+		},
+		{
+			ID: "004_preserve_legacy_meilisearch_index_prefix",
+			Up: func(db *gorm.DB) error {
+				if !db.Migrator().HasTable(&model.Plugin{}) {
+					return nil
+				}
+
+				var plugins []model.Plugin
+				if err := db.Where("plugin_id = ?", "mls-search").Find(&plugins).Error; err != nil {
+					return err
+				}
+				for i := range plugins {
+					settings := plugins[i].Settings
+					if settings == nil {
+						settings = make(model.JSONMap)
+					}
+					if _, configured := settings["index_prefix"]; configured {
+						continue
+					}
+					settings["index_prefix"] = "impress_"
+					if err := db.Model(&model.Plugin{}).
+						Where("id = ?", plugins[i].ID).
+						Update("settings", settings).Error; err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			// Removing the compatibility marker on rollback could make an existing
+			// deployment silently switch to a different index namespace.
+			Down: func(*gorm.DB) error { return nil },
 		},
 	}
 }

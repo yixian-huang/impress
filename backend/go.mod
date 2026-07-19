@@ -1,4 +1,4 @@
-module blotting-consultancy
+module github.com/yixian-huang/inkless/backend
 
 go 1.25.0
 

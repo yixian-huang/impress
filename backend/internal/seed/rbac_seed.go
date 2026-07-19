@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // RBACSeedConfig defines the built-in roles and their permission sets

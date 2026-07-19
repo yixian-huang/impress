@@ -1,5 +1,5 @@
 export const setup = {
-  title: "初始化 Impress",
+  title: "初始化 Inkless",
   subtitle: "创建管理员账号并配置站点基本信息",
   steps: {
     welcome: "欢迎",
@@ -11,7 +11,7 @@ export const setup = {
     finish: "完成",
   },
   welcome: {
-    heading: "欢迎使用 Impress",
+    heading: "欢迎使用 Inkless",
     body: "按步骤完成首次配置。若尚未配置环境变量，将先引导你设置数据库并生成 .env。",
     bodyConfigured: "数据库已连接。请继续配置站点与管理员账号。",
     database: "数据库类型",
@@ -42,7 +42,7 @@ export const setup = {
   },
   restart: {
     heading: "请重启服务",
-    body: "配置已写入 {{path}}。请重启 Impress 后端使环境变量生效，此页面会自动检测并继续。",
+    body: "配置已写入 {{path}}。请重启 Inkless 后端使环境变量生效，此页面会自动检测并继续。",
     waiting: "正在等待服务以持久化配置重启…",
     reload: "手动刷新",
   },

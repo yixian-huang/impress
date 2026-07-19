@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"blotting-consultancy/internal/model"
 	"context"
 	"errors"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 	"time"
 )
 

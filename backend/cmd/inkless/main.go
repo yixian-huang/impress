@@ -15,9 +15,9 @@ var (
 
 func rootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "impress",
-		Short:   "Impress CMS CLI - manage your bilingual CMS instance",
-		Long:    "impress is a command-line tool for managing Impress CMS.\nIt provides commands for initialization, migration, seeding, and data management.",
+		Use:     "inkless",
+		Short:   "Inkless CMS CLI - manage your bilingual CMS instance",
+		Long:    "inkless is a command-line tool for managing Inkless CMS.\nIt provides commands for initialization, migration, seeding, and data management.",
 		Version: Version,
 	}
 

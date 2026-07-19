@@ -179,7 +179,7 @@ async function mockAdminAPI(page, state, currentUser = {
         unifiedPages: state.pages
           .filter((item) => item.status === "published" && item.publishedConfig)
           .map(publicPageFacts),
-        globalConfig: { config: { site: { name: { zh: "Impress" } } } },
+        globalConfig: { config: { site: { name: { zh: "Customer Site" } } } },
         features: {},
       });
       return;
@@ -616,7 +616,7 @@ async function run() {
     assert.equal(state.migrationStreamAttempts["mig-failed"], 2);
 
     await page.evaluate(() => {
-      localStorage.setItem("accessToken", "expired-e2e-access");
+      localStorage.setItem("inkless.auth.accessToken", "expired-e2e-access");
     });
     await page.getByRole("button", { name: "Markdown ZIP" }).click();
     await page.locator('input[type="file"]').setInputFiles({

@@ -1,4 +1,5 @@
 import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+import { PRODUCT_DEFAULT_OG_IMAGE } from "@/config/productBrand";
 import { SITE_CONFIG_GLOBAL_DEFAULT, type SiteConfigGlobal } from "@/types/siteConfig";
 import { pickLocaleValue, type Locale } from "@/lib/locale";
 
@@ -23,7 +24,7 @@ export function useSEODefaults(): SEODefaultsView {
     siteName;
   const titleTemplate = sc.seo.titleTemplate?.trim() || "{page} | {site}";
   const defaultDescription = pickLocaleValue({ value: sc.seo.defaultDescription, mode, defaultLocale: def, currentLocale: cur });
-  const defaultOgImage = sc.brand.ogImage;
+  const defaultOgImage = sc.brand.ogImage || PRODUCT_DEFAULT_OG_IMAGE;
 
   function buildTitle(pageTitle: string): string {
     const trimmed = (pageTitle ?? "").trim();

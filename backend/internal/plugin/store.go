@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"gorm.io/gorm"
 )

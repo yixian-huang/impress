@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/pkg/audit"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/pkg/audit"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

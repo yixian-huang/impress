@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // mockMarketplaceRepo is a simple in-memory implementation for tests

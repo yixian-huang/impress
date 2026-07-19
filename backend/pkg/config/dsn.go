@@ -31,7 +31,7 @@ func BuildDSN(in DatabaseInput) (string, error) {
 	case "", "sqlite":
 		path := strings.TrimSpace(in.SQLitePath)
 		if path == "" {
-			path = "./data/impress.db"
+			path = "./data/inkless.db"
 		}
 		if strings.HasPrefix(path, ":memory:") {
 			return path, nil

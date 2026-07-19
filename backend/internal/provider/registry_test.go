@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 func TestRegistryRegisterAndGet(t *testing.T) {

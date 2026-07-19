@@ -4,9 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Module defines the contract for a self-contained feature module.
@@ -23,9 +23,9 @@ type Dependencies struct {
 	Repos      *SharedRepos
 	SiteCfg    repository.SiteConfigRepository
 	UserRepo   repository.UserRepository // for RBAC middleware in modules
-	RBACCache  *cache.Cache             // for RBAC middleware in modules
-	UploadDir  string                   // path to uploads directory
-	AppVersion string                   // application version string
+	RBACCache  *cache.Cache              // for RBAC middleware in modules
+	UploadDir  string                    // path to uploads directory
+	AppVersion string                    // application version string
 }
 
 // SharedRepos holds cross-module repositories.

@@ -2,11 +2,11 @@ package repository_test
 
 import (
 	"context"
-	"testing"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"testing"
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {

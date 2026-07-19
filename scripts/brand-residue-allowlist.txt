@@ -1,0 +1,35 @@
+# path regex|line-content regex|reason
+^scripts/check-brand-residue\.sh$|LEGACY_PATTERN=|The gate must declare the legacy terms it rejects.
+^scripts/brand-residue-allowlist\.txt$|.*|The exact allowlist path is metadata for documented exceptions.
+^backend/pkg/brandcompat/legacy\.go$|IMPRESS_ENV_FILE|Tested compatibility reads the deprecated environment-file variable.
+^backend/pkg/brandcompat/legacy\.go$|IMPRESS_SECRET_KEY|Tested compatibility reads the deprecated secret variable.
+^backend/pkg/brandcompat/legacy\.go$|\.impress-storage-probe|Tested startup cleanup removes only the deprecated probe marker.
+^backend/pkg/brandcompat/legacy\.go$|X-Impress-|Tested transition constants preserve legacy webhook consumers for one release.
+^backend/pkg/config/dsn_test\.go$|impress\.db|Compatibility test proves an explicitly configured legacy SQLite path remains usable.
+^backend/internal/db/db_test\.go$|impress\.db|Database compatibility tests prove explicit legacy SQLite paths remain valid.
+^backend/pkg/brandcompat/legacy\.go$|Impress plugin handshake|Deprecated compatibility comment documents the tested legacy plugin contract.
+^backend/pkg/brandcompat/legacy\.go$|IMPRESS_PLUGIN|Tested compatibility loads existing compiled plugins through deterministic preflight.
+^backend/pkg/brandcompat/legacy\.go$|impress-cms-v1|Tested compatibility loads existing compiled plugins through deterministic preflight.
+^backend/internal/plugins/meilisearch/plugin\.go$|impress_|Tested migration reads legacy indexes and cuts over only after task completion and count verification.
+^backend/internal/plugins/meilisearch/plugin\.go$|Impress-prefixed|Compatibility comment documents the tested legacy index migration.
+^backend/internal/plugins/meilisearch/plugin_test\.go$|impress_|Integration-style HTTP tests cover legacy index discovery, reindex, verification, and safe deletion.
+^backend/internal/db/data_migrations\.go$|impress_|A tested one-time data migration marks only existing Meilisearch records with the legacy prefix before canonical defaults change.
+^backend/internal/db/data_migrations_test\.go$|impress_|Migration tests prove existing Meilisearch settings are preserved and unrelated records are untouched.
+^frontend/src/lib/browserStorage\.ts$|impress\.|Tested one-time browser storage migration reads and deletes legacy keys.
+^frontend/src/lib/browserStorage\.test\.ts$|impress\.|Tests prove legacy browser data migrates without loss and new keys win.
+^frontend/src/plugins/externals\.ts$|__IMPRESS_SHARED__|Tested read/write alias supports legacy external bundles during loading.
+^frontend/src/plugins/externals\.test\.ts$|__IMPRESS_SHARED__|Tests cover the legacy shared-dependency alias.
+^frontend/src/plugins/ThemeManager\.ts$|__IMPRESS_THEME_REGISTER__|Tested temporary registration alias exists only while loading external bundles.
+^frontend/src/plugins/ThemeManager\.test\.ts$|__IMPRESS_THEME_REGISTER__|Tests cover legacy external theme registration and cleanup.
+^docs/inkless-brand-migration\.md$|Impress|Current migration guide documents a supported legacy identifier.
+^docs/inkless-brand-migration\.md$|impress|Current migration guide documents a supported legacy identifier.
+^docs/inkless-brand-migration\.md$|IMPRESS|Current migration guide documents a supported legacy identifier.
+^docs/inkless-brand-migration\.md$|Blotting|Current migration guide documents a supported legacy identifier.
+^docs/inkless-brand-migration\.md$|blotting|Current migration guide documents a supported legacy identifier.
+^docs/inkless-brand-migration\.md$|印迹|Current migration guide documents a supported legacy identifier.
+^docs/superpowers/|Impress|Archived design material preserves its historical project name.
+^docs/superpowers/|impress|Archived design material preserves its historical project name.
+^docs/superpowers/|IMPRESS|Archived design material preserves its historical project name.
+^docs/superpowers/|Blotting|Archived design material preserves its historical project name.
+^docs/superpowers/|blotting|Archived design material preserves its historical project name.
+^docs/superpowers/|印迹|Archived design material preserves its historical project name.

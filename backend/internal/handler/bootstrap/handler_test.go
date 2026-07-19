@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"blotting-consultancy/internal/cache"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"

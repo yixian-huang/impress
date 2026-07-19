@@ -17,7 +17,7 @@ GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
 GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
 GO_VERSION="$(go version | awk '{print $3}')"
 ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
-BINARY_NAME="blotting-api-${VERSION}"
+BINARY_NAME="inkless-api-${VERSION}"
 ARTIFACT_NAME="backend-${VERSION}.tar.gz"
 
 echo "=========================================="
@@ -91,7 +91,7 @@ fi
 
 # Create symlink to latest
 cd "${PROJECT_ROOT}/artifacts"
-ln -sf "${BINARY_NAME}" blotting-api-latest
+ln -sf "${BINARY_NAME}" inkless-api-latest
 ln -sf "${ARTIFACT_NAME}" backend-latest.tar.gz
 if [ -f "${ARTIFACT_NAME}.sha256" ]; then
   ln -sf "${ARTIFACT_NAME}.sha256" backend-latest.tar.gz.sha256

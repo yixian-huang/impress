@@ -9,9 +9,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"blotting-consultancy/internal/db"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/pkg/config"
+	"github.com/yixian-huang/inkless/backend/internal/db"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/pkg/config"
 )
 
 // pageOrder defines the sort order for migrated pages, matching ValidPageKeys order.

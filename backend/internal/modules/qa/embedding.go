@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"blotting-consultancy/internal/provider"
-	"blotting-consultancy/internal/service"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
 const (

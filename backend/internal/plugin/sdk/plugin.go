@@ -1,4 +1,4 @@
-// Package sdk provides the Plugin SDK for Impress CMS plugins.
+// Package sdk provides the Plugin SDK for Inkless CMS plugins.
 // It wraps context, configuration, event subscriptions, hook registrations,
 // and database/route access into a single cohesive API surface.
 package sdk
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sync"
 
-	"blotting-consultancy/internal/eventbus"
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 
 	"gorm.io/gorm"
 )

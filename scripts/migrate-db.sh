@@ -17,7 +17,7 @@ fi
 
 # Set default source DSN if not provided
 if [ -z "$SOURCE_DB_DSN" ]; then
-    SOURCE_DB_DSN="$PROJECT_ROOT/data/blotting.db"
+    SOURCE_DB_DSN="$PROJECT_ROOT/data/inkless.db"
     if [ ! -f "$SOURCE_DB_DSN" ]; then
         echo "WARNING: Source database not found at $SOURCE_DB_DSN"
         echo "         Set SOURCE_DB_DSN environment variable to specify custom path"
@@ -30,10 +30,10 @@ if [ -z "$TARGET_DB_DSN" ]; then
     echo ""
     echo "Examples:"
     echo "  # Docker Compose PostgreSQL"
-    echo "  export TARGET_DB_DSN=\"host=localhost user=blotting_user password=blotting_dev_password dbname=blotting_cms port=5432 sslmode=disable\""
+    echo "  export TARGET_DB_DSN=\"host=localhost user=inkless password=inkless_dev_password dbname=inkless port=5432 sslmode=disable\""
     echo ""
     echo "  # Production PostgreSQL"
-    echo "  export TARGET_DB_DSN=\"host=prod-db.example.com user=blotting_user password=SECURE_PASSWORD dbname=blotting_cms port=5432 sslmode=require\""
+    echo "  export TARGET_DB_DSN=\"host=prod-db.example.com user=inkless password=SECURE_PASSWORD dbname=inkless port=5432 sslmode=require\""
     echo ""
     exit 1
 fi
@@ -44,8 +44,8 @@ mkdir -p "$BACKUP_DIR"
 
 if [ -f "$SOURCE_DB_DSN" ]; then
     echo "Creating backup of source database..."
-    cp "$SOURCE_DB_DSN" "$BACKUP_DIR/blotting.db.backup"
-    sqlite3 "$SOURCE_DB_DSN" ".dump" > "$BACKUP_DIR/blotting_dump.sql"
+    cp "$SOURCE_DB_DSN" "$BACKUP_DIR/inkless.db.backup"
+    sqlite3 "$SOURCE_DB_DSN" ".dump" > "$BACKUP_DIR/inkless_dump.sql"
     echo "✓ Backup saved to $BACKUP_DIR"
     echo ""
 fi

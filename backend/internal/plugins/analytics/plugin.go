@@ -1,4 +1,4 @@
-// Package analytics provides an analytics code injection plugin for Impress CMS.
+// Package analytics provides an analytics code injection plugin for Inkless CMS.
 // It subscribes to the frontend injection mechanism, inserting tracking scripts
 // (Google Analytics 4, Baidu Analytics, Umami) into rendered pages.
 package analytics
@@ -8,7 +8,8 @@ import (
 	"html/template"
 	"strings"
 
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Manifest describes this plugin's metadata.
@@ -18,7 +19,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "统计代码注入插件",
 	Version:       "1.0.0",
 	Description:   "Injects GA4, Baidu Analytics, or Umami tracking scripts into page <head>.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermFrontendInject},

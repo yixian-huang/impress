@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
-	"blotting-consultancy/pkg/logger"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/logger"
 )
 
 // Writer persists structured audit events.

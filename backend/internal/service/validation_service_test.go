@@ -1,7 +1,7 @@
 package service
 
 import (
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 	"testing"
 )
 

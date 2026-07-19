@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // ---------- Config types ----------
@@ -357,7 +358,7 @@ func (s *EmailService) SendTest(ctx context.Context, to string, cfg *EmailConfig
 		return fmt.Errorf("SMTP not configured")
 	}
 
-	subject := "Impress CMS - Email Test / 邮件测试"
+	subject := brand.ProductName + " - Email Test / 邮件测试"
 	body := `<html><body>
 <h2>Email Configuration Test / 邮件配置测试</h2>
 <p>If you receive this email, your SMTP settings are working correctly.</p>

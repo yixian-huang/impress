@@ -27,20 +27,21 @@ dev: ## 启动前后端（需已 build-backend；完整流程用 dev-up）
 dev-backend: ## 启动后端（需先 build-backend）
 	@cd backend && \
 	export PORT=8088 && \
-	export DB_DSN='file:./data/blotting.db?cache=shared&mode=rwc' && \
+	export DB_DSN='file:./data/inkless.db?cache=shared&mode=rwc' && \
 	export JWT_SECRET=dev_jwt_secret_change_in_production && \
 	export JWT_REFRESH_SECRET=dev_jwt_refresh_secret_change_in_production && \
 	export ENV=development && \
 	export SEED_MODE=demo && \
 	export UPLOAD_DIR=./uploads && \
-	./server
+	./inkless-api-latest
 
 dev-frontend: ## 启动前端 dev server
 	@cd frontend && VITE_API_BASE_URL=$(DEV_API_URL) pnpm dev
 
 # ── 构建 ──────────────────────────────────────────────────
 build-backend: ## 编译后端（自动注入版本信息）
-	@cd backend && go build -ldflags '$(LDFLAGS)' -o server ./cmd/server/
+	@cd backend && go build -ldflags '$(LDFLAGS)' -o inkless-api-$(VERSION) ./cmd/server/
+	@cd backend && ln -sf inkless-api-$(VERSION) inkless-api-latest
 	@printf '{"version":"%s","buildTime":"%s","gitCommit":"%s","gitBranch":"%s"}\n' \
 		"$(VERSION)" "$(BUILD_TIME)" "$(GIT_COMMIT)" "$(GIT_BRANCH)" > backend/version.json
 	@echo "Built backend $(VERSION) ($(GIT_BRANCH)@$(GIT_COMMIT)) at $(BUILD_TIME)"
@@ -49,7 +50,7 @@ seed-blog-samples: ## 写入约 48 篇示例博客（幂等，需已有数据库
 	@bash scripts/seed-blog-samples.sh
 
 build-cli: ## 编译 CLI 工具
-	@cd backend && go build -ldflags '-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)' -o impress ./cmd/impress/
+	@cd backend && go build -ldflags '-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)' -o inkless ./cmd/inkless/
 	@echo "Built CLI $(VERSION)"
 
 build: build-backend build-cli ## 编译前后端 + CLI

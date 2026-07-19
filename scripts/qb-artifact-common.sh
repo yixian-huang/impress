@@ -80,7 +80,7 @@ qb_artifact_incoming_dir() {
 }
 
 qb_release_root() {
-  echo "${QB_RELEASE_ROOT:-/opt/impress}"
+  echo "${QB_RELEASE_ROOT:-/opt/inkless}"
 }
 
 qb_health_url() {
@@ -88,7 +88,7 @@ qb_health_url() {
 }
 
 qb_systemd_unit() {
-  echo "${QB_SYSTEMD_UNIT:-impress}"
+  echo "${QB_SYSTEMD_UNIT:-inkless}"
 }
 
 qb_runtime_type() {
@@ -100,7 +100,16 @@ qb_atomic_symlink() {
   local link="$2"
   local tmp="${link}_tmp"
   ln -snf "${target}" "${tmp}"
-  mv -Tf "${tmp}" "${link}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "${tmp}" "${link}" <<'PY'
+import os
+import sys
+
+os.replace(sys.argv[1], sys.argv[2])
+PY
+  else
+    mv -Tf "${tmp}" "${link}"
+  fi
 }
 
 qb_backup_current_symlink() {
@@ -108,7 +117,7 @@ qb_backup_current_symlink() {
   local current="${base}/current"
   local previous="${base}/previous"
   if [[ -L "${current}" ]]; then
-  local current_target
+    local current_target
     current_target="$(readlink "${current}")"
     ln -snf "${current_target}" "${previous}"
   fi
@@ -124,11 +133,14 @@ qb_write_env_file() {
     [[ -n "${ENV:-}" ]] && echo "ENV=${ENV}"
     [[ -n "${SEED_MODE:-}" ]] && echo "SEED_MODE=${SEED_MODE}"
     [[ -n "${SETUP_BOOTSTRAP:-}" ]] && echo "SETUP_BOOTSTRAP=${SETUP_BOOTSTRAP}"
+    [[ -n "${BASE_URL:-}" ]] && echo "BASE_URL=${BASE_URL}"
+    [[ -n "${CORS_ALLOWED_ORIGINS:-}" ]] && echo "CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}"
     echo "FRONTEND_DIR=${FRONTEND_DIR:-${release_root}/frontend/current}"
     echo "UPLOAD_DIR=${UPLOAD_DIR:-${release_root}/uploads}"
     [[ -n "${DB_DSN:-}" ]] && echo "DB_DSN=${DB_DSN}"
     [[ -n "${JWT_SECRET:-}" ]] && echo "JWT_SECRET=${JWT_SECRET}"
     [[ -n "${JWT_REFRESH_SECRET:-}" ]] && echo "JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}"
+    [[ -n "${INKLESS_SECRET_KEY:-}" ]] && echo "INKLESS_SECRET_KEY=${INKLESS_SECRET_KEY}"
   } >"${env_file}"
   chmod 600 "${env_file}" 2>/dev/null || true
 }
@@ -156,19 +168,23 @@ qb_restart_runtime() {
   fi
 
   qb_log_warn "systemd unavailable; using process mode on :${PORT:-8088}"
-  local pid
-  pid="$(ss -tlnp "sport = :${PORT:-8088}" 2>/dev/null | grep -oP 'pid=\K\d+' | head -1 || true)"
+  local pid=""
+  if command -v lsof >/dev/null 2>&1; then
+    pid="$(lsof -nP -tiTCP:"${PORT:-8088}" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+  elif command -v ss >/dev/null 2>&1; then
+    pid="$(ss -tlnp "sport = :${PORT:-8088}" 2>/dev/null | sed -nE 's/.*pid=([0-9]+).*/\1/p' | head -1 || true)"
+  fi
   if [[ -n "${pid}" ]]; then
     kill "${pid}" 2>/dev/null || true
     sleep 1
   fi
   local backend_dir="${release_root}/backend/current"
-  local log_file="/tmp/impress-backend.log"
+  local log_file="/tmp/inkless-backend.log"
   # shellcheck disable=SC1091
   set -a
   source "${release_root}/backend/.env"
   set +a
-  nohup "${backend_dir}/blotting-api-latest" >"${log_file}" 2>&1 &
+  nohup "${backend_dir}/inkless-api-latest" >"${log_file}" 2>&1 &
   sleep 3
 }
 
@@ -184,7 +200,7 @@ qb_health_check() {
       return 0
     fi
     qb_log_warn "health check attempt ${i}/${retries} failed: ${url}"
-  sleep "${interval}"
+    sleep "${interval}"
     i=$((i + 1))
   done
   qb_log_error "health check failed after ${retries} attempts: ${url}"

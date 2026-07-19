@@ -3,6 +3,7 @@
 set -euo pipefail
 
 qb_log_info() { echo "[qb-artifact][INFO] $*"; }
+qb_log_warn() { echo "[qb-artifact][WARN] $*" >&2; }
 
 ensure_build_essential() {
   if command -v gcc >/dev/null 2>&1; then

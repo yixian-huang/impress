@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 
 	"gorm.io/gorm"
 )

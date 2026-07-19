@@ -1,6 +1,6 @@
 # Theme layout & chrome
 
-Impress follows the same split as Ghost and headless CMS products:
+Inkless follows the same split as Ghost and headless CMS products:
 
 | Layer | Responsibility |
 |-------|----------------|
@@ -18,7 +18,7 @@ Each built-in theme registers layout chrome in its plugin definition:
 - [`blog-first`](../../frontend/src/plugins/themes/blog-first/index.ts) — `BlogHeader` / `BlogFooter`, narrow reading layout
 - [`minimal-starter`](../../frontend/src/plugins/themes/minimal-starter/index.ts) — reference theme for third-party authors (dynamic home, shared `BaseSiteHeader`)
 
-[`SiteLayout`](../../frontend/src/theme/layouts/PublicLayout.tsx) (also exported as `PublicLayout`) resolves:
+`frontend/src/theme/layouts/PublicLayout.tsx` (also exported as `PublicLayout`) resolves:
 
 ```text
 activeTheme.layoutChrome.Header/Footer
@@ -29,7 +29,7 @@ Pages should not hardcode header/footer config unless overriding the theme defau
 
 ## Shared chrome utilities
 
-Under [`frontend/src/theme/layouts/chrome/`](../../frontend/src/theme/layouts/chrome/):
+Under `frontend/src/theme/layouts/chrome/`:
 
 - `BaseSiteHeader` — shared shell (nav, mobile menu, language toggle); corporate/blog themes compose brand + utilities
 - `useSiteNavigation()` — Menus → theme pages → legacy global nav, with Features gating

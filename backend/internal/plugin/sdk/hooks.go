@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"blotting-consultancy/internal/eventbus"
-	"blotting-consultancy/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
 )
 
 // Well-known hook point names that plugins can attach to.

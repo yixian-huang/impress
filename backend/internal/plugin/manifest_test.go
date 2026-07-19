@@ -15,7 +15,7 @@ name: S3 Storage
 nameZh: S3 对象存储
 version: 1.0.0
 description: Store media files in Amazon S3
-author: Impress Team
+author: Inkless Team
 license: MIT
 homepage: https://example.com
 minAppVersion: 1.0.0
@@ -63,7 +63,7 @@ func TestParseManifest_FullFields(t *testing.T) {
 	assert.Equal(t, "S3 对象存储", meta.NameZh)
 	assert.Equal(t, "1.0.0", meta.Version)
 	assert.Equal(t, "Store media files in Amazon S3", meta.Description)
-	assert.Equal(t, "Impress Team", meta.Author)
+	assert.Equal(t, "Inkless Team", meta.Author)
 	assert.Equal(t, "MIT", meta.License)
 	assert.Equal(t, "https://example.com", meta.Homepage)
 	assert.Equal(t, "1.0.0", meta.MinAppVersion)

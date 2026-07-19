@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the configuration-driven rendering system for the **impress** frontend. All public pages and global sections fetch content from the backend CMS rather than hardcoded i18n keys.
+This document describes the configuration-driven rendering system for the **Inkless** frontend. All public pages and global sections fetch content from the backend CMS rather than hardcoded i18n keys.
 
 **Status**: As of feature FE-108, all public pages have been migrated to config-driven rendering.
 

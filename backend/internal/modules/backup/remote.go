@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
 // RemoteBackupConfig holds configuration for remote backup storage.

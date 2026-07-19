@@ -29,22 +29,22 @@ func (g *MenuGroup) Validate() error {
 
 // MenuItem represents a single item within a menu group
 type MenuItem struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	GroupID   uint      `gorm:"not null;index" json:"groupId"`
-	ParentID  *uint     `gorm:"index" json:"parentId"`
-	ZhName    string    `gorm:"not null;size:200" json:"zhName"`
-	EnName    string    `gorm:"size:200" json:"enName"`
-	Type      string    `gorm:"not null;size:30" json:"type"` // custom_link, article, page, category, tag
-	Target    string    `gorm:"size:10;default:'_self'" json:"target"` // _self, _parent, _blank, _top
-	URL       string    `gorm:"size:500" json:"url"`
-	RefID     *uint     `json:"refId"`
-	RefSlug   string    `gorm:"size:200" json:"refSlug"`
-	Visible   *bool     `gorm:"default:true" json:"visible"`
-	Metadata  JSONMap   `gorm:"type:jsonb" json:"metadata"`
-	SortOrder int       `gorm:"default:0" json:"sortOrder"`
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	GroupID   uint       `gorm:"not null;index" json:"groupId"`
+	ParentID  *uint      `gorm:"index" json:"parentId"`
+	ZhName    string     `gorm:"not null;size:200" json:"zhName"`
+	EnName    string     `gorm:"size:200" json:"enName"`
+	Type      string     `gorm:"not null;size:30" json:"type"`          // custom_link, article, page, category, tag
+	Target    string     `gorm:"size:10;default:'_self'" json:"target"` // _self, _parent, _blank, _top
+	URL       string     `gorm:"size:500" json:"url"`
+	RefID     *uint      `json:"refId"`
+	RefSlug   string     `gorm:"size:200" json:"refSlug"`
+	Visible   *bool      `gorm:"default:true" json:"visible"`
+	Metadata  JSONMap    `gorm:"type:jsonb" json:"metadata"`
+	SortOrder int        `gorm:"default:0" json:"sortOrder"`
 	Children  []MenuItem `gorm:"foreignKey:ParentID" json:"children,omitempty"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
+	CreatedAt time.Time  `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time  `gorm:"autoUpdateTime" json:"updatedAt"`
 }
 
 // Validate validates the menu item model

@@ -1,6 +1,6 @@
-# Contributing to Impress CMS
+# Contributing to Inkless CMS
 
-Thank you for your interest in contributing to Impress CMS! This guide will help you get started.
+Thank you for your interest in contributing to Inkless CMS! This guide will help you get started.
 
 ## Development Environment Setup
 
@@ -16,8 +16,8 @@ Thank you for your interest in contributing to Impress CMS! This guide will help
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/impress.git
-cd impress
+git clone https://github.com/yixian-huang/inkless.git
+cd inkless
 
 # Install deps, build backend (SQLite), and start dev servers
 make dev-up
@@ -37,7 +37,7 @@ make stop
 
 ### Database
 
-By default, the backend uses **SQLite** for local development. No database setup is required. The database file is created automatically at `backend/data/blotting.db`.
+By default, the backend uses **SQLite** for local development. No database setup is required. The database file is created automatically at `backend/data/inkless.db`.
 
 For PostgreSQL, use Docker Compose:
 
@@ -211,5 +211,5 @@ All PRs must pass the CI quality gate:
 
 ## Getting Help
 
-- Open a [GitHub Issue](https://github.com/your-org/impress/issues) for bugs or feature requests
+- Open a [GitHub Issue](https://github.com/yixian-huang/inkless/issues) for bugs or feature requests
 - Check existing issues and discussions before opening a new one

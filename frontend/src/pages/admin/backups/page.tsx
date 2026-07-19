@@ -11,6 +11,7 @@ import {
   type ValidationResult,
 } from "@/api/backups";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { removeStoredAccessToken, removeStoredRefreshToken } from "@/lib/browserStorage";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -256,8 +257,8 @@ function SiteImportTab() {
     try {
       await runImport(file);
       // Clear JWT and redirect to login
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+      removeStoredAccessToken();
+      removeStoredRefreshToken();
       window.location.href = "/admin/login";
     } catch {
       setError("导入失败，请稍后重试");

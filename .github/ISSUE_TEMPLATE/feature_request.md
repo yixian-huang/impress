@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature for Impress CMS
+about: Suggest a new feature for Inkless CMS
 title: "[Feature] "
 labels: enhancement
 assignees: ''

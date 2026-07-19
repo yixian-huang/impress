@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 )

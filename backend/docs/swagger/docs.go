@@ -4462,6 +4462,12 @@ const docTemplate = `{
                                 },
                                 "themeTokens": {
                                     "type": "object"
+                                },
+                                "unifiedPages": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
                                 }
                             }
                         }
@@ -5007,7 +5013,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "blotting-consultancy_internal_model.JSONMap": {
+        "github_com_yixian-huang_inkless_backend_internal_model.JSONMap": {
             "type": "object",
             "additionalProperties": true
         },
@@ -5048,7 +5054,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "metadata": {
-                    "$ref": "#/definitions/blotting-consultancy_internal_model.JSONMap"
+                    "$ref": "#/definitions/github_com_yixian-huang_inkless_backend_internal_model.JSONMap"
                 },
                 "ogImage": {
                     "type": "string"
@@ -5440,8 +5446,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Impress CMS API",
-	Description:      "Bilingual CMS backend API for Impress. Supports content management, articles, pages, themes, media, and more.",
+	Title:            "Inkless CMS API",
+	Description:      "Extensible Inkless CMS API for content, themes, media, plugins, and site management.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

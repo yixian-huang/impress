@@ -1,4 +1,4 @@
-// Package meilisearch provides a Meilisearch-backed full-text search plugin for Impress CMS.
+// Package meilisearch provides a Meilisearch-backed full-text search plugin for Inkless CMS.
 // It implements the provider.SearchProvider interface using the Meilisearch REST API.
 package meilisearch
 
@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"blotting-consultancy/internal/plugin"
-	"blotting-consultancy/internal/provider"
+	"github.com/yixian-huang/inkless/backend/internal/plugin"
+	"github.com/yixian-huang/inkless/backend/internal/provider"
+	"github.com/yixian-huang/inkless/backend/pkg/brand"
 )
 
 // Manifest describes this plugin's metadata.
@@ -24,7 +25,7 @@ var Manifest = plugin.PluginMeta{
 	NameZh:        "Meilisearch 搜索插件",
 	Version:       "1.0.0",
 	Description:   "Replaces built-in search with Meilisearch for fast, typo-tolerant full-text search.",
-	Author:        "Impress CMS",
+	Author:        brand.ProductName,
 	License:       "MIT",
 	MinAppVersion: "1.0.0",
 	Permissions:   []plugin.Permission{plugin.PermNetworkOutbound},
@@ -42,31 +43,34 @@ type Config struct {
 	APIKey string
 
 	// IndexPrefix is prepended to all index names (e.g. "cms_" produces "cms_articles").
-	// Default: "impress_"
+	// Default: "inkless_"
 	IndexPrefix string
 }
 
+const defaultIndexPrefix = "inkless_"
+const legacyIndexPrefix = "impress_"
+
 // indexedDoc is the document shape stored in Meilisearch.
 type indexedDoc struct {
-	ID          string  `json:"id"`          // "<type>_<id>" e.g. "article_42"
-	NumericID   uint    `json:"numeric_id"`
-	Type        string  `json:"type"`        // "article" or "page"
-	Locale      string  `json:"locale"`
-	Title       string  `json:"title"`
-	Body        string  `json:"body"`
-	Slug        string  `json:"slug"`
-	Score       float64 `json:"_rankingScore,omitempty"`
+	ID        string  `json:"id"` // "<type>_<id>" e.g. "article_42"
+	NumericID uint    `json:"numeric_id"`
+	Type      string  `json:"type"` // "article" or "page"
+	Locale    string  `json:"locale"`
+	Title     string  `json:"title"`
+	Body      string  `json:"body"`
+	Slug      string  `json:"slug"`
+	Score     float64 `json:"_rankingScore,omitempty"`
 }
 
 // searchRequest is the payload sent to Meilisearch /indexes/{index}/search.
 type searchRequest struct {
-	Q                    string   `json:"q"`
-	Limit                int      `json:"limit"`
-	Offset               int      `json:"offset"`
-	AttributesToRetrieve []string `json:"attributesToRetrieve"`
+	Q                     string   `json:"q"`
+	Limit                 int      `json:"limit"`
+	Offset                int      `json:"offset"`
+	AttributesToRetrieve  []string `json:"attributesToRetrieve"`
 	AttributesToHighlight []string `json:"attributesToHighlight,omitempty"`
-	Filter               string   `json:"filter,omitempty"`
-	ShowRankingScore     bool     `json:"showRankingScore"`
+	Filter                string   `json:"filter,omitempty"`
+	ShowRankingScore      bool     `json:"showRankingScore"`
 }
 
 // searchResponse is the response from Meilisearch /indexes/{index}/search.
@@ -74,6 +78,31 @@ type searchResponse struct {
 	Hits               []indexedDoc `json:"hits"`
 	EstimatedTotalHits int64        `json:"estimatedTotalHits"`
 	Query              string       `json:"query"`
+}
+
+type indexStatsResponse struct {
+	NumberOfDocuments int `json:"numberOfDocuments"`
+}
+
+type documentsResponse struct {
+	Results []indexedDoc `json:"results"`
+}
+
+type taskResponse struct {
+	TaskUID int64 `json:"taskUid"`
+}
+
+type taskStatusResponse struct {
+	Status string `json:"status"`
+	Error  struct {
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// ReindexOptions controls the legacy-to-Inkless Meilisearch cutover operation.
+type ReindexOptions struct {
+	Locales      []string
+	DeleteLegacy bool
 }
 
 // Plugin implements provider.SearchProvider using Meilisearch.
@@ -91,7 +120,7 @@ func New(cfg Config) (*Plugin, error) {
 
 	prefix := cfg.IndexPrefix
 	if prefix == "" {
-		prefix = "impress_"
+		prefix = defaultIndexPrefix
 	}
 
 	return &Plugin{
@@ -116,6 +145,10 @@ func NewFromSettings(settings map[string]string) (*Plugin, error) {
 // indexName returns the full index name for a content type and locale.
 func (p *Plugin) indexName(contentType, locale string) string {
 	return fmt.Sprintf("%s%s_%s", p.indexPrefix, contentType, locale)
+}
+
+func prefixedIndexName(prefix, contentType, locale string) string {
+	return fmt.Sprintf("%s%s_%s", prefix, contentType, locale)
 }
 
 // doRequest performs an HTTP request against the Meilisearch API.
@@ -152,6 +185,198 @@ func (p *Plugin) doRequest(ctx context.Context, method, path string, body interf
 	return respBody, resp.StatusCode, nil
 }
 
+// ReindexLegacyToInkless copies legacy Impress-prefixed indexes into canonical
+// Inkless-prefixed indexes and switches this plugin instance to the canonical
+// prefix after every copied index has matching document counts.
+func (p *Plugin) ReindexLegacyToInkless(ctx context.Context, opts ReindexOptions) error {
+	locales := opts.Locales
+	if len(locales) == 0 {
+		locales = []string{"zh", "en"}
+	}
+	verifiedLegacyIndexes := make([]string, 0, len(locales)*2)
+
+	for _, locale := range locales {
+		for _, contentType := range []string{"articles", "pages"} {
+			source := prefixedIndexName(legacyIndexPrefix, contentType, locale)
+			target := prefixedIndexName(defaultIndexPrefix, contentType, locale)
+
+			sourceCount, exists, err := p.indexDocumentCount(ctx, source)
+			if err != nil {
+				return err
+			}
+			if !exists {
+				continue
+			}
+
+			targetCount, targetExists, err := p.indexDocumentCount(ctx, target)
+			if err != nil {
+				return err
+			}
+			if targetExists && targetCount == sourceCount {
+				verifiedLegacyIndexes = append(verifiedLegacyIndexes, source)
+				continue
+			}
+
+			docs, err := p.readAllDocuments(ctx, source, sourceCount)
+			if err != nil {
+				return err
+			}
+			if err := p.createIndex(ctx, target); err != nil {
+				return err
+			}
+			if len(docs) > 0 {
+				respData, statusCode, err := p.doRequest(ctx, http.MethodPost,
+					fmt.Sprintf("/indexes/%s/documents", url.PathEscape(target)), docs)
+				if err != nil {
+					return err
+				}
+				if statusCode < 200 || statusCode >= 300 {
+					return fmt.Errorf("meilisearch: reindex to %s returned status %d: %s", target, statusCode, string(respData))
+				}
+				if err := p.waitForTaskFromResponse(ctx, respData); err != nil {
+					return err
+				}
+			}
+
+			copiedCount, copiedExists, err := p.indexDocumentCount(ctx, target)
+			if err != nil {
+				return err
+			}
+			if !copiedExists || copiedCount != sourceCount {
+				return fmt.Errorf("meilisearch: reindex count mismatch for %s to %s: source=%d target=%d", source, target, sourceCount, copiedCount)
+			}
+			verifiedLegacyIndexes = append(verifiedLegacyIndexes, source)
+		}
+	}
+
+	p.indexPrefix = defaultIndexPrefix
+	p.config.IndexPrefix = defaultIndexPrefix
+	if opts.DeleteLegacy {
+		for _, source := range verifiedLegacyIndexes {
+			if err := p.deleteIndex(ctx, source); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) indexDocumentCount(ctx context.Context, indexName string) (int, bool, error) {
+	respData, statusCode, err := p.doRequest(ctx, http.MethodGet,
+		fmt.Sprintf("/indexes/%s/stats", url.PathEscape(indexName)), nil)
+	if err != nil {
+		return 0, false, err
+	}
+	if statusCode == http.StatusNotFound {
+		return 0, false, nil
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		return 0, false, fmt.Errorf("meilisearch: stats for %s returned status %d: %s", indexName, statusCode, string(respData))
+	}
+
+	var stats indexStatsResponse
+	if err := json.Unmarshal(respData, &stats); err != nil {
+		return 0, false, fmt.Errorf("meilisearch: failed to parse stats for %s: %w", indexName, err)
+	}
+	return stats.NumberOfDocuments, true, nil
+}
+
+func (p *Plugin) readAllDocuments(ctx context.Context, indexName string, limit int) ([]indexedDoc, error) {
+	if limit < 1 {
+		return nil, nil
+	}
+	respData, statusCode, err := p.doRequest(ctx, http.MethodGet,
+		fmt.Sprintf("/indexes/%s/documents?limit=%d", url.PathEscape(indexName), limit), nil)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		return nil, fmt.Errorf("meilisearch: read documents from %s returned status %d: %s", indexName, statusCode, string(respData))
+	}
+
+	var wrapped documentsResponse
+	if err := json.Unmarshal(respData, &wrapped); err == nil && wrapped.Results != nil {
+		return wrapped.Results, nil
+	}
+
+	var docs []indexedDoc
+	if err := json.Unmarshal(respData, &docs); err != nil {
+		return nil, fmt.Errorf("meilisearch: failed to parse documents from %s: %w", indexName, err)
+	}
+	return docs, nil
+}
+
+func (p *Plugin) createIndex(ctx context.Context, indexName string) error {
+	createBody := map[string]string{
+		"uid":        indexName,
+		"primaryKey": "id",
+	}
+	respData, statusCode, err := p.doRequest(ctx, http.MethodPost, "/indexes", createBody)
+	if err != nil {
+		return err
+	}
+	if statusCode == http.StatusConflict {
+		return nil
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		return fmt.Errorf("meilisearch: create index %s returned status %d: %s", indexName, statusCode, string(respData))
+	}
+	return p.waitForTaskFromResponse(ctx, respData)
+}
+
+func (p *Plugin) deleteIndex(ctx context.Context, indexName string) error {
+	respData, statusCode, err := p.doRequest(ctx, http.MethodDelete,
+		fmt.Sprintf("/indexes/%s", url.PathEscape(indexName)), nil)
+	if err != nil {
+		return fmt.Errorf("meilisearch: failed to delete index %s: %w", indexName, err)
+	}
+	if statusCode != http.StatusAccepted && statusCode != http.StatusNotFound && statusCode != http.StatusNoContent {
+		return fmt.Errorf("meilisearch: delete index %s returned status %d", indexName, statusCode)
+	}
+	return p.waitForTaskFromResponse(ctx, respData)
+}
+
+func (p *Plugin) waitForTaskFromResponse(ctx context.Context, respData []byte) error {
+	var task taskResponse
+	if err := json.Unmarshal(respData, &task); err != nil || task.TaskUID == 0 {
+		return nil
+	}
+	return p.waitForTask(ctx, task.TaskUID)
+}
+
+func (p *Plugin) waitForTask(ctx context.Context, taskUID int64) error {
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("meilisearch: task %d wait canceled: %w", taskUID, ctx.Err())
+		case <-ticker.C:
+			respData, statusCode, err := p.doRequest(ctx, http.MethodGet, fmt.Sprintf("/tasks/%d", taskUID), nil)
+			if err != nil {
+				return err
+			}
+			if statusCode < 200 || statusCode >= 300 {
+				return fmt.Errorf("meilisearch: task %d returned status %d: %s", taskUID, statusCode, string(respData))
+			}
+			var status taskStatusResponse
+			if err := json.Unmarshal(respData, &status); err != nil {
+				return fmt.Errorf("meilisearch: failed to parse task %d: %w", taskUID, err)
+			}
+			switch status.Status {
+			case "succeeded":
+				return nil
+			case "failed", "canceled":
+				if status.Error.Message != "" {
+					return fmt.Errorf("meilisearch: task %d %s: %s", taskUID, status.Status, status.Error.Message)
+				}
+				return fmt.Errorf("meilisearch: task %d %s", taskUID, status.Status)
+			}
+		}
+	}
+}
+
 // Search performs a full-text search query against the appropriate Meilisearch index.
 func (p *Plugin) Search(ctx context.Context, query, locale, contentType string, page, pageSize int) (*provider.SearchResponse, error) {
 	offset := (page - 1) * pageSize
@@ -179,12 +404,12 @@ func (p *Plugin) Search(ctx context.Context, query, locale, contentType string, 
 
 	for _, indexName := range indexesToSearch {
 		sreq := searchRequest{
-			Q:                    query,
-			Limit:                pageSize,
-			Offset:               offset,
-			AttributesToRetrieve: []string{"id", "numeric_id", "type", "locale", "title", "body", "slug"},
+			Q:                     query,
+			Limit:                 pageSize,
+			Offset:                offset,
+			AttributesToRetrieve:  []string{"id", "numeric_id", "type", "locale", "title", "body", "slug"},
 			AttributesToHighlight: []string{"title", "body"},
-			ShowRankingScore:     true,
+			ShowRankingScore:      true,
 		}
 
 		respData, statusCode, err := p.doRequest(ctx, http.MethodPost,
@@ -288,7 +513,7 @@ func (p *Plugin) indexDocument(ctx context.Context, indexName string, doc indexe
 	if statusCode < 200 || statusCode >= 300 {
 		return fmt.Errorf("meilisearch: index document returned status %d: %s", statusCode, string(respData))
 	}
-	return nil
+	return p.waitForTaskFromResponse(ctx, respData)
 }
 
 // RemoveFromIndex removes a document from the Meilisearch index.
@@ -332,27 +557,13 @@ func (p *Plugin) RebuildIndex(ctx context.Context) error {
 
 	for _, name := range indexesToReset {
 		// Delete the index if it exists
-		_, statusCode, err := p.doRequest(ctx, http.MethodDelete,
-			fmt.Sprintf("/indexes/%s", url.PathEscape(name)), nil)
-		if err != nil {
-			return fmt.Errorf("meilisearch: failed to delete index %s: %w", name, err)
-		}
-		if statusCode != http.StatusAccepted && statusCode != http.StatusNotFound {
-			return fmt.Errorf("meilisearch: delete index %s returned status %d", name, statusCode)
+		if err := p.deleteIndex(ctx, name); err != nil {
+			return err
 		}
 
 		// Re-create the index with "id" as the primary key
-		createBody := map[string]string{
-			"uid":        name,
-			"primaryKey": "id",
-		}
-		respData, statusCode, err := p.doRequest(ctx, http.MethodPost, "/indexes", createBody)
-		if err != nil {
-			return fmt.Errorf("meilisearch: failed to create index %s: %w", name, err)
-		}
-		if statusCode < 200 || statusCode >= 300 {
-			return fmt.Errorf("meilisearch: create index %s returned status %d: %s",
-				name, statusCode, string(respData))
+		if err := p.createIndex(ctx, name); err != nil {
+			return err
 		}
 	}
 	return nil

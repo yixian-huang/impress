@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Inkless CMS">
+  <rect width="1200" height="630" fill="#f8fafc"/>
+  <rect x="80" y="80" width="1040" height="470" rx="28" fill="#ffffff" stroke="#dbe4ef" stroke-width="2"/>
+  <rect x="132" y="142" width="120" height="120" rx="22" fill="#2563eb"/>
+  <path d="M172 172h40v14h-13v48h13v14h-40v-14h13v-48h-13z" fill="#fff"/>
+  <text x="296" y="210" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">Inkless CMS</text>
+  <text x="300" y="288" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="32">A modern, extensible content management system.</text>
+  <text x="300" y="372" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">inkless.run</text>
+</svg>

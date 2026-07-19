@@ -27,14 +27,14 @@ fi
 if qb_component_enabled "backend"; then
   qb_log_info "building backend component"
   if [[ "${QB_SKIP_BACKEND_TESTS:-false}" == "true" ]]; then
-  qb_log_warn "QB_SKIP_BACKEND_TESTS=true — using fast go build (no test/vet gate)"
+    qb_log_warn "QB_SKIP_BACKEND_TESTS=true — using fast go build (no test/vet gate)"
     mkdir -p "${WORKDIR}/artifacts"
-    qb_run_with_heartbeat bash -c "cd '${WORKDIR}/backend' && CGO_ENABLED=1 go build -v -ldflags='-s -w' -o '${WORKDIR}/artifacts/blotting-api-${VERSION}' ./cmd/server"
-    chmod +x "${WORKDIR}/artifacts/blotting-api-${VERSION}"
+    qb_run_with_heartbeat bash -c "cd '${WORKDIR}/backend' && CGO_ENABLED=1 go build -v -ldflags='-s -w' -o '${WORKDIR}/artifacts/inkless-api-${VERSION}' ./cmd/server"
+    chmod +x "${WORKDIR}/artifacts/inkless-api-${VERSION}"
     cat >"${WORKDIR}/artifacts/build-info.json" <<EOF
 {"version":"${VERSION}","buildTime":"$(date -u +"%Y-%m-%dT%H:%M:%SZ")","gitCommit":"$(git -C "${WORKDIR}" rev-parse HEAD 2>/dev/null || echo unknown)"}
 EOF
-    (cd "${WORKDIR}/artifacts" && tar -czf "backend-${VERSION}.tar.gz" "blotting-api-${VERSION}" build-info.json)
+    (cd "${WORKDIR}/artifacts" && tar -czf "backend-${VERSION}.tar.gz" "inkless-api-${VERSION}" build-info.json)
     (cd "${WORKDIR}/artifacts" && sha256sum "backend-${VERSION}.tar.gz" > "backend-${VERSION}.tar.gz.sha256")
   else
     "${WORKDIR}/scripts/build-backend.sh"
@@ -72,7 +72,7 @@ cp "${WORKDIR}/scripts/qb-artifact-common.sh" \
    "${WORKDIR}/scripts/qb-artifact-activate.sh" \
    "${WORKDIR}/scripts/qb-artifact-rollback.sh" \
    "${STAGING}/scripts/"
-cp "${WORKDIR}/ops/systemd/impress.service" "${STAGING}/ops/systemd/"
+cp "${WORKDIR}/ops/systemd/inkless.service" "${STAGING}/ops/systemd/"
 
 QB_VERSION="${VERSION}" QB_ARTIFACT_STAGING="${STAGING}" QB_WORKDIR="${WORKDIR}" \
   "${SCRIPT_DIR}/qb-artifact-manifest.sh" >"${STAGING}/artifact-manifest.json"

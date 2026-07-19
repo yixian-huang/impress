@@ -10,7 +10,7 @@ func pluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
 		Short: "Plugin management commands",
-		Long:  "Create and manage Impress CMS plugins.",
+		Long:  "Create and manage Inkless CMS plugins.",
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -18,7 +18,7 @@ func pluginCmd() *cobra.Command {
 		Short: "Generate a new plugin project from template",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("impress plugin create %s: not yet implemented\n", args[0])
+			fmt.Printf("inkless plugin create %s: not yet implemented\n", args[0])
 			return nil
 		},
 	})

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"blotting-consultancy/internal/model"
 	"fmt"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 	"strings"
 )
 

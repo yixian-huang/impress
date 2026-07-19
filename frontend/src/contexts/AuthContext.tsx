@@ -1,6 +1,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import axios from "axios";
 import { http } from "@/api/http";
+import {
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  removeStoredAccessToken,
+  removeStoredRefreshToken,
+  setStoredAccessToken,
+  setStoredRefreshToken,
+} from "@/lib/browserStorage";
 import { hasGrantedPermission } from "@/lib/permissions";
 
 interface User {
@@ -46,13 +54,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   const clearTokens = useCallback(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    removeStoredAccessToken();
+    removeStoredRefreshToken();
     setUser(null);
   }, []);
 
   const refreshTokenInternal = useCallback(async () => {
-    const refreshTokenValue = localStorage.getItem("refreshToken");
+    const refreshTokenValue = getStoredRefreshToken();
     if (!refreshTokenValue) {
       throw new Error("No refresh token available");
     }
@@ -61,7 +69,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await http.post<LoginResponse>("/auth/refresh", {
         refreshToken: refreshTokenValue,
       });
-      localStorage.setItem("accessToken", response.data.accessToken);
+      setStoredAccessToken(response.data.accessToken);
     } catch {
       clearTokens();
       throw new Error("Token refresh failed");
@@ -71,7 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Session restore on mount
   useEffect(() => {
     const restoreSession = async () => {
-      const accessToken = localStorage.getItem("accessToken");
+      const accessToken = getStoredAccessToken();
       if (!accessToken) {
         setIsLoading(false);
         return;
@@ -81,7 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const response = await http.get<User>("/auth/me");
         setUser(response.data);
       } catch (error) {
-        const refreshTokenValue = localStorage.getItem("refreshToken");
+        const refreshTokenValue = getStoredRefreshToken();
         if (refreshTokenValue) {
           try {
             await refreshTokenInternal();
@@ -111,8 +119,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       // Store tokens
-      localStorage.setItem("accessToken", response.data.accessToken);
-      localStorage.setItem("refreshToken", response.data.refreshToken);
+      setStoredAccessToken(response.data.accessToken);
+      setStoredRefreshToken(response.data.refreshToken);
 
       // Fetch user info
       const meResponse = await http.get<User>("/auth/me", {
@@ -135,7 +143,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
-    const refreshTokenValue = localStorage.getItem("refreshToken");
+    const refreshTokenValue = getStoredRefreshToken();
     if (refreshTokenValue) {
       try {
         await http.post("/auth/logout", {

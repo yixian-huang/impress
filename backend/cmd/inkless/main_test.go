@@ -6,8 +6,8 @@ import (
 
 func TestRootCmd(t *testing.T) {
 	cmd := rootCmd()
-	if cmd.Use != "impress" {
-		t.Errorf("expected root command name 'impress', got %q", cmd.Use)
+	if cmd.Use != "inkless" {
+		t.Errorf("expected root command name 'inkless', got %q", cmd.Use)
 	}
 	// Verify subcommands are registered
 	subNames := make(map[string]bool)

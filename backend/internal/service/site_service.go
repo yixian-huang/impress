@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -98,8 +98,8 @@ func (s *SiteService) ListUsers(ctx context.Context, siteID uint) ([]*model.Site
 
 // SiteExportPayload is the JSON structure for a single-site data export
 type SiteExportPayload struct {
-	ExportedAt time.Time    `json:"exportedAt"`
-	Site       *model.Site  `json:"site"`
+	ExportedAt time.Time   `json:"exportedAt"`
+	Site       *model.Site `json:"site"`
 }
 
 // ExportSite serialises site configuration to JSON bytes

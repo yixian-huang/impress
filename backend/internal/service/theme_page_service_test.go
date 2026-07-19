@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"blotting-consultancy/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
 type stubPageRepo struct {
@@ -65,7 +65,7 @@ func (s *stubPageRepo) ListPublishedByThemeID(context.Context, string) ([]*model
 	return nil, nil
 }
 func (s *stubPageRepo) ListPublished(context.Context) ([]*model.Page, error) { return nil, nil }
-func (s *stubPageRepo) UpdateSortOrder(context.Context, uint, int) error    { return nil }
+func (s *stubPageRepo) UpdateSortOrder(context.Context, uint, int) error     { return nil }
 
 type errNotFound string
 

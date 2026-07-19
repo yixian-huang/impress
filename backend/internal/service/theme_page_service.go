@@ -6,9 +6,9 @@ import (
 	"log"
 	"strings"
 
-	"blotting-consultancy/internal/builtinthemes"
-	"blotting-consultancy/internal/model"
-	"blotting-consultancy/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/builtinthemes"
+	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // ThemePageSeedDef defines a single page to seed for a theme

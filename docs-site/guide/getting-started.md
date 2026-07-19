@@ -11,8 +11,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-org/impress.git
-cd impress
+git clone https://github.com/yixian-huang/inkless.git
+cd inkless
 ```
 
 ### 2. Install dependencies
@@ -29,7 +29,7 @@ make dev-up
 
 Or: `pnpm dev:up`
 
-This runs `pnpm install`, compiles the backend (SQLite at `backend/data/blotting.db`), and starts:
+This runs `pnpm install`, compiles the backend (SQLite at `backend/data/inkless.db`), and starts:
 - Backend API at `http://localhost:8088`
 - Frontend dev server at `http://localhost:3000`
 
@@ -54,9 +54,9 @@ Open `http://localhost:3000/setup`, configure the database in the browser (write
 **Option B — CLI init:**
 
 ```bash
-impress init
-impress migrate up
-impress serve         # do not set SEED_MODE — awaits browser setup
+inkless init
+inkless migrate up
+inkless serve         # do not set SEED_MODE — awaits browser setup
 ```
 
 Open `http://localhost:3000/setup` for admin account, site name, and blank vs demo content.
@@ -80,7 +80,7 @@ docker compose -f docker-compose.sqlite.yml up
 ## Project Structure
 
 ```
-impress/
+inkless/
 ├── backend/           # Go/Gin/GORM backend
 │   ├── cmd/server/    # Main server binary
 │   ├── internal/      # Application packages
