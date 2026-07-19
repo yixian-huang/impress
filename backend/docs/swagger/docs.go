@@ -5200,9 +5200,6 @@ const docTemplate = `{
                 "roleId": {
                     "type": "integer"
                 },
-                "siteId": {
-                    "type": "integer"
-                },
                 "userId": {
                     "type": "integer"
                 }

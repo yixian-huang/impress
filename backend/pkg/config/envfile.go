@@ -22,6 +22,7 @@ JWT_SECRET={{.JWTSecret}}
 JWT_REFRESH_SECRET={{.JWTRefreshSecret}}
 ENV={{.Env}}
 UPLOAD_DIR={{.UploadDir}}
+BACKUP_DIR={{.BackupDir}}
 # FRONTEND_DIR=./frontend/out
 # BASE_URL=https://your-domain.com
 # CORS_ALLOWED_ORIGINS=http://localhost:3000
@@ -35,6 +36,7 @@ type EnvFileParams struct {
 	JWTRefreshSecret string
 	Env              string
 	UploadDir        string
+	BackupDir        string
 }
 
 // DefaultEnvFilePath returns the path used for Inkless environment configuration.
@@ -76,6 +78,9 @@ func WriteEnvFile(outputDir string, params EnvFileParams) (string, error) {
 	}
 	if params.UploadDir == "" {
 		params.UploadDir = "./uploads"
+	}
+	if params.BackupDir == "" {
+		params.BackupDir = "./backups"
 	}
 	if params.Port == 0 {
 		params.Port = 8088
@@ -129,6 +134,13 @@ func WriteEnvFile(outputDir string, params EnvFileParams) (string, error) {
 	}
 	if err := os.MkdirAll(uploadPath, 0o755); err != nil {
 		return "", fmt.Errorf("create uploads directory: %w", err)
+	}
+	backupPath := params.BackupDir
+	if !filepath.IsAbs(backupPath) {
+		backupPath = filepath.Join(outputDir, strings.TrimPrefix(backupPath, "./"))
+	}
+	if err := os.MkdirAll(backupPath, 0o755); err != nil {
+		return "", fmt.Errorf("create backups directory: %w", err)
 	}
 
 	return envPath, nil

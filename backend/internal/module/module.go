@@ -25,6 +25,7 @@ type Dependencies struct {
 	UserRepo   repository.UserRepository // for RBAC middleware in modules
 	RBACCache  *cache.Cache              // for RBAC middleware in modules
 	UploadDir  string                    // path to uploads directory
+	BackupDir  string                    // path to database backup archives
 	AppVersion string                    // application version string
 }
 
