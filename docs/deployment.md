@@ -174,7 +174,7 @@ export ENVIRONMENT="production"
 
 # Optional overrides
 export DEPLOY_ROOT="/opt/inkless"
-export BACKEND_SERVICE="inkless-api"
+export BACKEND_SERVICE="inkless"
 ```
 
 ### Deployment Script
@@ -324,15 +324,15 @@ If automated rollback fails:
 
    # Backend
    cd /opt/inkless/backend
-   sudo systemctl stop inkless-api
+   sudo systemctl stop inkless
    ln -snf $(readlink previous) current_tmp
    mv -Tf current_tmp current
-   sudo systemctl start inkless-api
+   sudo systemctl start inkless
    ```
 
 3. Verify services:
    ```bash
-   systemctl status inkless-api
+   systemctl status inkless
    curl http://localhost:8088/health
    ```
 
@@ -340,7 +340,7 @@ If automated rollback fails:
 
 ### Backend Systemd Service
 
-Create `/etc/systemd/system/inkless-api.service`:
+Create `/etc/systemd/system/inkless.service`:
 
 ```ini
 [Unit]
@@ -372,8 +372,8 @@ Enable and start the service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable inkless-api
-sudo systemctl start inkless-api
+sudo systemctl enable inkless
+sudo systemctl start inkless
 ```
 
 ### Frontend Nginx Configuration
