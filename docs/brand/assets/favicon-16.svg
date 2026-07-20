@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-label="YX">
+  <rect width="16" height="16" rx="3" ry="3" fill="#141310"/>
+  <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central"
+        fill="#fbfaf8" font-family="Manrope, system-ui, -apple-system, sans-serif"
+        font-weight="700" font-size="9" letter-spacing="-0.45">Y</text>
+</svg>

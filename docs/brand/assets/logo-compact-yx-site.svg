@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48" role="img" aria-label="YX yx.ink">
+  <text x="0" y="34" fill="#141310" font-family="Manrope, system-ui, -apple-system, sans-serif"
+        font-weight="700" font-size="28" letter-spacing="-1.1">YX</text>
+  <rect x="56" y="12" width="1" height="24" fill="#d8d5cd"/>
+  <text x="68" y="33" fill="#141310" font-family="IBM Plex Mono, ui-monospace, monospace"
+        font-weight="400" font-size="14" letter-spacing="2.8">yx.ink</text>
+</svg>

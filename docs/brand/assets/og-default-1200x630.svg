@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="yx.ink">
+  <rect width="1200" height="630" fill="#141310"/>
+  <text x="600" y="300" text-anchor="middle" fill="#fbfaf8" font-family="Manrope, system-ui, sans-serif"
+        font-weight="600" font-size="72" letter-spacing="-2.5">Yixian Huang</text>
+  <text x="600" y="360" text-anchor="middle" fill="#a29e96" font-family="Noto Sans SC, system-ui, sans-serif"
+        font-weight="400" font-size="28" letter-spacing="12">黄逸仙</text>
+  <text x="600" y="430" text-anchor="middle" fill="#cfccc4" font-family="IBM Plex Mono, ui-monospace, monospace"
+        font-weight="400" font-size="18" letter-spacing="6">yx.ink</text>
+</svg>
