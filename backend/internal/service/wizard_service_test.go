@@ -199,6 +199,10 @@ func (r *mockUnifiedPageRepo) List(_ context.Context, _ string, _ string, _ *uin
 	return pages, nil
 }
 
+func (r *mockUnifiedPageRepo) Count(_ context.Context) (int64, error) {
+	return int64(len(r.pages)), nil
+}
+
 func (r *mockUnifiedPageRepo) ListPublished(_ context.Context) ([]*model.UnifiedPage, error) {
 	return nil, nil
 }

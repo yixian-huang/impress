@@ -21,6 +21,9 @@ type PageViewRepository interface {
 	// Create records a new page view
 	Create(ctx context.Context, pv *model.PageView) error
 
+	// CreateBatch inserts multiple page views in one statement when possible.
+	CreateBatch(ctx context.Context, views []*model.PageView) error
+
 	// GetSummary returns aggregated view stats grouped by page key
 	GetSummary(ctx context.Context, now time.Time) ([]PageViewStats, error)
 

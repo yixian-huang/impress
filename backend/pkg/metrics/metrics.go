@@ -32,12 +32,22 @@ type Metrics struct {
 	publicGetFailure   int64
 	publicGetLatencies []time.Duration
 	publicGetP95       time.Duration
+
+	// HTTP request metrics (all routes)
+	httpTotal        int64
+	http2xx          int64
+	http4xx          int64
+	http5xx          int64
+	httpSlow         int64
+	httpLatencies    []time.Duration
+	httpLatenciesP95 time.Duration
 }
 
 // Global singleton instance
 var globalMetrics = &Metrics{
 	rollbackLatencies:  make([]time.Duration, 0, 1000),
 	publicGetLatencies: make([]time.Duration, 0, 1000),
+	httpLatencies:      make([]time.Duration, 0, 1000),
 }
 
 // Global returns the global metrics instance
@@ -152,6 +162,52 @@ func (m *Metrics) GetPublicGetMetrics() (total, success, failure int64, p95 time
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.publicGetTotal, m.publicGetSuccess, m.publicGetFailure, m.publicGetP95
+}
+
+// RecordHTTPRequest records a completed HTTP request for ops dashboards.
+// Slow threshold mirrors middleware.DefaultSlowRequestThreshold (500ms).
+func (m *Metrics) RecordHTTPRequest(status int, latency time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.httpTotal++
+	switch {
+	case status >= 500:
+		m.http5xx++
+	case status >= 400:
+		m.http4xx++
+	case status >= 200 && status < 300:
+		m.http2xx++
+	}
+	if latency >= 500*time.Millisecond {
+		m.httpSlow++
+	}
+	m.httpLatencies = append(m.httpLatencies, latency)
+	m.updateHTTPP95()
+}
+
+// GetHTTPMetrics returns aggregate HTTP request metrics.
+func (m *Metrics) GetHTTPMetrics() (total, s2xx, s4xx, s5xx, slow int64, p95 time.Duration) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.httpTotal, m.http2xx, m.http4xx, m.http5xx, m.httpSlow, m.httpLatenciesP95
+}
+
+func (m *Metrics) updateHTTPP95() {
+	if len(m.httpLatencies) == 0 {
+		m.httpLatenciesP95 = 0
+		return
+	}
+	if len(m.httpLatencies) > 1000 {
+		m.httpLatencies = m.httpLatencies[len(m.httpLatencies)-1000:]
+	}
+	sorted := make([]time.Duration, len(m.httpLatencies))
+	copy(sorted, m.httpLatencies)
+	sortDurations(sorted)
+	p95Index := int(float64(len(sorted)) * 0.95)
+	if p95Index >= len(sorted) {
+		p95Index = len(sorted) - 1
+	}
+	m.httpLatenciesP95 = sorted[p95Index]
 }
 
 // updateRollbackP95 calculates p95 from latency samples (must hold lock)

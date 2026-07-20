@@ -67,6 +67,14 @@ func (m *MockPageViewRepository) GetSummary(ctx context.Context, now time.Time) 
 	return nil, nil
 }
 
+func (m *MockPageViewRepository) CreateBatch(ctx context.Context, views []*model.PageView) error {
+	return nil
+}
+
+func (m *MockPageViewRepository) CountSince(ctx context.Context, since time.Time) (int64, error) {
+	return 0, nil
+}
+
 func setupTestRouter(handler *Handler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

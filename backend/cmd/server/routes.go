@@ -165,6 +165,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		validationTotal, validationFailures := m.GetValidationMetrics()
 		rollbackTotal, rollbackSuccess, rollbackFailure, rollbackP95 := m.GetRollbackMetrics()
 		publicGetTotal, publicGetSuccess, publicGetFailure, publicGetP95 := m.GetPublicGetMetrics()
+		httpTotal, http2xx, http4xx, http5xx, httpSlow, httpP95 := m.GetHTTPMetrics()
 
 		c.JSON(200, gin.H{
 			"publish": gin.H{
@@ -181,6 +182,14 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 				"success":     rollbackSuccess,
 				"failure":     rollbackFailure,
 				"latency_p95": rollbackP95.Milliseconds(),
+			},
+			"http": gin.H{
+				"total":       httpTotal,
+				"2xx":         http2xx,
+				"4xx":         http4xx,
+				"5xx":         http5xx,
+				"slow":        httpSlow,
+				"latency_p95": httpP95.Milliseconds(),
 			},
 			"public_get": gin.H{
 				"total":       publicGetTotal,

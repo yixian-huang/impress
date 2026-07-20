@@ -56,6 +56,9 @@ func (s *stubPVRepo) CountSince(ctx context.Context, since time.Time) (int64, er
 }
 
 func (s *stubPVRepo) Create(ctx context.Context, pv *model.PageView) error { return nil }
+func (s *stubPVRepo) CreateBatch(ctx context.Context, views []*model.PageView) error {
+	return nil
+}
 func (s *stubPVRepo) GetSummary(ctx context.Context, now time.Time) ([]repository.PageViewStats, error) {
 	return nil, nil
 }

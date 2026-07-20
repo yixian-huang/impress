@@ -21,6 +21,9 @@ type stubPV struct {
 }
 
 func (s *stubPV) Create(ctx context.Context, pv *model.PageView) error { return nil }
+func (s *stubPV) CreateBatch(ctx context.Context, views []*model.PageView) error {
+	return nil
+}
 func (s *stubPV) GetSummary(ctx context.Context, now time.Time) ([]repository.PageViewStats, error) {
 	s.calls++
 	return []repository.PageViewStats{{PageKey: "home", Today: 3, Last7d: 10, Last30d: 20, UniqueVisitors: 5}}, nil

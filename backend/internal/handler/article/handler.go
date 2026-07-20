@@ -18,12 +18,18 @@ import (
 	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
+// pageViewTracker is implemented by service.PageViewRecorder.
+type pageViewTracker interface {
+	Track(pageKey, locale, visitorID, referer string)
+}
+
 // Handler handles article-related HTTP requests
 type Handler struct {
 	articleRepo   repository.ArticleRepository
 	categoryRepo  repository.CategoryRepository
 	tagRepo       repository.TagRepository
 	pvRepo        repository.PageViewRepository
+	viewTracker   pageViewTracker
 	searchService *service.SearchService
 	articleSvc    *service.ArticlePublicationService
 	eventBus      eventbus.EventBus
@@ -53,6 +59,12 @@ func NewHandler(
 // WithPageViews enables visit tracking and viewCount on public article detail.
 func (h *Handler) WithPageViews(pvRepo repository.PageViewRepository) *Handler {
 	h.pvRepo = pvRepo
+	return h
+}
+
+// WithViewTracker sets the async page-view recorder (preferred over sync Create).
+func (h *Handler) WithViewTracker(t pageViewTracker) *Handler {
+	h.viewTracker = t
 	return h
 }
 
@@ -171,9 +183,10 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	}
 
 	pageKey := articlePageKey(article.ID)
-	// Record this visit then count (viewCount is never part of the article cache).
-	h.recordArticleView(c.Request.Context(), pageKey, c)
+	// Async best-effort tracking (never blocks the response).
+	h.recordArticleViewAsync(pageKey, c)
 
+	// viewCount is read without waiting for the async write (may lag by 1).
 	var viewCount int64
 	if h.pvRepo != nil {
 		if n, err := h.pvRepo.CountByPageKey(c.Request.Context(), pageKey); err == nil {
@@ -188,27 +201,33 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	})
 }
 
-func (h *Handler) recordArticleView(ctx context.Context, pageKey string, c *gin.Context) {
-	if h.pvRepo == nil {
-		return
-	}
+func (h *Handler) recordArticleViewAsync(pageKey string, c *gin.Context) {
 	clientIP := c.ClientIP()
 	referer := c.GetHeader("Referer")
 	locale := c.DefaultQuery("locale", "zh")
 	hash := sha256.Sum256([]byte(clientIP))
 	visitorID := fmt.Sprintf("%x", hash[:])[:16]
 
-	// Best-effort: do not fail the article response if tracking fails.
-	writeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	if err := h.pvRepo.Create(writeCtx, &model.PageView{
-		PageKey:   pageKey,
-		Locale:    locale,
-		VisitorID: visitorID,
-		Referer:   referer,
-	}); err != nil {
-		slog.Error("failed to record article page view", "pageKey", pageKey, "error", err)
+	if h.viewTracker != nil {
+		h.viewTracker.Track(pageKey, locale, visitorID, referer)
+		return
 	}
+	// Fallback when no recorder is wired (tests): fire-and-forget single insert.
+	if h.pvRepo == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := h.pvRepo.Create(ctx, &model.PageView{
+			PageKey:   pageKey,
+			Locale:    locale,
+			VisitorID: visitorID,
+			Referer:   referer,
+		}); err != nil {
+			slog.Error("failed to record article page view", "pageKey", pageKey, "error", err)
+		}
+	}()
 }
 
 // --- Admin endpoints ---

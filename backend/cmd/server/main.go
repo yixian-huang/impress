@@ -460,7 +460,11 @@ func main() {
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
-	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache)
+	pageViewRecorder := service.NewPageViewRecorder(pageViewRepo)
+	pageViewRecorder.Start()
+
+	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache).
+		WithViewTracker(pageViewRecorder)
 	mediaHandlerInst := mediaHandler.NewHandlerWithStorage(mediaRepo, cfg.UploadDir, "", storageRuntime)
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo).WithCache(publicCache)
 	dashboardHandlerInst := dashboardHandler.NewHandler(articleRepo, unifiedPageRepo, mediaRepo, pageViewRepo).WithCache(publicCache)
@@ -468,7 +472,8 @@ func main() {
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
 	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, searchService, bus, publicCache).
-		WithPageViews(pageViewRepo)
+		WithPageViews(pageViewRepo).
+		WithViewTracker(pageViewRecorder)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	feedHandlerInst := feedHandler.NewHandler(articleRepo, siteConfigRepo, cfg.BaseURL, "Blog", "Latest posts")
@@ -517,8 +522,8 @@ func main() {
 	router := gin.New()
 
 	// Global middleware (order matters!)
-	router.Use(gin.Recovery())                     // Panic recovery
-	router.Use(ginLogger(log))                     // Request logging
+	router.Use(gin.Recovery()) // Panic recovery
+	router.Use(middleware.RequestLogger(log, middleware.RequestLoggerOptions{}))
 	router.Use(gzip.Gzip(gzip.DefaultCompression)) // Gzip compression
 	router.Use(middleware.AuditContext())          // Request metadata for audit events
 
@@ -617,6 +622,7 @@ func main() {
 
 	// Stop background services
 	schedulerService.Stop()
+	pageViewRecorder.Stop(3 * time.Second)
 	commentModule.Stop()
 
 	// Shutdown with timeout
@@ -663,24 +669,4 @@ func serveSPAWithMeta(c *gin.Context, renderer *seo.Renderer, baseURL string, co
 	return true
 }
 
-// ginLogger returns a Gin middleware that logs requests using the app logger
-func ginLogger(log *appLogger.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		method := c.Request.Method
 
-		c.Next()
-
-		duration := time.Since(start)
-		status := c.Writer.Status()
-
-		log.Info("Request",
-			"method", method,
-			"path", path,
-			"status", status,
-			"duration", duration.String(),
-			"ip", c.ClientIP(),
-		)
-	}
-}

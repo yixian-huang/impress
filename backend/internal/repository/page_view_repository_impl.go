@@ -24,6 +24,14 @@ func (r *GormPageViewRepository) Create(ctx context.Context, pv *model.PageView)
 	return r.db.WithContext(ctx).Create(pv).Error
 }
 
+// CreateBatch inserts multiple page views efficiently.
+func (r *GormPageViewRepository) CreateBatch(ctx context.Context, views []*model.PageView) error {
+	if len(views) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).CreateInBatches(views, 100).Error
+}
+
 // GetSummary returns aggregated view stats for all pages within the last 30 days.
 // Uses standard SQL-92 compatible with both SQLite and PostgreSQL.
 func (r *GormPageViewRepository) GetSummary(ctx context.Context, now time.Time) ([]PageViewStats, error) {

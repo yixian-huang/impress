@@ -17,12 +17,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// pageViewTracker is implemented by service.PageViewRecorder.
+type pageViewTracker interface {
+	Track(pageKey, locale, visitorID, referer string)
+}
+
 // Handler handles public content-related HTTP requests
 type Handler struct {
-	docRepo  repository.ContentDocumentRepository
-	pvRepo   repository.PageViewRepository
-	pageRepo repository.UnifiedPageRepository
-	cache    *cache.Cache
+	docRepo     repository.ContentDocumentRepository
+	pvRepo      repository.PageViewRepository
+	pageRepo    repository.UnifiedPageRepository
+	cache       *cache.Cache
+	viewTracker pageViewTracker
 }
 
 // NewHandler creates a new public content handler
@@ -38,6 +44,12 @@ func NewHandler(
 		pageRepo: pageRepo,
 		cache:    cache,
 	}
+}
+
+// WithViewTracker sets the async page-view recorder.
+func (h *Handler) WithViewTracker(t pageViewTracker) *Handler {
+	h.viewTracker = t
+	return h
 }
 
 // GetPublicContent handles GET /public/content/{pageKey}?locale=zh|en
@@ -145,16 +157,23 @@ func isEmptyValue(v interface{}) bool {
 	return false
 }
 
-// recordPageViewAsync records a page view in a background goroutine.
+// recordPageViewAsync records a page view without blocking the response.
 func (h *Handler) recordPageViewAsync(pageKey, locale string, c *gin.Context) {
 	clientIP := c.ClientIP()
 	referer := c.GetHeader("Referer")
+	hash := sha256.Sum256([]byte(clientIP))
+	visitorID := fmt.Sprintf("%x", hash[:])[:16]
 
+	if h.viewTracker != nil {
+		h.viewTracker.Track(pageKey, locale, visitorID, referer)
+		return
+	}
+	if h.pvRepo == nil {
+		return
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		hash := sha256.Sum256([]byte(clientIP))
-		visitorID := fmt.Sprintf("%x", hash[:])[:16]
 		if err := h.pvRepo.Create(ctx, &model.PageView{
 			PageKey:   pageKey,
 			Locale:    locale,
