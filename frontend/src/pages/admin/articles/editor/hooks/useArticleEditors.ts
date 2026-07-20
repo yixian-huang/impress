@@ -15,7 +15,9 @@ export type EditorMode = "richtext" | "markdown";
 export type ViewLayout = "focus" | "split";
 
 /**
- * Dual TipTap instances + markdown buffers, body resolve, and mode switching.
+ * ZH TipTap always on; EN TipTap is mounted on demand via LangEditorMount
+ * when English is enabled or split layout is active. resolveBodies falls back
+ * to React body state when EN is unmounted.
  */
 export function useArticleEditors(opts: {
   zhBody: string;
@@ -28,15 +30,19 @@ export function useArticleEditors(opts: {
   const { zhBody, enBody, setZhBody, setEnBody, isDirty, touch } = opts;
 
   const [editorMode, setEditorMode] = useState<EditorMode>("richtext");
-  const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({ zh: "", en: "" });
+  const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({
+    zh: "",
+    en: "",
+  });
   const [markdownApi, setMarkdownApi] = useState<MarkdownSelectionApi | null>(null);
   const [viewLayout, setViewLayout] = useState<ViewLayout>("focus");
   const [enabledLangs, setEnabledLangs] = useState<string[]>(["zh"]);
   const [activeLangIdx, setActiveLangIdx] = useState(0);
 
-  const zhExtensions = useMemo(() => getEditorExtensions(), []);
-  const enExtensions = useMemo(() => getEditorExtensions(), []);
+  // EN editor instance comes from LangEditorMount (lazy)
+  const [enEditor, setEnEditor] = useState<Editor | null>(null);
 
+  const zhExtensions = useMemo(() => getEditorExtensions(), []);
   const zhEditor = useEditor({
     extensions: zhExtensions,
     content: zhBody,
@@ -44,16 +50,12 @@ export function useArticleEditors(opts: {
     editorProps: { attributes: { class: "tiptap" } },
     onUpdate: () => touch(),
   });
-  const enEditor = useEditor({
-    extensions: enExtensions,
-    content: enBody,
-    shouldRerenderOnTransaction: false,
-    editorProps: { attributes: { class: "tiptap" } },
-    onUpdate: () => touch(),
-  });
 
   const { modals: zhModals, state: zhModalState } = useModalState();
   const { modals: enModals, state: enModalState } = useModalState();
+
+  const needEnEditor =
+    enabledLangs.includes("en") || viewLayout === "split";
 
   const langEditors = useMemo(
     () => ({
@@ -68,8 +70,7 @@ export function useArticleEditors(opts: {
 
   useEffect(() => {
     zhEditor?.setEditable(viewLayout === "split" || activeLang === "zh");
-    enEditor?.setEditable(viewLayout === "split" || activeLang === "en");
-  }, [zhEditor, enEditor, activeLang, viewLayout]);
+  }, [zhEditor, activeLang, viewLayout]);
 
   useEffect(() => {
     if (zhEditor && zhBody && zhBody !== zhEditor.getHTML()) {
@@ -78,16 +79,18 @@ export function useArticleEditors(opts: {
   }, [zhBody, zhEditor]);
 
   useEffect(() => {
-    if (enEditor && enBody && enBody !== enEditor.getHTML()) {
-      enEditor.commands.setContent(enBody, { emitUpdate: false });
-    }
-  }, [enBody, enEditor]);
-
-  useEffect(() => {
     if (viewLayout === "split" && !enabledLangs.includes("en")) {
       setEnabledLangs((prev) => (prev.includes("en") ? prev : [...prev, "en"]));
     }
   }, [viewLayout, enabledLangs]);
+
+  const getEnHtml = useCallback(() => {
+    return enEditor?.getHTML() || enBody || "";
+  }, [enEditor, enBody]);
+
+  const getZhHtml = useCallback(() => {
+    return zhEditor?.getHTML() || zhBody || "";
+  }, [zhEditor, zhBody]);
 
   const resolveBodies = useCallback(() => {
     if (editorMode === "markdown") {
@@ -102,15 +105,19 @@ export function useArticleEditors(opts: {
       return { zhBody: normalizedZh, enBody: normalizedEn };
     }
     return {
-      zhBody: zhEditor?.getHTML() || zhBody || "",
-      enBody: enEditor?.getHTML() || enBody || "",
+      zhBody: getZhHtml(),
+      enBody: getEnHtml(),
     };
-  }, [editorMode, markdownContent, zhEditor, enEditor, zhBody, enBody, setZhBody, setEnBody]);
+  }, [
+    editorMode, markdownContent, zhEditor, enEditor,
+    getZhHtml, getEnHtml, setZhBody, setEnBody,
+  ]);
 
   const applyBodiesToEditors = useCallback((nextZh: string, nextEn: string) => {
     setZhBody(nextZh);
     setEnBody(nextEn);
     zhEditor?.commands.setContent(nextZh || "", { emitUpdate: false });
+    // EN may be unmounted — LangEditorMount seeds from enBody on next mount
     enEditor?.commands.setContent(nextEn || "", { emitUpdate: false });
     if (editorMode === "markdown") {
       setMarkdownContent({
@@ -124,10 +131,10 @@ export function useArticleEditors(opts: {
     if (newMode === editorMode) return;
     const zhHtml = editorMode === "markdown"
       ? markdownToHtml(markdownContent.zh ?? "")
-      : (zhEditor?.getHTML() || zhBody || "");
+      : getZhHtml();
     const enHtml = editorMode === "markdown"
       ? markdownToHtml(markdownContent.en ?? "")
-      : (enEditor?.getHTML() || enBody || "");
+      : getEnHtml();
     if (
       (hasMeaningfulHtml(zhHtml) || hasMeaningfulHtml(enHtml) || isDirty)
       && !window.confirm(MODE_SWITCH_MESSAGE)
@@ -136,25 +143,23 @@ export function useArticleEditors(opts: {
     }
     if (newMode === "markdown") {
       setMarkdownContent({
-        zh: htmlToMarkdown(zhEditor?.getHTML() || zhBody || ""),
-        en: htmlToMarkdown(enEditor?.getHTML() || enBody || ""),
+        zh: htmlToMarkdown(getZhHtml()),
+        en: htmlToMarkdown(getEnHtml()),
       });
     } else {
-      for (const lang of ["zh", "en"] as const) {
-        const ed: Editor | null = lang === "zh" ? zhEditor : enEditor;
-        const html = markdownToHtml(markdownContent[lang] ?? "");
-        ed?.commands.setContent(html, { emitUpdate: false });
-        const normalized = ed?.getHTML() || html;
-        if (lang === "zh") setZhBody(normalized);
-        else setEnBody(normalized);
-      }
+      const zhFromMd = markdownToHtml(markdownContent.zh ?? "");
+      const enFromMd = markdownToHtml(markdownContent.en ?? "");
+      zhEditor?.commands.setContent(zhFromMd, { emitUpdate: false });
+      enEditor?.commands.setContent(enFromMd, { emitUpdate: false });
+      setZhBody(zhEditor?.getHTML() || zhFromMd);
+      setEnBody(enEditor?.getHTML() || enFromMd);
       setMarkdownApi(null);
     }
     setEditorMode(newMode);
     touch();
   }, [
-    editorMode, markdownContent, zhEditor, enEditor, zhBody, enBody,
-    isDirty, touch, setZhBody, setEnBody,
+    editorMode, markdownContent, zhEditor, enEditor,
+    getZhHtml, getEnHtml, isDirty, touch, setZhBody, setEnBody,
   ]);
 
   const buildDraftSnapshot = useCallback((meta: {
@@ -201,7 +206,7 @@ export function useArticleEditors(opts: {
     if (langKey === "zh") return;
     setEnabledLangs((prev) => {
       const next = prev.filter((l) => l !== langKey);
-      setActiveLangIdx((idx) => (idx >= next.length ? next.length - 1 : idx));
+      setActiveLangIdx((idx) => (idx >= next.length ? Math.max(0, next.length - 1) : idx));
       return next;
     });
   }, []);
@@ -219,7 +224,16 @@ export function useArticleEditors(opts: {
     setMarkdownContent({ zh: "", en: "" });
     setEditorMode("richtext");
     if (enableEn) setEnabledLangs(["zh", "en"]);
+    else setEnabledLangs(["zh"]);
   }, []);
+
+  const onEnEditorReady = useCallback((ed: Editor | null) => {
+    setEnEditor(ed);
+  }, []);
+
+  const onEnFlushBody = useCallback((html: string) => {
+    setEnBody(html);
+  }, [setEnBody]);
 
   return {
     editorMode,
@@ -239,6 +253,11 @@ export function useArticleEditors(opts: {
     langEditors,
     zhEditor,
     enEditor,
+    /** Mount EN TipTap only when English is in play */
+    needEnEditor,
+    onEnEditorReady,
+    onEnFlushBody,
+    enEditable: viewLayout === "split" || activeLang === "en",
     resolveBodies,
     applyBodiesToEditors,
     handleModeChange,

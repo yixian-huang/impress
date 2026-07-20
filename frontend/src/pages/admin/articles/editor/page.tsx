@@ -37,6 +37,7 @@ import { EditorMessageBars } from "./components/EditorMessageBars";
 import { EditorLangBar } from "./components/EditorLangBar";
 import { EditorWorkspace } from "./components/EditorWorkspace";
 import { EditorActionBar } from "./components/EditorActionBar";
+import { LangEditorMount } from "./components/LangEditorMount";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -463,6 +464,16 @@ export default function ArticleEditorPage() {
           dirty.touch();
         }}
         onMarkdownApiReady={editors.setMarkdownApi}
+      />
+
+      {/* EN TipTap is created only when English is enabled or split is on */}
+      <LangEditorMount
+        enabled={editors.needEnEditor}
+        html={form.enBody}
+        editable={editors.enEditable}
+        onDirty={dirty.touch}
+        onEditor={editors.onEnEditorReady}
+        onFlushBody={editors.onEnFlushBody}
       />
 
       {Object.entries(editors.langEditors).map(([lang, entry]) =>
