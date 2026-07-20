@@ -97,7 +97,7 @@ Install paths:
 
 1. **UX polish** — compact home hero; socials only in header.  
 2. **This contract doc** + freeze public hook list.  
-3. **Move home page into theme folder** (break reverse import from `@/pages/blog-home`).  
+3. **Move home page into theme folder** — done: `plugins/themes/blog-first/pages/home.tsx` (host `pages/blog-home` is a thin re-export).  
 4. **Monorepo package** `packages/theme-blog-first`.  
 5. **Separate GitHub repo** + pin in Inkless; document Release assets.
 

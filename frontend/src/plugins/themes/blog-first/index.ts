@@ -174,7 +174,9 @@ export const blogFirstTheme: ThemePlugin = {
     {
       slug: "home",
       renderMode: "hardcoded",
-      lazyComponent: () => import("@/pages/blog-home/page"),
+      // Home lives under the theme package (not host pages/) so presentation
+      // can move to packages/theme-blog-first without reverse host imports.
+      lazyComponent: () => import("./pages/home"),
       contentKey: "home",
       nav: { label: "Home", labelZh: "首页", order: 0, showInHeader: true, showInFooter: false },
     },
