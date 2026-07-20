@@ -35,7 +35,7 @@ export function buildArticlePayload(
   status: "draft" | "published",
   publishedAt?: string,
 ): Record<string, unknown> {
-  const finalSlug = fields.slug.trim() || slugifyTitle(fields.zhTitle);
+  const finalSlug = fields.slug.trim() || slugifyTitle(fields.zhTitle, fields.enTitle);
   const payload: Record<string, unknown> = {
     zhTitle: fields.zhTitle,
     enTitle: fields.enTitle,

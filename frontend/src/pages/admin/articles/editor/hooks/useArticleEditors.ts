@@ -159,7 +159,7 @@ export function useArticleEditors(opts: {
     return {
       zhTitle: meta.zhTitle,
       enTitle: meta.enTitle,
-      slug: meta.slug.trim() || slugifyTitle(meta.zhTitle),
+      slug: meta.slug.trim() || slugifyTitle(meta.zhTitle, meta.enTitle),
       status: meta.articleStatus,
       zhBody: bodies.zhBody,
       enBody: bodies.enBody,

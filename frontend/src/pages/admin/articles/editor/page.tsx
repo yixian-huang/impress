@@ -177,7 +177,7 @@ export default function ArticleEditorPage() {
       editors.activeLang === "en"
         ? (bodies.enBody || bodies.zhBody)
         : (bodies.zhBody || bodies.enBody);
-    const finalSlug = form.slug.trim() || slugifyTitle(form.zhTitle);
+    const finalSlug = form.slug.trim() || slugifyTitle(form.zhTitle, form.enTitle);
     setPreviewData({
       title,
       bodyHtml,

@@ -60,7 +60,7 @@ export function useArticleSchedule(opts: {
         setError("请填写中文标题");
         return;
       }
-      const finalSlug = fields.slug.trim() || slugifyTitle(fields.zhTitle);
+      const finalSlug = fields.slug.trim() || slugifyTitle(fields.zhTitle, fields.enTitle);
       if (!fields.slug.trim()) src.setSlug(finalSlug);
       setScheduleBusy(true);
       setError(null);
