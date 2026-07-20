@@ -14,6 +14,21 @@ type MediaUsage struct {
 	Field string `json:"field"`
 }
 
+// MediaListFilter is the admin list query for media library.
+type MediaListFilter struct {
+	Offset     int
+	Limit      int
+	MimePrefix string
+	// Query matches filename (LIKE).
+	Query string
+	// FolderID nil = all folders; non-nil filters by folder (use pointer to 0 is invalid —
+	// pass FolderRoot=true for unfiled only).
+	FolderID   *uint
+	FolderRoot bool // true → folder_id IS NULL
+	// Sort is a pre-validated ORDER BY clause.
+	Sort string
+}
+
 // MediaRepository defines the interface for media data access
 type MediaRepository interface {
 	// Create creates a new media record
@@ -24,6 +39,9 @@ type MediaRepository interface {
 
 	// List returns a paginated list of media records, optionally filtered by MIME type prefix
 	List(ctx context.Context, offset, limit int, mimePrefix string) ([]*model.Media, int64, error)
+
+	// ListFilter is the admin media list with q/folder/sort.
+	ListFilter(ctx context.Context, f MediaListFilter) ([]*model.Media, int64, error)
 
 	// Count returns total media records.
 	Count(ctx context.Context) (int64, error)

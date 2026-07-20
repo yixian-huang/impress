@@ -27,6 +27,10 @@ func (r *fakeMediaRepository) List(ctx context.Context, offset, limit int, mimeP
 	return nil, 0, nil
 }
 
+func (r *fakeMediaRepository) ListFilter(ctx context.Context, f repository.MediaListFilter) ([]*model.Media, int64, error) {
+	return nil, 0, nil
+}
+
 func (r *fakeMediaRepository) Count(ctx context.Context) (int64, error) {
 	return 0, nil
 }

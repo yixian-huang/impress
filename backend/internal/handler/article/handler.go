@@ -17,6 +17,7 @@ import (
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/contentexcerpt"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/handlerutil"
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -284,30 +285,57 @@ func (h *Handler) recordArticleViewAsync(pageKey string, c *gin.Context) {
 // @Failure      401 {object} object{error=string}
 // @Router       /admin/articles [get]
 func (h *Handler) AdminList(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	if page < 1 {
-		page = 1
+	p := handlerutil.ParsePagination(c, 10, 100)
+	status := handlerutil.QueryTrim(c, "status")
+	q := handlerutil.QueryTrim(c, "q")
+
+	var categoryID *uint
+	if c.Query("categoryId") != "" {
+		id, ok := handlerutil.ParseUintParamOptional(c, "categoryId")
+		if !ok {
+			return
+		}
+		if id > 0 {
+			categoryID = &id
+		}
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
+	var tagID *uint
+	if c.Query("tagId") != "" {
+		id, ok := handlerutil.ParseUintParamOptional(c, "tagId")
+		if !ok {
+			return
+		}
+		if id > 0 {
+			tagID = &id
+		}
 	}
 
-	status := c.Query("status")
-	offset := (page - 1) * pageSize
+	sortClause := handlerutil.ParseSort(c, "sort", map[string]string{
+		"created_at_desc":   "created_at DESC",
+		"created_at_asc":    "created_at ASC",
+		"updated_at_desc":   "updated_at DESC",
+		"updated_at_asc":    "updated_at ASC",
+		"published_at_desc": "published_at DESC",
+		"published_at_asc":  "published_at ASC",
+		"title_asc":         "zh_title ASC",
+		"title_desc":        "zh_title DESC",
+	}, "created_at_desc")
 
-	items, total, err := h.articleRepo.List(c.Request.Context(), offset, pageSize, status, nil, nil)
+	items, total, err := h.articleRepo.ListFilter(c.Request.Context(), repository.ArticleListFilter{
+		Offset:     p.Offset,
+		Limit:      p.PageSize,
+		Status:     status,
+		CategoryID: categoryID,
+		TagID:      tagID,
+		Query:      q,
+		Sort:       sortClause,
+	})
 	if err != nil {
 		apierror.Message(c, http.StatusInternalServerError, "查询文章失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"items":    items,
-		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
-	})
+	handlerutil.ListResponse(c, items, total, p)
 }
 
 // AdminGetByID returns a single article by ID.
@@ -321,13 +349,12 @@ func (h *Handler) AdminList(c *gin.Context) {
 // @Failure      404 {object} object{error=string}
 // @Router       /admin/articles/{id} [get]
 func (h *Handler) AdminGetByID(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
+	id, ok := handlerutil.ParseUintParam(c, "id")
+	if !ok {
 		return
 	}
 
-	article, err := h.articleRepo.FindByID(c.Request.Context(), uint(id))
+	article, err := h.articleRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		apierror.Message(c, http.StatusNotFound, "文章不存在")
 		return

@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"context"
 	"errors"
 	"sync"
@@ -50,6 +51,14 @@ func (r *migrationArticleRepoStub) UpdateScheduledPublication(context.Context, *
 }
 
 func (r *migrationArticleRepoStub) Delete(context.Context, uint) error {
+	return nil
+}
+
+func (r *migrationArticleRepoStub) Count(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
+func (r *migrationArticleRepoStub) UpdateIfMatch(context.Context, *model.Article, time.Time) error {
 	return nil
 }
 
@@ -296,3 +305,8 @@ func waitForPhase(t *testing.T, service *Service, jobID, phase string) *provider
 	t.Fatalf("job %s did not reach phase %s; last progress: %+v", jobID, phase, progress)
 	return nil
 }
+
+func (r *migrationArticleRepoStub) ListFilter(context.Context, repository.ArticleListFilter) ([]*model.Article, int64, error) {
+	return nil, 0, nil
+}
+

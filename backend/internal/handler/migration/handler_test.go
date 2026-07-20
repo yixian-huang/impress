@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -276,3 +277,8 @@ func waitHandlerPhase(t *testing.T, service *migrationPkg.Service, jobID, phase 
 func (r *handlerArticleRepoStub) UpdateIfMatch(context.Context, *model.Article, time.Time) error {
 	return nil
 }
+
+func (r *handlerArticleRepoStub) ListFilter(context.Context, repository.ArticleListFilter) ([]*model.Article, int64, error) {
+	return nil, 0, nil
+}
+

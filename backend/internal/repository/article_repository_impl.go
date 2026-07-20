@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/yixian-huang/inkless/backend/internal/model"
@@ -139,26 +140,42 @@ func (r *GormArticleRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// List returns a paginated list of articles with optional filters
+// List returns a paginated list of articles with optional filters.
 func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, status string, categoryID *uint, tagID *uint) ([]*model.Article, int64, error) {
+	return r.ListFilter(ctx, ArticleListFilter{
+		Offset:     offset,
+		Limit:      limit,
+		Status:     status,
+		CategoryID: categoryID,
+		TagID:      tagID,
+		Sort:       "created_at DESC",
+	})
+}
+
+// ListFilter applies admin search/sort filters. Sort must be a allowlisted clause.
+func (r *GormArticleRepository) ListFilter(ctx context.Context, f ArticleListFilter) ([]*model.Article, int64, error) {
 	var items []*model.Article
 	var total int64
 
-	scope := buildWhere(status, categoryID, tagID)
+	scope := buildWhere(f.Status, f.CategoryID, f.TagID, f.Query)
+	order := f.Sort
+	if order == "" {
+		order = "created_at DESC"
+	}
 
 	if err := r.db.WithContext(ctx).Model(&model.Article{}).Scopes(scope).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// Admin list cards need categories/tags; skip legacy singular Category preload.
 	if err := r.db.WithContext(ctx).
 		Select(articleListSelectColumns).
-		Preload("Category").
 		Preload("Categories").
 		Preload("Tags").
 		Scopes(scope).
-		Offset(offset).
-		Limit(limit).
-		Order("created_at DESC").
+		Offset(f.Offset).
+		Limit(f.Limit).
+		Order(order).
 		Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
@@ -242,18 +259,35 @@ func (r *GormArticleRepository) Count(ctx context.Context, status string) (int64
 	return total, nil
 }
 
-// buildWhere constructs a GORM scope function for the List query filters
-func buildWhere(status string, categoryID *uint, tagID *uint) func(db *gorm.DB) *gorm.DB {
+// buildWhere constructs a GORM scope for admin List/ListFilter.
+func buildWhere(status string, categoryID *uint, tagID *uint, query string) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if status != "" {
 			db = db.Where("status = ?", status)
 		}
 		if categoryID != nil {
-			db = db.Where("category_id = ?", *categoryID)
+			db = db.Where(
+				"category_id = ? OR id IN (SELECT article_id FROM article_categories WHERE category_id = ?)",
+				*categoryID, *categoryID,
+			)
 		}
 		if tagID != nil {
 			db = db.Where("id IN (SELECT article_id FROM article_tags WHERE tag_id = ?)", *tagID)
 		}
+		if q := strings.TrimSpace(query); q != "" {
+			like := "%" + escapeLike(q) + "%"
+			db = db.Where(
+				"(slug LIKE ? ESCAPE '\\' OR zh_title LIKE ? ESCAPE '\\' OR en_title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')",
+				like, like, like, like,
+			)
+		}
 		return db
 	}
+}
+
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }

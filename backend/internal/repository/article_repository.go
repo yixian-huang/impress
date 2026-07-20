@@ -10,6 +10,19 @@ import (
 
 var ErrArticleVersionConflict = errors.New("article version conflict")
 
+// ArticleListFilter is the admin list query for articles.
+type ArticleListFilter struct {
+	Offset     int
+	Limit      int
+	Status     string
+	CategoryID *uint
+	TagID      *uint
+	// Query matches slug / zh_title / en_title (case-insensitive LIKE).
+	Query string
+	// Sort is a pre-validated SQL ORDER BY clause (never pass raw client input).
+	Sort string
+}
+
 // ArticleRepository defines the interface for article data access
 type ArticleRepository interface {
 	// Create creates a new article
@@ -31,9 +44,11 @@ type ArticleRepository interface {
 	// Delete deletes an article by ID
 	Delete(ctx context.Context, id uint) error
 
-	// List returns a paginated list of articles with optional filters.
-	// Body fields (zh_body/en_body) are omitted for list performance.
+	// List returns a paginated admin list (bodies omitted). Prefer ListFilter for new code.
 	List(ctx context.Context, offset, limit int, status string, categoryID *uint, tagID *uint) ([]*model.Article, int64, error)
+
+	// ListFilter is the admin article list with q/sort/filters.
+	ListFilter(ctx context.Context, f ArticleListFilter) ([]*model.Article, int64, error)
 
 	// ListPublished returns a paginated list of published articles with optional filters.
 	// Includes body fields so public list can derive short excerpts; full HTML

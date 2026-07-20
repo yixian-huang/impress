@@ -45,27 +45,57 @@ func (r *GormMediaRepository) FindByID(ctx context.Context, id uint) (*model.Med
 // List returns a paginated list of media records ordered by creation time (newest first).
 // When mimePrefix is non-empty, only records whose mime_type starts with that prefix are returned.
 func (r *GormMediaRepository) List(ctx context.Context, offset, limit int, mimePrefix string) ([]*model.Media, int64, error) {
+	return r.ListFilter(ctx, MediaListFilter{
+		Offset:     offset,
+		Limit:      limit,
+		MimePrefix: mimePrefix,
+		Sort:       "created_at DESC",
+	})
+}
+
+// ListFilter applies admin search / folder / type filters.
+func (r *GormMediaRepository) ListFilter(ctx context.Context, f MediaListFilter) ([]*model.Media, int64, error) {
 	var items []*model.Media
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Media{})
-	if mimePrefix != "" {
-		query = query.Where("mime_type LIKE ?", mimePrefix+"%")
+	if f.MimePrefix != "" {
+		query = query.Where("mime_type LIKE ?", f.MimePrefix+"%")
+	}
+	if f.FolderRoot {
+		query = query.Where("folder_id IS NULL")
+	} else if f.FolderID != nil {
+		query = query.Where("folder_id = ?", *f.FolderID)
+	}
+	if q := strings.TrimSpace(f.Query); q != "" {
+		like := "%" + escapeLikeMedia(q) + "%"
+		query = query.Where("filename LIKE ? ESCAPE '\\'", like)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	order := f.Sort
+	if order == "" {
+		order = "created_at DESC"
+	}
 	if err := query.
-		Offset(offset).
-		Limit(limit).
-		Order("created_at DESC").
+		Offset(f.Offset).
+		Limit(f.Limit).
+		Order(order).
 		Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return items, total, nil
+}
+
+func escapeLikeMedia(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
 // Count returns total media records.

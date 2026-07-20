@@ -24,6 +24,7 @@ import (
 	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 	xdraw "golang.org/x/image/draw"
 
+	"github.com/yixian-huang/inkless/backend/internal/handlerutil"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"github.com/yixian-huang/inkless/backend/internal/service"
@@ -185,36 +186,51 @@ func (h *Handler) Upload(c *gin.Context) {
 // @Success      200 {object} object{items=[]object,total=int,page=int,pageSize=int}
 // @Router       /admin/media [get]
 func (h *Handler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-
-	offset := (page - 1) * pageSize
+	p := handlerutil.ParsePagination(c, 20, 100)
 
 	// Optional MIME type prefix filter (e.g. ?type=image, ?type=video, ?type=audio)
 	mimePrefix := ""
-	if typeParam := c.Query("type"); typeParam != "" {
+	if typeParam := handlerutil.QueryTrim(c, "type"); typeParam != "" {
 		mimePrefix = typeParam + "/"
 	}
 
-	items, total, err := h.mediaRepo.List(c.Request.Context(), offset, pageSize, mimePrefix)
+	filter := repository.MediaListFilter{
+		Offset:     p.Offset,
+		Limit:      p.PageSize,
+		MimePrefix: mimePrefix,
+		Query:      handlerutil.QueryTrim(c, "q"),
+		Sort: handlerutil.ParseSort(c, "sort", map[string]string{
+			"created_at_desc": "created_at DESC",
+			"created_at_asc":  "created_at ASC",
+			"filename_asc":    "filename ASC",
+			"filename_desc":   "filename DESC",
+			"size_desc":       "size DESC",
+			"size_asc":        "size ASC",
+		}, "created_at_desc"),
+	}
+
+	// folderId empty = all; folderId=root|0 = unfiled; folderId=N = that folder.
+	if raw := handlerutil.QueryTrim(c, "folderId"); raw != "" {
+		if raw == "root" || raw == "0" {
+			filter.FolderRoot = true
+		} else {
+			id, ok := handlerutil.ParseUintParamOptional(c, "folderId")
+			if !ok {
+				return
+			}
+			if id > 0 {
+				filter.FolderID = &id
+			}
+		}
+	}
+
+	items, total, err := h.mediaRepo.ListFilter(c.Request.Context(), filter)
 	if err != nil {
 		apierror.Message(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"items":    items,
-		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
-	})
+	handlerutil.ListResponse(c, items, total, p)
 }
 
 // Delete removes a media item and its file.
@@ -228,15 +244,13 @@ func (h *Handler) List(c *gin.Context) {
 // @Failure      404 {object} object{error=string}
 // @Router       /admin/media/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
+	id, ok := handlerutil.ParseUintParam(c, "id")
+	if !ok {
 		return
 	}
 
 	// Find the media record
-	media, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id))
+	media, err := h.mediaRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		apierror.Message(c, http.StatusNotFound, "未找到该媒体文件")
 		return

@@ -2,6 +2,7 @@ package handlerutil
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -75,4 +76,35 @@ func ParsePagination(c *gin.Context, defaultSize, maxSize int) Pagination {
 		PageSize: pageSize,
 		Offset:   (page - 1) * pageSize,
 	}
+}
+
+// ListResponse is the standard admin list JSON shape.
+func ListResponse(c *gin.Context, items any, total int64, p Pagination) {
+	c.JSON(200, map[string]any{
+		"items":    items,
+		"total":    total,
+		"page":     p.Page,
+		"pageSize": p.PageSize,
+	})
+}
+
+// QueryTrim returns a trimmed query string param (empty if blank).
+func QueryTrim(c *gin.Context, name string) string {
+	return strings.TrimSpace(c.Query(name))
+}
+
+// ParseSort allows only keys in allowed; returns defaultKey when empty/invalid.
+// allowed maps request token → SQL ORDER BY clause (already sanitized).
+func ParseSort(c *gin.Context, param string, allowed map[string]string, defaultKey string) string {
+	raw := strings.TrimSpace(c.Query(param))
+	if raw == "" {
+		raw = defaultKey
+	}
+	if clause, ok := allowed[raw]; ok {
+		return clause
+	}
+	if clause, ok := allowed[defaultKey]; ok {
+		return clause
+	}
+	return "created_at DESC"
 }

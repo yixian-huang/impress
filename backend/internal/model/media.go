@@ -16,6 +16,8 @@ type Media struct {
 	Height          *int      `json:"height,omitempty"`
 	StorageKey      string    `gorm:"size:500" json:"storageKey,omitempty"`
 	StorageProvider string    `gorm:"size:50" json:"storageProvider,omitempty"`
+	// FolderID associates media with a media folder (null = unfiled / root).
+	FolderID        *uint     `gorm:"index" json:"folderId,omitempty"`
 	CreatedAt       time.Time `gorm:"autoCreateTime" json:"createdAt"`
 }
 

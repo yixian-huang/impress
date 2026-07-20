@@ -15,6 +15,7 @@ import (
 
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/handlerutil"
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -76,13 +77,7 @@ func getUserID(c *gin.Context) uint {
 
 // parseID parses the :id URL parameter as uint.
 func parseID(c *gin.Context) (uint, bool) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		apierror.Message(c, http.StatusBadRequest, "invalid id")
-		return 0, false
-	}
-	return uint(id), true
+	return handlerutil.ParseUintParam(c, "id")
 }
 
 // localizedField returns the zh or en field based on locale query param.
@@ -247,15 +242,17 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 
 // AdminList lists all unified pages with optional status/mode/parentID filters.
 func (h *Handler) AdminList(c *gin.Context) {
-	status := c.Query("status")
-	mode := c.Query("mode")
+	status := handlerutil.QueryTrim(c, "status")
+	mode := handlerutil.QueryTrim(c, "mode")
 
 	var parentID *uint
-	if pidStr := c.Query("parentId"); pidStr != "" {
-		pid, err := strconv.ParseUint(pidStr, 10, 64)
-		if err == nil {
-			pidVal := uint(pid)
-			parentID = &pidVal
+	if c.Query("parentId") != "" {
+		pid, ok := handlerutil.ParseUintParamOptional(c, "parentId")
+		if !ok {
+			return
+		}
+		if pid > 0 {
+			parentID = &pid
 		}
 	}
 
@@ -346,7 +343,7 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	}
 
 	if err := h.pageRepo.Create(c.Request.Context(), page); err != nil {
-		apierror.Message(c, http.StatusInternalServerError, "failed to create page: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to create page: "+err.Error())
 		return
 	}
 	if h.eventBus != nil {
@@ -466,7 +463,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	}
 
 	if err := h.pageRepo.Update(c.Request.Context(), page); err != nil {
-		apierror.Message(c, http.StatusInternalServerError, "failed to update page: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to update page: "+err.Error())
 		return
 	}
 	h.invalidatePublicPageCaches(oldSlug, page.Slug)
@@ -539,7 +536,7 @@ func (h *Handler) AdminUpdateDraft(c *gin.Context) {
 			})
 			return
 		}
-		apierror.Message(c, http.StatusInternalServerError, "failed to update draft: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to update draft: "+err.Error())
 		return
 	}
 	if h.eventBus != nil {
@@ -596,7 +593,7 @@ func (h *Handler) AdminPublish(c *gin.Context) {
 			apierror.Message(c, http.StatusNotFound, "page not found")
 			return
 		}
-		apierror.Message(c, http.StatusInternalServerError, "failed to publish: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to publish: "+err.Error())
 		return
 	}
 
@@ -628,7 +625,7 @@ func (h *Handler) AdminUnpublish(c *gin.Context) {
 			apierror.Message(c, http.StatusNotFound, "page not found")
 			return
 		}
-		apierror.Message(c, http.StatusInternalServerError, "failed to unpublish: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to unpublish: "+err.Error())
 		return
 	}
 	h.invalidatePublicPageCaches(page.Slug)
@@ -661,7 +658,7 @@ func (h *Handler) AdminRollback(c *gin.Context) {
 			apierror.Message(c, http.StatusNotFound, "version not found")
 			return
 		}
-		apierror.Message(c, http.StatusInternalServerError, "failed to rollback: " + err.Error())
+		apierror.Message(c, http.StatusInternalServerError, "failed to rollback: "+err.Error())
 		return
 	}
 
