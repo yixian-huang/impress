@@ -13,6 +13,7 @@ export function resolveSaveStatus(
   return "draft";
 }
 
+/** Generic fallback; prefer buildModeSwitchConfirmMessage from modeSwitchLoss. */
 export const MODE_SWITCH_MESSAGE =
   "切换编辑模式可能丢失部分格式（复杂排版、部分样式等）。是否继续？";
 

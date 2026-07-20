@@ -55,7 +55,6 @@ export default function ArticleEditorPage() {
     enBody: form.enBody,
     setZhBody: form.setZhBody,
     setEnBody: form.setEnBody,
-    isDirty: dirty.isDirty,
     touch: dirty.touch,
   });
 

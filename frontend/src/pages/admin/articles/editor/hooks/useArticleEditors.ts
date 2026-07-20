@@ -3,10 +3,12 @@ import type { Editor } from "@tiptap/react";
 import { useModalState } from "@/components/admin/RichTextEditor";
 import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
-import { MODE_SWITCH_MESSAGE } from "../saveStatusUtils";
-import { hasMeaningfulHtml } from "../utils/constants";
 import type { ArticleDraftSnapshot } from "../VersionHistoryPanel";
 import { slugifyTitle } from "../utils/slugify";
+import {
+  buildModeSwitchConfirmMessage,
+  detectModeSwitchLossFromBodies,
+} from "../utils/modeSwitchLoss";
 
 export type EditorMode = "richtext" | "markdown";
 export type ViewLayout = "focus" | "split";
@@ -20,10 +22,9 @@ export function useArticleEditors(opts: {
   enBody: string;
   setZhBody: (v: string) => void;
   setEnBody: (v: string) => void;
-  isDirty: boolean;
   touch: () => void;
 }) {
-  const { zhBody, enBody, setZhBody, setEnBody, isDirty, touch } = opts;
+  const { zhBody, enBody, setZhBody, setEnBody, touch } = opts;
 
   const [editorMode, setEditorMode] = useState<EditorMode>("richtext");
   const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({
@@ -105,22 +106,19 @@ export function useArticleEditors(opts: {
 
   const handleModeChange = useCallback((newMode: EditorMode) => {
     if (newMode === editorMode) return;
-    const zhHtml = editorMode === "markdown"
-      ? markdownToHtml(markdownContent.zh ?? "")
-      : getZhHtml();
-    const enHtml = editorMode === "markdown"
-      ? markdownToHtml(markdownContent.en ?? "")
-      : getEnHtml();
-    if (
-      (hasMeaningfulHtml(zhHtml) || hasMeaningfulHtml(enHtml) || isDirty)
-      && !window.confirm(MODE_SWITCH_MESSAGE)
-    ) {
-      return;
-    }
+
+    // Scheme 3: only confirm richtext → markdown when lossy TipTap features are present.
+    // Markdown → richtext is silent (MD is the source of truth in that mode).
     if (newMode === "markdown") {
+      const zhHtml = getZhHtml();
+      const enHtml = getEnHtml();
+      const losses = detectModeSwitchLossFromBodies(zhHtml, enHtml);
+      if (losses.length > 0 && !window.confirm(buildModeSwitchConfirmMessage(losses))) {
+        return;
+      }
       setMarkdownContent({
-        zh: htmlToMarkdown(getZhHtml()),
-        en: htmlToMarkdown(getEnHtml()),
+        zh: htmlToMarkdown(zhHtml),
+        en: htmlToMarkdown(enHtml),
       });
     } else {
       const zhFromMd = markdownToHtml(markdownContent.zh ?? "");
@@ -135,7 +133,7 @@ export function useArticleEditors(opts: {
     touch();
   }, [
     editorMode, markdownContent, zhEditor, enEditor,
-    getZhHtml, getEnHtml, isDirty, touch, setZhBody, setEnBody,
+    getZhHtml, getEnHtml, touch, setZhBody, setEnBody,
   ]);
 
   const buildDraftSnapshot = useCallback((meta: {
