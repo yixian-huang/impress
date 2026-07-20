@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm/logger"
 
+	"github.com/yixian-huang/inkless/backend/internal/app"
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/db"
 	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
@@ -232,10 +233,10 @@ func TestAdminSitesRoutesRemoved(t *testing.T) {
 }
 
 func TestRetiredAdminSitesHTMLPathIsRejectedBeforeSPAFallback(t *testing.T) {
-	assert.True(t, isRetiredAdminSitesPath("/admin/sites"))
-	assert.True(t, isRetiredAdminSitesPath("/admin/sites/1"))
-	assert.False(t, isRetiredAdminSitesPath("/admin/site-config"))
-	assert.False(t, isRetiredAdminSitesPath("/admin/sites-preview"))
+	assert.True(t, app.IsRetiredAdminSitesPath("/admin/sites"))
+	assert.True(t, app.IsRetiredAdminSitesPath("/admin/sites/1"))
+	assert.False(t, app.IsRetiredAdminSitesPath("/admin/site-config"))
+	assert.False(t, app.IsRetiredAdminSitesPath("/admin/sites-preview"))
 
 	for _, path := range []string{"/admin/sites", "/admin/sites/1"} {
 		response := httptest.NewRecorder()
@@ -243,7 +244,7 @@ func TestRetiredAdminSitesHTMLPathIsRejectedBeforeSPAFallback(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodGet, path, nil)
 		c.Request.Header.Set("Accept", "text/html,application/xhtml+xml")
 
-		assert.True(t, rejectRetiredAdminSitesHTML(c))
+		assert.True(t, app.RejectRetiredAdminSitesHTML(c))
 		assert.True(t, c.IsAborted())
 		assert.Equal(t, http.StatusNotFound, c.Writer.Status())
 	}
@@ -255,7 +256,7 @@ func TestFrontendFallbackReturns404ForRetiredAdminSites(t *testing.T) {
 	require.NoError(t, os.WriteFile(indexPath, []byte("<html>spa</html>"), 0o600))
 
 	router := gin.New()
-	registerFrontendFallback(router, indexPath, nil, "https://example.com", nil)
+	app.RegisterFrontendFallback(router, indexPath, nil, "https://example.com", nil)
 
 	for _, path := range []string{"/admin/sites", "/admin/sites/1"} {
 		response := httptest.NewRecorder()

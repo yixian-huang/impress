@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -116,20 +116,22 @@ type RouteDeps struct {
 	ModuleMgr      *module.Manager
 	ContentDocRepo repository.ContentDocumentRepository
 	AuditWriter    audit.Writer
+	Build          BuildInfo
 }
 
 // registerRoutes sets up all route groups, middleware, and endpoint registrations
 // on the provided Gin engine.
 func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 	cfg := deps.Cfg
+	build := deps.Build
 
 	// Version endpoint (public, no auth required)
 	router.GET("/version", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"version":   Version,
-			"buildTime": BuildTime,
-			"gitCommit": GitCommit,
-			"gitBranch": GitBranch,
+			"version":   build.Version,
+			"buildTime": build.BuildTime,
+			"gitCommit": build.GitCommit,
+			"gitBranch": build.GitBranch,
 		})
 	})
 
@@ -152,9 +154,9 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 			"service":   brand.APIService,
 			"status":    "healthy",
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"version":   Version,
-			"buildTime": BuildTime,
-			"gitCommit": GitCommit,
+			"version":   build.Version,
+			"buildTime": build.BuildTime,
+			"gitCommit": build.GitCommit,
 		})
 	})
 
@@ -280,7 +282,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 	if cfg.FrontendDir != "" {
 		indexPath := filepath.Join(cfg.FrontendDir, "index.html")
 		adminGroup.Use(func(c *gin.Context) {
-			if rejectRetiredAdminSitesHTML(c) {
+			if RejectRetiredAdminSitesHTML(c) {
 				return
 			}
 			accept := c.GetHeader("Accept")
@@ -562,11 +564,12 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 
 		// SPA fallback: non-API GET requests return index.html with SEO meta
 		indexHTML := filepath.Join(cfg.FrontendDir, "index.html")
-		registerFrontendFallback(router, indexHTML, seoRenderer, cfg.BaseURL, deps.ContentDocRepo)
+		RegisterFrontendFallback(router, indexHTML, seoRenderer, cfg.BaseURL, deps.ContentDocRepo)
 	}
 }
 
-func registerFrontendFallback(
+// RegisterFrontendFallback installs SPA NoRoute handling for non-API GETs.
+func RegisterFrontendFallback(
 	router *gin.Engine,
 	indexHTML string,
 	renderer *seo.Renderer,
@@ -575,7 +578,7 @@ func registerFrontendFallback(
 ) {
 	router.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if isRetiredAdminSitesPath(path) {
+		if IsRetiredAdminSitesPath(path) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
@@ -599,14 +602,16 @@ func registerFrontendFallback(
 	})
 }
 
-func isRetiredAdminSitesPath(path string) bool {
+// IsRetiredAdminSitesPath reports multi-site admin paths removed from this product.
+func IsRetiredAdminSitesPath(path string) bool {
 	return path == "/admin/sites" || strings.HasPrefix(path, "/admin/sites/")
 }
 
-func rejectRetiredAdminSitesHTML(c *gin.Context) bool {
+// RejectRetiredAdminSitesHTML aborts HTML GETs to retired /admin/sites paths.
+func RejectRetiredAdminSitesHTML(c *gin.Context) bool {
 	if c.Request.Method != http.MethodGet ||
 		!strings.Contains(c.GetHeader("Accept"), "text/html") ||
-		!isRetiredAdminSitesPath(c.Request.URL.Path) {
+		!IsRetiredAdminSitesPath(c.Request.URL.Path) {
 		return false
 	}
 	c.Status(http.StatusNotFound)
