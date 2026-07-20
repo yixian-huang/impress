@@ -41,7 +41,8 @@ import EditorSidebar from "./EditorSidebar";
 import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
 import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
-import { ArticleVersionHistoryPanel } from "./VersionHistoryPanel";
+import { ArticleVersionHistoryPanel, type ArticleDraftSnapshot } from "./VersionHistoryPanel";
+import ArticlePreviewModal, { type ArticlePreviewData } from "./ArticlePreviewModal";
 import { SaveStatusBadge } from "./saveStatus";
 import {
   LEAVE_UNSAVED_MESSAGE,
@@ -146,6 +147,10 @@ export default function ArticleEditorPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  /** Snapshot frozen when opening history panel (for compare-with-current). */
+  const [versionDraftSnapshot, setVersionDraftSnapshot] = useState<ArticleDraftSnapshot | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<ArticlePreviewData | null>(null);
 
   // Language carousel
   const [enabledLangs, setEnabledLangs] = useState<string[]>(["zh"]);
@@ -471,21 +476,53 @@ export default function ArticleEditorPage() {
     return () => window.clearTimeout(t);
   }, [isDirty, saving, loading, zhTitle, handleSave]);
 
-  // Global shortcuts: ⌘/Ctrl+S save, ⌘/Ctrl+Shift+S publish
+  const openPreview = useCallback(() => {
+    const bodies = resolveBodies();
+    const title = activeLang === "en" ? (enTitle || zhTitle) : (zhTitle || enTitle);
+    const bodyHtml = activeLang === "en" ? (bodies.enBody || bodies.zhBody) : (bodies.zhBody || bodies.enBody);
+    const langLabel = activeLang === "en" ? "English" : "中文";
+    const statusLabel =
+      articleStatus === "published" ? "已发布" : articleStatus === "scheduled" ? "定时" : "草稿";
+    const finalSlug = slug.trim() || slugifyTitle(zhTitle);
+    setPreviewData({
+      title,
+      bodyHtml,
+      coverImage: coverImage || undefined,
+      author: author || undefined,
+      langLabel,
+      statusLabel: isDirty ? `${statusLabel} · 含未保存` : statusLabel,
+      publicPath:
+        articleStatus === "published" && finalSlug ? `/blog/${finalSlug}` : null,
+      metadata,
+    });
+    setShowPreview(true);
+  }, [
+    resolveBodies, activeLang, enTitle, zhTitle, articleStatus, slug,
+    coverImage, author, isDirty, metadata,
+  ]);
+
+  // Global shortcuts: ⌘/Ctrl+S save, ⌘/Ctrl+Shift+S publish, ⌘/Ctrl+P preview
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key !== "s" && e.key !== "S") return;
-      e.preventDefault();
-      if (e.shiftKey) {
-        if (canPublish) void handleSave("publish");
-      } else {
-        void handleSave("draft");
+      if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (canPublish) void handleSave("publish");
+        } else {
+          void handleSave("draft");
+        }
+        return;
+      }
+      if (e.key === "p" || e.key === "P") {
+        // Avoid browser print when possible
+        e.preventDefault();
+        openPreview();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleSave, canPublish]);
+  }, [handleSave, canPublish, openPreview]);
 
   const { confirmLeave } = useUnsavedChangesGuard(isDirty, LEAVE_UNSAVED_MESSAGE);
 
@@ -493,6 +530,73 @@ export default function ArticleEditorPage() {
     if (!confirmLeave()) return;
     navigate("/admin/articles");
   }, [confirmLeave, navigate]);
+
+  const buildCurrentDraftSnapshot = useCallback((): ArticleDraftSnapshot => {
+    const bodies = resolveBodies();
+    return {
+      zhTitle,
+      enTitle,
+      slug: slug.trim() || slugifyTitle(zhTitle),
+      status: articleStatus,
+      zhBody: bodies.zhBody,
+      enBody: bodies.enBody,
+      coverImage,
+      zhSeoTitle,
+      enSeoTitle,
+      zhMetaDescription,
+      enMetaDescription,
+      ogImage,
+      author,
+    };
+  }, [
+    resolveBodies, zhTitle, enTitle, slug, articleStatus, coverImage,
+    zhSeoTitle, enSeoTitle, zhMetaDescription, enMetaDescription, ogImage, author,
+  ]);
+
+  const handleRestoreVersion = useCallback((snapshot: ArticleDraftSnapshot) => {
+    readyRef.current = false;
+    const nextZhTitle = typeof snapshot.zhTitle === "string" ? snapshot.zhTitle : "";
+    const nextEnTitle = typeof snapshot.enTitle === "string" ? snapshot.enTitle : "";
+    const nextSlug = typeof snapshot.slug === "string" ? snapshot.slug : slug;
+    const nextZhBody = typeof snapshot.zhBody === "string" ? snapshot.zhBody : "";
+    const nextEnBody = typeof snapshot.enBody === "string" ? snapshot.enBody : "";
+    const nextCover = typeof snapshot.coverImage === "string" ? snapshot.coverImage : "";
+    const nextAuthor = typeof snapshot.author === "string" ? snapshot.author : author;
+
+    setZhTitle(nextZhTitle);
+    setEnTitle(nextEnTitle);
+    setSlug(nextSlug);
+    setZhBody(nextZhBody);
+    setEnBody(nextEnBody);
+    setCoverImage(nextCover);
+    setAuthor(nextAuthor);
+    if (typeof snapshot.zhSeoTitle === "string") setZhSeoTitle(snapshot.zhSeoTitle);
+    if (typeof snapshot.enSeoTitle === "string") setEnSeoTitle(snapshot.enSeoTitle);
+    if (typeof snapshot.zhMetaDescription === "string") setZhMetaDescription(snapshot.zhMetaDescription);
+    if (typeof snapshot.enMetaDescription === "string") setEnMetaDescription(snapshot.enMetaDescription);
+    if (typeof snapshot.ogImage === "string") setOgImage(snapshot.ogImage);
+
+    zhEditor?.commands.setContent(nextZhBody || "", { emitUpdate: false });
+    enEditor?.commands.setContent(nextEnBody || "", { emitUpdate: false });
+    if (editorMode === "markdown") {
+      setMarkdownContent({
+        zh: htmlToMarkdown(nextZhBody || ""),
+        en: htmlToMarkdown(nextEnBody || ""),
+      });
+    }
+
+    setShowVersionHistory(false);
+    setSuccessMessage("已恢复到所选版本（尚未保存，请检查后保存）");
+    window.setTimeout(() => setSuccessMessage(""), 4000);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        readyRef.current = true;
+        setIsDirty(true);
+        setSavePhase("dirty");
+      });
+    });
+  }, [slug, author, zhEditor, enEditor, editorMode]);
 
   const handleSchedulePublish = async (scheduledAt: string) => {
     if (!canPublish) return;
@@ -683,9 +787,20 @@ export default function ArticleEditorPage() {
               <PopoverButton
                 label="历史版本"
                 active={showVersionHistory}
-                onClick={() => setShowVersionHistory(true)}
+                onClick={() => {
+                  setVersionDraftSnapshot(buildCurrentDraftSnapshot());
+                  setShowVersionHistory(true);
+                }}
               />
             )}
+            <button
+              type="button"
+              onClick={openPreview}
+              title="预览 (⌘P / Ctrl+P)"
+              className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              预览
+            </button>
             <span className="w-px h-6 bg-gray-200 mx-1" />
             <ScheduledPublicationPanel
               compact
@@ -918,9 +1033,21 @@ export default function ArticleEditorPage() {
       {showVersionHistory && isEditing && (
         <ArticleVersionHistoryPanel
           articleId={Number(id)}
-          onClose={() => setShowVersionHistory(false)}
+          onClose={() => {
+            setShowVersionHistory(false);
+            setVersionDraftSnapshot(null);
+          }}
+          currentDraft={versionDraftSnapshot}
+          onRestore={handleRestoreVersion}
+          canRestore
         />
       )}
+
+      <ArticlePreviewModal
+        open={showPreview}
+        data={previewData}
+        onClose={() => setShowPreview(false)}
+      />
     </div>
   );
 }
