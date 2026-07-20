@@ -18,8 +18,7 @@ import {
 const HOME_RECENT_COUNT = 6;
 
 /**
- * blog-first theme home — presentation lives in this package so Inkless host
- * only re-exports / registers it.
+ * blog-first theme home — article list first; identity lives on /author.
  */
 export default function BlogFirstHomePage() {
   const { t } = useTranslation("common");
@@ -73,7 +72,6 @@ export default function BlogFirstHomePage() {
     loadRecent();
   }, [loadRecent]);
 
-  // Prefer site SEO defaultTitle ("黄逸仙 · yx.ink") over templating the bare site name.
   const pageTitle = defaultTitle || siteName || t("blog.homeTitle");
 
   return (
@@ -97,6 +95,8 @@ export default function BlogFirstHomePage() {
           showSocials={false}
           showBio={false}
           showSubtitle={false}
+          moreHref="/author"
+          moreLabel={`${t("blog.aboutAuthor")} →`}
         />
 
         <section className={isReading ? "pt-1" : undefined}>

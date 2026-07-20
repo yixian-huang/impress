@@ -27,10 +27,10 @@ export default function BlogHeader({ config }: HeaderChromeProps) {
       languagePlacement="inline"
       headerClassName={
         compactHome
-          ? "bg-surface/90 backdrop-blur-sm border-b border-border/70 font-sans"
+          ? "bg-surface/90 backdrop-blur-sm border-b border-border/60 font-sans"
           : "bg-surface border-b border-border font-sans"
       }
-      navPaddingClassName={compactHome ? "py-3.5" : "py-4"}
+      navPaddingClassName={compactHome ? "py-2.5" : "py-3.5"}
       containerClassName="mx-auto px-4 md:px-content w-full"
       containerStyle={{ maxWidth }}
       brand={
@@ -38,12 +38,13 @@ export default function BlogHeader({ config }: HeaderChromeProps) {
           brandMode={resolvedBrandMode}
           hideDefaultLogo
           showLabel={!compactHome}
-          textClassName="text-base font-sans font-medium tracking-tight text-on-surface"
-          avatarClassName="h-9 w-9 rounded-full object-contain bg-[#141310] ring-1 ring-border"
-          logoClassName="h-7 w-auto"
+          textClassName="text-sm font-sans font-medium tracking-tight text-on-surface"
+          avatarClassName="h-8 w-8 rounded-full object-contain bg-[#141310] ring-1 ring-border"
+          logoClassName="h-6 w-auto opacity-90"
         />
       }
-      utilities={<HeaderUtilities />}
+      // Home: RSS only — socials live on /author so the top bar stays quiet.
+      utilities={<HeaderUtilities hideSocials={compactHome} />}
     />
   );
 }

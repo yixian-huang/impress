@@ -88,8 +88,8 @@ export const blogFirstTheme: ThemePlugin = {
         {
           name: "showSocials",
           type: "boolean",
-          label: "Show social links (header + home footer)",
-          labelZh: "显示社交链接（页眉与首页页脚）",
+          label: "Show social links in header (author page always shows them)",
+          labelZh: "页眉显示社交链接（关于页始终显示）",
           defaultValue: true,
         },
       ],
@@ -179,6 +179,19 @@ export const blogFirstTheme: ThemePlugin = {
       contentKey: "home",
       nav: { label: "Home", labelZh: "首页", order: 0, showInHeader: true, showInFooter: false },
     },
+    {
+      slug: "author",
+      renderMode: "hardcoded",
+      lazyComponent: () => import("./pages/author"),
+      contentKey: "author",
+      nav: {
+        label: "About",
+        labelZh: "关于",
+        order: 10,
+        showInHeader: true,
+        showInFooter: false,
+      },
+    },
   ],
   defaultLayout: BLOG_DEFAULT_LAYOUT,
   layoutChrome: {
@@ -189,6 +202,7 @@ export const blogFirstTheme: ThemePlugin = {
 
 export { resolveBlogHomeBrandMode } from "./chrome/resolveHomeBrand";
 export { default as BlogFirstHomePage } from "./pages/home";
+export { default as BlogFirstAuthorPage } from "./pages/author";
 export { default as BlogHeader } from "./chrome/BlogHeader";
 export { default as BlogFooter } from "./chrome/BlogFooter";
 

@@ -7,6 +7,7 @@ import { getPublicMenu } from "@/api/menus";
 import type { MenuGroup, MenuItem } from "@/api/menus";
 import { resolveLocale } from "@/utils/locale";
 import { resolveAutomaticNavigation } from "@/router/publicPages";
+import { useThemeManager } from "@/plugins/hooks";
 
 interface NavItem {
   label: string;
@@ -66,8 +67,10 @@ function menuItemToNavItem(item: MenuItem, locale: string): NavItem | null {
 
 export function ThemePagesProvider({ children }: { children: ReactNode }) {
   const { data: bootstrapData, isLoading: bootstrapLoading } = useBootstrap();
+  const { activeTheme } = useThemeManager();
   const { i18n } = useTranslation("common");
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
+  const manifestPages = useMemo(() => activeTheme?.pages ?? [], [activeTheme]);
 
   useEffect(() => {
     getPublicMenu().then((g) => setMenuGroup(g)).catch(() => {});
@@ -90,12 +93,12 @@ export function ThemePagesProvider({ children }: { children: ReactNode }) {
   }, [menuGroup, locale]);
 
   const headerNavItems = useMemo(() => {
-    return resolveAutomaticNavigation(unifiedPages, pages, locale, "header");
-  }, [pages, unifiedPages, locale]);
+    return resolveAutomaticNavigation(unifiedPages, pages, locale, "header", manifestPages);
+  }, [pages, unifiedPages, locale, manifestPages]);
 
   const footerNavItems = useMemo(() => {
-    return resolveAutomaticNavigation(unifiedPages, pages, locale, "footer");
-  }, [pages, unifiedPages, locale]);
+    return resolveAutomaticNavigation(unifiedPages, pages, locale, "footer", manifestPages);
+  }, [pages, unifiedPages, locale, manifestPages]);
 
   const value = useMemo(() => ({
     pages,

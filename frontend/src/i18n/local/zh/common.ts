@@ -97,6 +97,11 @@ export const common = {
     viewCount: '{{count}} 次阅读',
     copyCode: '复制',
     copiedCode: '已复制',
+    prevPost: '上一篇',
+    nextPost: '下一篇',
+    adjacentNav: '相邻文章',
+    aboutAuthor: '关于作者',
+    authorPageTitle: '关于',
   },
   pagination: {
     prev: '上一页',

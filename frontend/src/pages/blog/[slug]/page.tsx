@@ -7,6 +7,7 @@ import SeoHead from "@/components/SeoHead";
 import ArticlePostWithToc from "@/components/blog/ArticlePostWithToc";
 import ArticlePostHeader from "@/components/blog/ArticlePostHeader";
 import ArticlePostTaxonomy from "@/components/blog/ArticlePostTaxonomy";
+import ArticleAdjacentNav from "@/components/blog/ArticleAdjacentNav";
 import BlogPageShell from "@/components/blog/BlogPageShell";
 import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
 import { CommentSlot } from "@/modules/comment";
@@ -118,6 +119,8 @@ export default function BlogDetailPage() {
               <ArticlePostTaxonomy article={article} />
 
               <ArticlePostWithToc html={body} contentRef={contentRef} onClick={handleContentClick} />
+
+              <ArticleAdjacentNav currentSlug={article.slug} />
             </ArticleTypographyRoot>
 
             <CommentSlot

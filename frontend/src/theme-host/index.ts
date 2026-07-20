@@ -48,6 +48,7 @@ export { default as BlogPageShell } from "@/components/blog/BlogPageShell";
 export { default as AuthorIntro } from "@/components/blog/AuthorIntro";
 export { default as ArticleList } from "@/components/blog/ArticleList";
 export { default as AuthorSocialLinks } from "@/components/blog/AuthorSocialLinks";
+export { default as ArticleAdjacentNav } from "@/components/blog/ArticleAdjacentNav";
 
 // --- Data / i18n helpers ---
 export { getPublicArticles } from "@/api/articles";

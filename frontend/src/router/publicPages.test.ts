@@ -66,7 +66,7 @@ describe("resolvePublicRoutingPages", () => {
     }));
   });
 
-  it("falls back to theme rows when unified pages are unavailable", () => {
+  it("merges DB theme rows with missing manifest pages", () => {
     const pages = resolvePublicRoutingPages({
       unifiedPages: [],
       themePages: [
@@ -87,7 +87,50 @@ describe("resolvePublicRoutingPages", () => {
       activeThemeId: "theme-a",
     });
 
-    expect(pages.map((page) => page.slug)).toEqual(["about"]);
+    // DB owns "about"; manifest fills "home" which is not in DB.
+    expect(pages.map((page) => page.slug).sort()).toEqual(["about", "home"]);
+  });
+
+  it("fills new theme package pages not yet in DB (e.g. author)", () => {
+    const pages = resolvePublicRoutingPages({
+      unifiedPages: [],
+      themePages: [
+        {
+          id: 1,
+          slug: "home",
+          title: { zh: "首页", en: "Home" },
+          contentKey: "home",
+          renderMode: "hardcoded",
+          isThemePage: true,
+          themeId: "blog-first",
+          navConfig: { showInHeader: true },
+          sortOrder: 0,
+          status: "published",
+        },
+      ],
+      manifestPages: [
+        ...manifestPages,
+        {
+          slug: "author",
+          contentKey: "author",
+          renderMode: "hardcoded",
+          nav: { label: "About", labelZh: "关于", order: 10, showInHeader: true },
+        },
+      ],
+      activeThemeId: "blog-first",
+    });
+
+    expect(pages.map((page) => page.slug)).toEqual(["home", "author"]);
+    expect(resolveAutomaticNavigation([], pages as never, "zh", "header", [
+      {
+        slug: "author",
+        contentKey: "author",
+        renderMode: "hardcoded",
+        nav: { label: "About", labelZh: "关于", order: 10, showInHeader: true },
+      },
+    ])).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: "/author", label: "关于" }),
+    ]));
   });
 
   it("merges legacy routes and navigation by slug during migration", () => {
@@ -136,7 +179,8 @@ describe("resolvePublicRoutingPages", () => {
       manifestPages,
       activeThemeId: "theme-a",
     });
-    expect(routes.map((page) => page.slug)).toEqual(["about", "contact"]);
+    // Manifest fills "home"; unified owns "about"; theme DB fills "contact".
+    expect(routes.map((page) => page.slug)).toEqual(["home", "about", "contact"]);
     expect(resolveAutomaticNavigation(unifiedPages, themePages, "zh", "header")).toEqual([
       { label: "联系", path: "/contact", sortOrder: 4 },
     ]);

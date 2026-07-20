@@ -97,6 +97,11 @@ export const common = {
     viewCount: '{{count}} views',
     copyCode: 'Copy',
     copiedCode: 'Copied',
+    prevPost: 'Previous',
+    nextPost: 'Next',
+    adjacentNav: 'Adjacent posts',
+    aboutAuthor: 'About the author',
+    authorPageTitle: 'About',
   },
   pagination: {
     prev: 'Previous',

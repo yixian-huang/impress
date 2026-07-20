@@ -27,6 +27,24 @@ export interface AutomaticNavItem {
   sortOrder: number;
 }
 
+function manifestToRoutingPage(page: ThemePageDefinition, index: number): PublicRoutingPage {
+  return {
+    id: -1000 - index,
+    slug: page.slug,
+    title: { zh: page.nav.labelZh, en: page.nav.label },
+    contentKey: page.contentKey ?? page.slug,
+    renderMode: page.renderMode,
+    sortOrder: page.nav.order,
+    showInHeader: page.nav.showInHeader ?? false,
+    showInFooter: page.nav.showInFooter ?? false,
+    status: "published",
+  };
+}
+
+/**
+ * Theme DB rows are SSOT when present; theme package `pages[]` fills any
+ * missing slugs so new theme pages ship without an admin re-seed.
+ */
 function themeRoutingPages(
   themePages: ThemePageItem[],
   manifestPages: ThemePageDefinition[],
@@ -35,8 +53,11 @@ function themeRoutingPages(
   const publishedThemePages = themePages.filter(
     (page) => page.status === "published" && (!activeThemeId || page.themeId === activeThemeId),
   );
-  if (publishedThemePages.length > 0) {
-    return publishedThemePages.map((page) => ({
+
+  const bySlug = new Map<string, PublicRoutingPage>();
+
+  for (const page of publishedThemePages) {
+    bySlug.set(page.slug, {
       id: page.id,
       slug: page.slug,
       title: page.title,
@@ -46,20 +67,16 @@ function themeRoutingPages(
       showInHeader: page.navConfig?.showInHeader ?? false,
       showInFooter: page.navConfig?.showInFooter ?? false,
       status: page.status,
-    }));
+    });
   }
 
-  return manifestPages.map((page, index) => ({
-    id: index,
-    slug: page.slug,
-    title: { zh: page.nav.labelZh, en: page.nav.label },
-    contentKey: page.contentKey ?? page.slug,
-    renderMode: page.renderMode,
-    sortOrder: page.nav.order,
-    showInHeader: page.nav.showInHeader ?? false,
-    showInFooter: page.nav.showInFooter ?? false,
-    status: "published",
-  }));
+  manifestPages.forEach((page, index) => {
+    if (!bySlug.has(page.slug)) {
+      bySlug.set(page.slug, manifestToRoutingPage(page, index));
+    }
+  });
+
+  return Array.from(bySlug.values()).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 /**
@@ -108,6 +125,7 @@ export function resolveAutomaticNavigation(
   themePages: ThemePageItem[],
   locale: string,
   target: "header" | "footer",
+  manifestPages: ThemePageDefinition[] = [],
 ): AutomaticNavItem[] {
   const publishedUnifiedPages = unifiedPages.filter((page) => page.status === "published");
   const unifiedSlugs = new Set(publishedUnifiedPages.map((page) => page.slug));
@@ -118,11 +136,13 @@ export function resolveAutomaticNavigation(
       path: page.slug === "home" ? "/" : `/${page.slug}`,
       sortOrder: page.sortOrder,
     }));
+
   const themeItems = themePages
-    .filter((page) =>
-      page.status === "published" &&
-      !unifiedSlugs.has(page.slug) &&
-      (target === "header" ? page.navConfig?.showInHeader : page.navConfig?.showInFooter)
+    .filter(
+      (page) =>
+        page.status === "published" &&
+        !unifiedSlugs.has(page.slug) &&
+        (target === "header" ? page.navConfig?.showInHeader : page.navConfig?.showInFooter),
     )
     .map((page) => ({
       label: (locale === "en" ? page.title.en : page.title.zh) || page.title.zh || page.slug,
@@ -130,5 +150,24 @@ export function resolveAutomaticNavigation(
       sortOrder: page.sortOrder,
     }));
 
-  return [...unifiedItems, ...themeItems].sort((a, b) => a.sortOrder - b.sortOrder);
+  const themeSlugs = new Set([
+    ...unifiedSlugs,
+    ...themeItems.map((item) => item.path.replace(/^\//, "") || "home"),
+  ]);
+
+  const manifestItems = manifestPages
+    .filter((page) => {
+      const inNav = target === "header" ? page.nav.showInHeader : page.nav.showInFooter;
+      if (!inNav) return false;
+      if (themeSlugs.has(page.slug)) return false;
+      if (unifiedSlugs.has(page.slug)) return false;
+      return true;
+    })
+    .map((page) => ({
+      label: (locale === "en" ? page.nav.label : page.nav.labelZh) || page.nav.label || page.slug,
+      path: page.slug === "home" ? "/" : `/${page.slug}`,
+      sortOrder: page.nav.order,
+    }));
+
+  return [...unifiedItems, ...themeItems, ...manifestItems].sort((a, b) => a.sortOrder - b.sortOrder);
 }

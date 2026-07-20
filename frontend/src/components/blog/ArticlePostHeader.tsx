@@ -39,9 +39,11 @@ export default function ArticlePostHeader({
       <h1
         className={
           isReading
-            ? "article-page-title text-[1.75rem] sm:text-3xl md:text-[2.35rem] font-normal text-on-surface leading-[1.22] tracking-tight"
+            ? // Prefer a single line: fluid size + nowrap when it fits; allow 2 lines only as fallback
+              "article-page-title text-[clamp(1.2rem,0.85rem+1.4vw,1.75rem)] font-normal text-on-surface leading-[1.28] tracking-tight [text-wrap:unset] line-clamp-2"
             : "article-page-title font-heading text-3xl md:text-4xl font-bold text-on-surface leading-tight"
         }
+        title={title}
       >
         {title}
       </h1>

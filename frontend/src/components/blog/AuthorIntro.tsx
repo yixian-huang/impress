@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import AuthorSocialLinks from "@/components/blog/AuthorSocialLinks";
 import { useIsReadingLayout, useIsThemeHomePath } from "@/plugins/hooks";
 
 interface AuthorIntroProps {
@@ -17,11 +19,14 @@ interface AuthorIntroProps {
   showBio?: boolean;
   /** When false (default on home), hide English/alternate subtitle under the name. */
   showSubtitle?: boolean;
+  /** Optional quiet link under the home hero (e.g. to the author page). */
+  moreHref?: string;
+  moreLabel?: string;
 }
 
 /**
- * Compact home hero for reading themes: avatar + name + one-line tagline.
- * Socials belong in the header; bio belongs on About or behind a future toggle.
+ * Author identity block: compact on theme home, full on author page.
+ * Socials belong on the author page (or header utilities), not both.
  */
 export default function AuthorIntro({
   avatar,
@@ -30,46 +35,53 @@ export default function AuthorIntro({
   bio,
   intro,
   subtitle,
+  showSocials = false,
   showBio = false,
   showSubtitle = false,
+  moreHref,
+  moreLabel,
 }: AuthorIntroProps) {
-  // showSocials is intentionally unused: home hero must not duplicate Header socials.
   const isReading = useIsReadingLayout();
   const isThemeHome = useIsThemeHomePath();
   const isHomeHero = isReading && isThemeHome;
 
-  const showHeroAvatar = Boolean(avatar) && (!isReading || isThemeHome);
+  const showHeroAvatar = Boolean(avatar) && (!isReading || isThemeHome || showBio);
   const bodyIntro =
     bio?.trim() ||
     (intro.trim() && intro.trim() !== tagline?.trim() ? intro.trim() : "");
 
   if (isHomeHero) {
     return (
-      <header className="mb-8 md:mb-10">
-        <div className="flex flex-col items-center text-center px-1 pt-2 pb-6 md:pt-3 md:pb-8">
+      <header className="mb-6 md:mb-8">
+        <div className="flex flex-col items-center text-center px-1 pt-1 pb-4 md:pt-2 md:pb-5">
           {showHeroAvatar && (
             <img
               src={avatar}
               alt=""
-              className="w-14 h-14 md:w-16 md:h-16 rounded-full object-contain bg-[#141310] mb-4 ring-1 ring-border/80"
+              className="w-10 h-10 md:w-11 md:h-11 rounded-full object-contain bg-[#141310] mb-3 ring-1 ring-border/70"
             />
           )}
-          <h1 className="text-2xl sm:text-[1.75rem] md:text-3xl font-heading font-normal text-on-surface tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-[1.35rem] md:text-2xl font-heading font-normal text-on-surface tracking-tight leading-tight">
             {name}
           </h1>
           {showSubtitle && subtitle?.trim() && (
-            <p className="mt-1.5 text-xs font-sans tracking-[0.12em] text-on-surface-muted uppercase">
+            <p className="mt-1 text-[11px] font-sans tracking-[0.12em] text-on-surface-muted uppercase">
               {subtitle.trim()}
             </p>
           )}
           {tagline?.trim() && (
-            <p className="mt-2.5 max-w-sm text-sm md:text-[0.95rem] font-sans font-normal text-on-surface-muted leading-snug">
+            <p className="mt-1.5 max-w-sm text-sm font-sans font-normal text-on-surface-muted leading-snug">
               {tagline.trim()}
             </p>
           )}
-          {showBio && bodyIntro && (
-            <p className="mt-3 max-w-md text-sm font-sans text-on-surface-muted/90 leading-relaxed whitespace-pre-wrap">
-              {bodyIntro}
+          {moreHref && moreLabel && (
+            <p className="mt-3">
+              <Link
+                to={moreHref}
+                className="text-[11px] font-sans uppercase tracking-[0.14em] text-on-surface-muted hover:text-on-surface transition-colors"
+              >
+                {moreLabel}
+              </Link>
             </p>
           )}
         </div>
@@ -115,12 +127,24 @@ export default function AuthorIntro({
         <p
           className={
             isReading
-              ? "mt-4 text-on-surface text-base leading-relaxed whitespace-pre-wrap"
+              ? "mt-4 text-on-surface text-base leading-relaxed whitespace-pre-wrap max-w-prose"
               : "mt-4 text-on-surface leading-relaxed whitespace-pre-wrap"
           }
         >
           {bodyIntro}
         </p>
+      )}
+      {showSocials && (
+        <div className="mt-6">
+          <AuthorSocialLinks
+            className={
+              isReading
+                ? "flex flex-wrap items-center gap-x-5 gap-y-2"
+                : "flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+            }
+            linkClassName="text-sm text-on-surface-muted hover:text-primary transition-colors"
+          />
+        </div>
       )}
     </header>
   );

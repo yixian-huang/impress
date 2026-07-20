@@ -193,7 +193,8 @@
 .article-typography .article-page-title {
   font-family: var(--article-font-title, var(--font-heading));
   font-feature-settings: "kern" 1, "liga" 1;
-  text-wrap: balance;
+  /* Prefer fewer line breaks than `balance` (which often splits mid-title). */
+  text-wrap: pretty;
 }
 
 .article-typography .article-page-ui {
