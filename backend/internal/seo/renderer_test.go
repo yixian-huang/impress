@@ -1,8 +1,10 @@
 package seo_test
 
 import (
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yixian-huang/inkless/backend/internal/seo"
 )
@@ -62,5 +64,43 @@ func TestRendererDefaultMeta(t *testing.T) {
 
 	if !strings.Contains(result, "Site") {
 		t.Error("expected default title in output")
+	}
+}
+
+func TestRendererReloadsWhenIndexHTMLChanges(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/index.html"
+	v1 := `<!DOCTYPE html><html><head><title>{{.Title}}</title><script src="/assets/v1.js"></script></head><body></body></html>`
+	if err := os.WriteFile(path, []byte(v1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Ensure distinct mtime for next write on coarse filesystems
+	past := time.Now().Add(-2 * time.Second)
+	_ = os.Chtimes(path, past, past)
+
+	r, err := seo.NewRenderer(path)
+	if err != nil {
+		t.Fatalf("new renderer: %v", err)
+	}
+	out1, err := r.Render(seo.DefaultPageMeta())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out1, "/assets/v1.js") {
+		t.Fatalf("expected v1 asset, got %s", out1)
+	}
+
+	v2 := `<!DOCTYPE html><html><head><title>{{.Title}}</title><script src="/assets/v2.js"></script></head><body></body></html>`
+	if err := os.WriteFile(path, []byte(v2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Chtimes(path, time.Now(), time.Now())
+
+	out2, err := r.Render(seo.DefaultPageMeta())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out2, "/assets/v2.js") {
+		t.Fatalf("expected reloaded v2 asset, got %s", out2)
 	}
 }

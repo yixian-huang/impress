@@ -172,6 +172,23 @@ qb_write_env_file() {
   chmod 600 "${env_file}" 2>/dev/null || true
 }
 
+# Restart primary unit for RELEASE_ROOT, and any sibling units that share the same
+# frontend symlink tree (e.g. inkless-ops after /opt/inkless frontend activate).
+# Without this, SEO SPA templates stay pinned to pre-deploy asset hashes → white screen.
+qb_restart_shared_frontend_units() {
+  local release_root="${1:-}"
+  # Only when activating the personal/shared artifact root that product ops symlinks to.
+  if [[ "${release_root}" != "/opt/inkless" ]]; then
+    return 0
+  fi
+  if systemctl list-unit-files inkless-ops.service >/dev/null 2>&1 || systemctl cat inkless-ops.service >/dev/null 2>&1; then
+    if systemctl is-enabled inkless-ops.service >/dev/null 2>&1 || systemctl is-active inkless-ops.service >/dev/null 2>&1; then
+      qb_log_info "restarting shared frontend consumer inkless-ops"
+      systemctl restart inkless-ops.service || qb_log_warn "inkless-ops restart failed (non-fatal)"
+    fi
+  fi
+}
+
 qb_restart_runtime() {
   local release_root="$1"
   local unit
@@ -191,6 +208,7 @@ qb_restart_runtime() {
       systemctl status "${unit}" --no-pager || true
       return 1
     fi
+    qb_restart_shared_frontend_units "${release_root}"
     return 0
   fi
 
