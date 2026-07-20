@@ -25,8 +25,18 @@ interface QuickAction {
   label: string;
   path: string;
   icon: React.ReactNode;
-  color: string;
+  /** Monochrome print weights — not rainbow chips. */
+  tone: "ink" | "dark" | "mid" | "line" | "soft" | "ghost";
 }
+
+const toneClass: Record<QuickAction["tone"], string> = {
+  ink: "bg-neutral-950 text-white border border-neutral-950 hover:bg-neutral-800",
+  dark: "bg-neutral-800 text-white border border-neutral-800 hover:bg-neutral-700",
+  mid: "bg-neutral-100 text-neutral-900 border border-neutral-200 hover:bg-neutral-200/80",
+  line: "bg-white text-neutral-800 border border-neutral-300 hover:border-neutral-950 hover:bg-neutral-50",
+  soft: "bg-neutral-50 text-neutral-700 border border-neutral-200 hover:bg-neutral-100",
+  ghost: "bg-white text-neutral-600 border border-dashed border-neutral-300 hover:border-neutral-400 hover:text-neutral-900",
+};
 
 export default function AdminDashboardPage() {
   useDocumentTitle("仪表盘");
@@ -49,37 +59,37 @@ export default function AdminDashboardPage() {
     {
       label: "新建文章",
       path: "/admin/articles/new",
-      color: "bg-blue-50/80 text-blue-700 hover:bg-blue-100 border border-blue-200/70",
+      tone: "ink",
       icon: <Plus className="h-5 w-5" />,
     },
     {
       label: "上传媒体",
       path: "/admin/media",
-      color: "bg-violet-50/80 text-violet-700 hover:bg-violet-100 border border-violet-200/70",
+      tone: "dark",
       icon: <Upload className="h-5 w-5" />,
     },
     {
       label: "编辑页面",
       path: ADMIN_PAGES_PATH,
-      color: "bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/70",
+      tone: "mid",
       icon: <Pencil className="h-5 w-5" />,
     },
     {
       label: "设置中心",
       path: "/admin/settings",
-      color: "bg-amber-50/80 text-amber-800 hover:bg-amber-100 border border-amber-200/70",
+      tone: "line",
       icon: <Settings2 className="h-5 w-5" />,
     },
     {
       label: "访问统计",
       path: "/admin/analytics",
-      color: "bg-sky-50/80 text-sky-700 hover:bg-sky-100 border border-sky-200/70",
+      tone: "soft",
       icon: <BarChart3 className="h-5 w-5" />,
     },
     {
       label: "站点配置",
       path: "/admin/site-config",
-      color: "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80",
+      tone: "ghost",
       icon: <FileStack className="h-5 w-5" />,
     },
   ];
@@ -92,30 +102,30 @@ export default function AdminDashboardPage() {
         <AdminStatCard
           label="今日访问"
           value={errors.todayVisits ? "—" : stats.todayVisits}
-          colorClass="bg-gradient-to-br from-blue-500 to-blue-700"
+          colorClass="bg-neutral-950"
           loading={loading}
           icon={<Eye className="h-6 w-6" />}
         />
         <AdminStatCard
           label="内容页数"
           value={errors.pagesCount ? "—" : stats.pagesCount}
-          colorClass="bg-gradient-to-br from-emerald-500 to-emerald-700"
+          colorClass="bg-neutral-800"
           loading={loading}
           icon={<FileStack className="h-6 w-6" />}
         />
         <AdminStatCard
           label="文章数"
           value={errors.articlesCount ? "—" : stats.articlesCount}
-          colorClass="bg-gradient-to-br from-amber-500 to-amber-600"
+          colorClass="bg-neutral-600"
           loading={loading}
           icon={<FileText className="h-6 w-6" />}
         />
         <AdminStatCard
           label="媒体文件"
           value={errors.mediaCount ? "—" : stats.mediaCount}
-          colorClass="bg-gradient-to-br from-violet-500 to-violet-700"
+          colorClass="bg-neutral-400"
           loading={loading}
-          icon={<ImageIcon className="h-6 w-6" />}
+          icon={<ImageIcon className="h-6 w-6 text-neutral-950" />}
         />
       </div>
 
@@ -125,7 +135,7 @@ export default function AdminDashboardPage() {
             <Link
               key={action.label}
               to={action.path}
-              className={`flex items-center gap-2.5 rounded-xl px-4 py-3.5 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${action.color}`}
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-3.5 text-sm font-medium transition-all hover:-translate-y-0.5 ${toneClass[action.tone]}`}
             >
               {action.icon}
               {action.label}

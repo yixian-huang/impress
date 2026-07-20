@@ -8,12 +8,13 @@ export interface AdminBadgeProps {
   className?: string;
 }
 
+/** Monochrome print tones — density instead of hue. */
 const toneClass: Record<Tone, string> = {
-  success: "bg-[#eef5ef] text-[#2f5d3a] ring-[#d5e5d8]",
-  warning: "bg-[#faf4e8] text-[#7a5b22] ring-[#eadfc4]",
-  neutral: "bg-[#f0ebe3] text-[#5c564f] ring-[#e4ddd2]",
-  info: "bg-[#eef2f4] text-[#2f4a5c] ring-[#d5e0e6]",
-  danger: "bg-[#faf0ee] text-[#8b3a32] ring-[#ebd4cf]",
+  success: "bg-neutral-100 text-neutral-800 ring-neutral-300/80",
+  warning: "bg-neutral-200/80 text-neutral-800 ring-neutral-300",
+  neutral: "bg-neutral-100 text-neutral-600 ring-neutral-200",
+  info: "bg-neutral-50 text-neutral-700 ring-neutral-200",
+  danger: "bg-neutral-900 text-white ring-neutral-900",
 };
 
 export default function AdminBadge({ children, tone = "neutral", className = "" }: AdminBadgeProps) {

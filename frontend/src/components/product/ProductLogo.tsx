@@ -4,9 +4,8 @@ interface ProductLogoProps {
   collapsed?: boolean;
   className?: string;
   /**
-   * default — dark wordmark on light UI
-   * onDark — light wordmark (generic)
-   * ink — admin ink-rail mark (paper glyph on warm charcoal)
+   * default — black wordmark on light UI
+   * onDark / ink — light wordmark on black rail
    */
   variant?: "default" | "onDark" | "ink";
 }
@@ -29,13 +28,13 @@ export function ProductLogo({
         <span className="flex flex-col leading-none">
           <span
             className={`text-[1.05rem] font-semibold tracking-[-0.02em] ${
-              ink ? "text-[#f4efe6]" : "text-[#1a1814]"
+              ink ? "text-neutral-100" : "text-neutral-950"
             }`}
           >
             {PRODUCT_BRAND.name}
           </span>
           {ink ? (
-            <span className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.18em] text-[#8a8378]">
+            <span className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-500">
               Press · CMS
             </span>
           ) : null}

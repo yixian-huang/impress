@@ -75,13 +75,13 @@ function NavLinkItem({
           collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"
         } ${
           active
-            ? adminTheme.sidebarActive
-            : `text-[#d6d0c6] hover:bg-[#f4efe6]/[0.07] hover:text-[#f7f3ec]`
+            ? "bg-white text-neutral-950 shadow-sm"
+            : "text-neutral-300 hover:bg-white/[0.06] hover:text-white"
         }`}
       >
         <Icon
           className={`h-[1.125rem] w-[1.125rem] shrink-0 ${
-            active ? "text-[#171512]" : "text-[#9a9286] group-hover:text-[#e8e2d8]"
+            active ? "text-neutral-950" : "text-neutral-500 group-hover:text-neutral-200"
           }`}
           strokeWidth={active ? 2.25 : 1.75}
         />
@@ -96,7 +96,7 @@ function NavLinkItem({
         )}
       </Link>
       {showChildren && (
-        <div className="ml-8 mt-0.5 space-y-0.5 border-l border-[#3a342e] pl-3">
+        <div className="ml-8 mt-0.5 space-y-0.5 border-l border-white/10 pl-3">
           {item.children!.map((child) => {
             const childActive =
               location.pathname === child.path || location.pathname.startsWith(`${child.path}/`);
@@ -110,8 +110,8 @@ function NavLinkItem({
                 onTouchStart={() => handlePrefetchPath(child.path)}
                 className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
                   childActive
-                    ? "font-semibold text-[#f4efe6]"
-                    : "text-[#8a8378] hover:text-[#e8e2d8]"
+                    ? "font-semibold text-white"
+                    : "text-neutral-500 hover:text-neutral-200"
                 }`}
               >
                 {child.label}
@@ -183,26 +183,18 @@ function SidebarContent({
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-[#171512] text-[#f7f3ec]">
-      {/* Subtle paper grain / ink wash — no blue glow */}
+    <div className="relative flex h-full flex-col overflow-hidden bg-neutral-950 text-neutral-100">
+      {/* Soft print grain only — no color wash */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        className="pointer-events-none absolute inset-0 opacity-[0.045]"
         style={{
           backgroundImage:
-            "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(244,239,230,0.08), transparent 55%), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(155,59,46,0.06), transparent 50%)",
-        }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
         }}
         aria-hidden
       />
 
-      <div className="relative flex h-14 shrink-0 items-center border-b border-[#2e2924] px-4">
+      <div className="relative flex h-14 shrink-0 items-center border-b border-white/10 px-4">
         <ProductLogo
           collapsed={collapsed}
           className={collapsed ? "mx-auto" : ""}
@@ -213,7 +205,7 @@ function SidebarContent({
       {!collapsed && (
         <div className="relative shrink-0 px-3 pt-3">
           <label className="relative block">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7a7368]" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
             <input
               type="search"
               value={query}
@@ -225,7 +217,7 @@ function SidebarContent({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7a7368] hover:text-[#d6d0c6]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
                 aria-label="清除过滤"
               >
                 <X className="h-3.5 w-3.5" />
@@ -237,7 +229,7 @@ function SidebarContent({
 
       <nav className="relative flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
         {filteredGroups.length === 0 ? (
-          <p className="px-3 py-6 text-center text-xs text-[#7a7368]">无匹配菜单</p>
+          <p className="px-3 py-6 text-center text-xs text-neutral-500">无匹配菜单</p>
         ) : (
           filteredGroups.map((group, groupIndex) => {
             const groupCollapsed = isGroupCollapsed(group);
@@ -249,7 +241,7 @@ function SidebarContent({
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.id)}
-                    className="mb-1.5 flex w-full items-center justify-between rounded-md px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a7368] transition hover:text-[#c4b8a4]"
+                    className="mb-1.5 flex w-full items-center justify-between rounded-md px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500 transition hover:text-neutral-300"
                   >
                     <span>{group.label}</span>
                     <ChevronDown
@@ -259,7 +251,7 @@ function SidebarContent({
                 ) : null}
 
                 {collapsed && groupIndex > 0 ? (
-                  <div className="mx-2.5 mb-2 border-t border-[#2e2924]" />
+                  <div className="mx-2.5 mb-2 border-t border-white/10" />
                 ) : null}
 
                 {!groupCollapsed || collapsed ? (
@@ -281,11 +273,11 @@ function SidebarContent({
         )}
       </nav>
 
-      <div className="relative shrink-0 border-t border-[#2e2924] p-2">
+      <div className="relative shrink-0 border-t border-white/10 p-2">
         <button
           type="button"
           onClick={onToggle}
-          className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[#8a8378] transition-colors hover:bg-[#f4efe6]/[0.07] hover:text-[#f7f3ec]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-neutral-500 transition-colors hover:bg-white/[0.06] hover:text-white"
           title={collapsed ? "展开侧边栏" : "收起侧边栏"}
         >
           {collapsed ? (
@@ -321,10 +313,10 @@ export default function AdminSidebar({
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div
-            className="absolute inset-0 bg-[#171512]/60 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={onMobileClose}
           />
-          <aside className="absolute top-0 left-0 h-full w-64 overflow-hidden shadow-2xl shadow-[#171512]/50">
+          <aside className="absolute top-0 left-0 h-full w-64 overflow-hidden shadow-2xl shadow-black/50">
             <SidebarContent collapsed={false} onToggle={onToggle} onMobileClose={onMobileClose} />
           </aside>
         </div>

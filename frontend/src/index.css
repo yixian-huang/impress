@@ -812,18 +812,16 @@
   }
 }
 
-/* ── Admin console: ink + paper inheritance ──────────────────────────────────
-   Warm print-magazine palette under `.admin-scope` (AdminLayout / login). */
+/* ── Admin console: monochrome art-print inheritance ─────────────────────── */
 @layer components {
   .admin-scope {
-    --ink: #1a1814;
-    --ink-soft: #3d3832;
-    --ink-muted: #6b6560;
-    --ink-faint: #8a8378;
-    --paper: #f5f1ea;
-    --paper-sheet: #fbfaf7;
-    --paper-edge: #e4ddd2;
-    --cinnabar: #9b3b2e;
+    --ink: #0a0a0a;
+    --ink-soft: #404040;
+    --ink-muted: #737373;
+    --ink-faint: #a3a3a3;
+    --paper: #f4f4f5;
+    --paper-sheet: #ffffff;
+    --paper-edge: #e5e5e5;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
   }
@@ -860,19 +858,19 @@
   .admin-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="hidden"]):focus,
   .admin-scope select:focus,
   .admin-scope textarea:focus {
-    border-color: rgb(26 24 20 / 0.4);
+    border-color: rgb(10 10 10 / 0.35);
     outline: none;
-    box-shadow: 0 0 0 3px rgb(26 24 20 / 0.1);
+    box-shadow: 0 0 0 3px rgb(10 10 10 / 0.08);
   }
 
   .admin-scope input[type="checkbox"],
   .admin-scope input[type="radio"] {
-    accent-color: #1a1814;
+    accent-color: #0a0a0a;
   }
 
   .admin-scope .bg-gray-50,
   .admin-scope .bg-slate-50 {
-    background-color: rgb(240 235 227 / 0.9);
+    background-color: rgb(245 245 245 / 0.95);
   }
 
   .admin-scope .border-gray-200,
@@ -903,6 +901,6 @@
   .admin-scope .rounded-xl.border.bg-white {
     border-color: var(--paper-edge);
     background-color: var(--paper-sheet);
-    box-shadow: 0 1px 0 rgb(26 24 20 / 0.04);
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.03);
   }
 }

@@ -10,17 +10,16 @@ export interface AdminButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   children: ReactNode;
 }
 
-/** Ink-press buttons: primary = solid ink, secondary = paper edge. */
 const variantClass: Record<Variant, string> = {
   primary:
-    "bg-[#1a1814] text-[#f7f3ec] border border-transparent shadow-[0_1px_2px_rgba(26,24,20,0.18)] hover:bg-[#2a2622] active:bg-[#0f0e0c]",
+    "bg-neutral-950 text-white border border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.15)] hover:bg-neutral-800 active:bg-black",
   secondary:
-    "bg-[#fbfaf7] text-[#3d3832] border border-[#e4ddd2] shadow-[0_1px_0_rgba(26,24,20,0.04)] hover:bg-[#f5f1ea] hover:border-[#d4cbbf] active:bg-[#f0ebe3]",
+    "bg-white text-neutral-700 border border-neutral-200 shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:bg-neutral-50 hover:border-neutral-300 active:bg-neutral-100",
   danger:
-    "bg-[#9b3b2e] text-[#faf0ee] border border-transparent shadow-[0_1px_2px_rgba(155,59,46,0.2)] hover:bg-[#863227] active:bg-[#6f2a21]",
+    "bg-neutral-900 text-white border border-transparent shadow-sm hover:bg-black active:bg-neutral-950",
   ghost:
-    "bg-transparent text-[#5c564f] border border-transparent hover:bg-[#f0ebe3]/90 hover:text-[#1a1814]",
-  soft: "bg-[#f0ebe3] text-[#1a1814] border border-[#d4cbbf] hover:bg-[#e8e2d8] active:bg-[#e0d9cd]",
+    "bg-transparent text-neutral-600 border border-transparent hover:bg-neutral-100 hover:text-neutral-950",
+  soft: "bg-neutral-100 text-neutral-900 border border-neutral-200 hover:bg-neutral-200/80 active:bg-neutral-200",
 };
 
 const sizeClass: Record<Size, string> = {

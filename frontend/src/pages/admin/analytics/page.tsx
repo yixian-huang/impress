@@ -72,20 +72,20 @@ function AnalyticsBody({ data }: { data: AnalyticsSummary }) {
         <AdminStatCard
           label="今日访问"
           value={data.totals.today.toLocaleString()}
-          colorClass="bg-gradient-to-br from-blue-500 to-blue-700"
+          colorClass="bg-neutral-950"
           icon={<span className="text-sm font-bold">今</span>}
         />
         <AdminStatCard
           label="近 7 天"
           value={data.totals.last7d.toLocaleString()}
-          colorClass="bg-gradient-to-br from-emerald-500 to-emerald-700"
+          colorClass="bg-neutral-700"
           icon={<span className="text-sm font-bold">7d</span>}
         />
         <AdminStatCard
           label="近 30 天"
           value={data.totals.last30d.toLocaleString()}
-          colorClass="bg-gradient-to-br from-violet-500 to-violet-700"
-          icon={<span className="text-sm font-bold">30</span>}
+          colorClass="bg-neutral-400"
+          icon={<span className="text-sm font-bold text-neutral-950">30</span>}
         />
       </div>
 
