@@ -1,6 +1,10 @@
 import type { RefObject } from "react";
 import EditorModeSwitcher from "@/components/admin/editor/EditorModeSwitcher";
 import { ALL_LANGS, type LangKey } from "../utils/constants";
+import {
+  prefetchMarkdownEditor,
+  prefetchRichTextEditor,
+} from "./lazyEditorSurfaces";
 
 type WordStat = { chars: number; words: number };
 
@@ -135,7 +139,14 @@ export function EditorLangBar({
             </button>
           </>
         )}
-        <EditorModeSwitcher mode={editorMode} onModeChange={onModeChange} />
+        <EditorModeSwitcher
+          mode={editorMode}
+          onModeChange={onModeChange}
+          onPrefetch={(mode) => {
+            if (mode === "markdown") prefetchMarkdownEditor();
+            else prefetchRichTextEditor();
+          }}
+        />
       </div>
     </div>
   );

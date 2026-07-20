@@ -1,11 +1,9 @@
-import { EditorContent, type Editor } from "@tiptap/react";
-import EditorBubbleMenu from "@/components/admin/editor/EditorBubbleMenu";
-import TableBubbleMenu from "@/components/admin/editor/TableBubbleMenu";
-import EditorFloatingMenu from "@/components/admin/editor/EditorFloatingMenu";
-import MarkdownMode from "@/components/admin/editor/MarkdownMode";
+import { Suspense } from "react";
+import type { Editor } from "@tiptap/react";
 import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
-import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
 import EditorSidebar from "../EditorSidebar";
+import { EditorChunkFallback } from "./EditorChunkFallback";
+import { LazyMarkdownMode, LazyRichTextSurface } from "./lazyEditorSurfaces";
 
 type LangEntry = {
   editor: Editor | null;
@@ -53,7 +51,6 @@ export function EditorWorkspace({
     createdAt: string | null;
     publishedAt: string | null;
   } | null;
-  /** Show outline sidebar (focus layout). */
   showOutline?: boolean;
   outlineCompact?: boolean;
   onSelectLangKey: (lang: string) => void;
@@ -110,34 +107,29 @@ export function EditorWorkspace({
                     <div className="flex-1 min-h-0">
                       {editorMode === "markdown" ? (
                         <div className="h-full min-h-0 p-2">
-                          <MarkdownMode
-                            key={`split-${lang}`}
-                            contentKey={lang}
-                            label={lang === "zh" ? "Markdown · 中文" : "Markdown · EN"}
-                            showPreview={false}
-                            value={markdownContent[lang] ?? ""}
-                            onChange={(val) => onMarkdownChange(lang, val)}
-                            onApiReady={lang === activeLang ? onMarkdownApiReady : undefined}
-                          />
+                          <Suspense fallback={<EditorChunkFallback label="加载 Markdown…" />}>
+                            <LazyMarkdownMode
+                              key={`split-${lang}`}
+                              contentKey={lang}
+                              label={lang === "zh" ? "Markdown · 中文" : "Markdown · EN"}
+                              showPreview={false}
+                              value={markdownContent[lang] ?? ""}
+                              onChange={(val) => onMarkdownChange(lang, val)}
+                              onApiReady={lang === activeLang ? onMarkdownApiReady : undefined}
+                            />
+                          </Suspense>
                         </div>
                       ) : entry?.editor ? (
-                        <div className="h-full overflow-y-auto">
-                          {isActiveCol && (
-                            <>
-                              <EditorBubbleMenu editor={entry.editor} />
-                              <TableBubbleMenu editor={entry.editor} />
-                              <EditorFloatingMenu editor={entry.editor} />
-                            </>
-                          )}
-                          <ArticleTypographyRoot
-                            mode="editor"
-                            articleMetadata={metadata}
-                            className="h-full article-editor-content"
-                          >
-                            <EditorContent editor={entry.editor} className="h-full" />
-                          </ArticleTypographyRoot>
-                        </div>
-                      ) : null}
+                        <Suspense fallback={<EditorChunkFallback label="加载富文本…" />}>
+                          <LazyRichTextSurface
+                            editor={entry.editor}
+                            showMenus={isActiveCol}
+                            metadata={metadata}
+                          />
+                        </Suspense>
+                      ) : (
+                        <EditorChunkFallback label="初始化富文本…" />
+                      )}
                     </div>
                   </div>
                 );
@@ -145,30 +137,33 @@ export function EditorWorkspace({
             </div>
           ) : editorMode === "markdown" ? (
             <div className="h-full min-h-0 p-3">
-              <MarkdownMode
-                key={activeLang}
-                contentKey={activeLang}
-                value={markdownContent[activeLang] ?? ""}
-                onChange={(val) => onMarkdownChange(activeLang, val)}
-                onApiReady={onMarkdownApiReady}
-              />
+              <Suspense fallback={<EditorChunkFallback label="加载 Markdown…" />}>
+                <LazyMarkdownMode
+                  key={activeLang}
+                  contentKey={activeLang}
+                  value={markdownContent[activeLang] ?? ""}
+                  onChange={(val) => onMarkdownChange(activeLang, val)}
+                  onApiReady={onMarkdownApiReady}
+                />
+              </Suspense>
             </div>
           ) : (
             enabledLangs.map((lang, idx) => {
               const entry = langEditors[lang];
-              if (!entry?.editor) return null;
+              if (!entry?.editor) {
+                return idx === activeLangIdx ? (
+                  <EditorChunkFallback key={lang} label="初始化富文本…" />
+                ) : null;
+              }
               return (
                 <div key={lang} className={idx === activeLangIdx ? "h-full" : "hidden"}>
-                  <EditorBubbleMenu editor={entry.editor} />
-                  <TableBubbleMenu editor={entry.editor} />
-                  <EditorFloatingMenu editor={entry.editor} />
-                  <ArticleTypographyRoot
-                    mode="editor"
-                    articleMetadata={metadata}
-                    className="h-full article-editor-content"
-                  >
-                    <EditorContent editor={entry.editor} className="h-full" />
-                  </ArticleTypographyRoot>
+                  <Suspense fallback={<EditorChunkFallback label="加载富文本…" />}>
+                    <LazyRichTextSurface
+                      editor={entry.editor}
+                      showMenus
+                      metadata={metadata}
+                    />
+                  </Suspense>
                 </div>
               );
             })

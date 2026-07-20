@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import type { Editor } from "@tiptap/react";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import MediaPickerModal from "@/components/admin/MediaPickerModal";
@@ -12,6 +12,7 @@ import EditorBubbleMenu from "@/components/admin/editor/EditorBubbleMenu";
 import TableBubbleMenu from "@/components/admin/editor/TableBubbleMenu";
 import EditorFloatingMenu from "@/components/admin/editor/EditorFloatingMenu";
 import type { ModalControls, ModalState } from "@/components/admin/editor/types-internal";
+import { useModalState } from "@/components/admin/editor/useModalState";
 
 // ── Re-export backward-compatible API ──
 export { ToolbarButton, ToolbarDivider } from "@/components/admin/editor/EditorToolbar";
@@ -99,33 +100,9 @@ export function EditorModals({ editor, state }: { editor: Editor; state: ModalSt
   );
 }
 
+// Re-export light hook (no TipTap cost at import sites that only need modals).
 // eslint-disable-next-line react-refresh/only-export-components
-export function useModalState(): { modals: ModalControls; state: ModalState } {
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
-  const [showVideoPicker, setShowVideoPicker] = useState(false);
-  const [showAudioPicker, setShowAudioPicker] = useState(false);
-  const [showEmbedUrl, setShowEmbedUrl] = useState(false);
-
-  const modals = useMemo<ModalControls>(() => ({
-    openImagePicker: () => setShowImagePicker(true),
-    openGalleryPicker: () => setShowGalleryPicker(true),
-    openVideoPicker: () => setShowVideoPicker(true),
-    openAudioPicker: () => setShowAudioPicker(true),
-    openEmbedUrl: () => setShowEmbedUrl(true),
-  }), []);
-
-  return {
-    modals,
-    state: {
-      showImagePicker, setShowImagePicker,
-      showGalleryPicker, setShowGalleryPicker,
-      showVideoPicker, setShowVideoPicker,
-      showAudioPicker, setShowAudioPicker,
-      showEmbedUrl, setShowEmbedUrl,
-    },
-  };
-}
+export { useModalState } from "@/components/admin/editor/useModalState";
 
 // ── Standalone RichTextEditor ──
 

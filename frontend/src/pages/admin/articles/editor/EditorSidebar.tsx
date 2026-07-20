@@ -1,7 +1,13 @@
-import { useMemo, useState, memo } from "react";
-import { useEditorState } from "@tiptap/react";
+import { Suspense, lazy, useMemo, useState, memo } from "react";
 import type { Editor } from "@tiptap/react";
 import { parseMarkdownOutline, type OutlineItem } from "./utils/outline";
+import type { RichTextOutlineStats } from "./components/RichTextOutlineSource";
+
+const LazyRichTextOutlineSource = lazy(() =>
+  import("./components/RichTextOutlineSource").then((m) => ({
+    default: m.RichTextOutlineSource,
+  })),
+);
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -12,79 +18,65 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const EditorSidebar = memo(function EditorSidebar({
+function OutlineNav({
+  headings,
   editorMode,
-  editor,
-  markdownSource,
-  onJumpMarkdownLine,
-  article,
-  compact,
+  onSelect,
 }: {
+  headings: OutlineItem[];
   editorMode: "richtext" | "markdown";
-  editor: Editor | null;
-  markdownSource?: string;
-  onJumpMarkdownLine?: (line: number) => void;
-  article: { slug: string; author: string; createdAt: string | null; publishedAt: string | null } | null;
-  /** Hide details tab (e.g. zen mode — outline only) */
-  compact?: boolean;
+  onSelect: (item: OutlineItem) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"outline" | "details">("outline");
-
-  const { headings: richHeadings, charCount, wordCount } = useEditorState({
-    editor,
-    selector: ({ editor: e }) => {
-      if (!e) return { headings: [] as OutlineItem[], charCount: 0, wordCount: 0 };
-      const h: OutlineItem[] = [];
-      e.state.doc.descendants((node, pos) => {
-        if (node.type.name === "heading") {
-          h.push({ level: node.attrs.level as number, text: node.textContent, pos });
-        }
-      });
-      const text = e.state.doc.textContent;
-      const chars = text.length;
-      const cjk = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length;
-      const latin = text
-        .replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, " ")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean).length;
-      return { headings: h, charCount: chars, wordCount: cjk + latin };
-    },
-    equalityFn: (a, b) => {
-      if (a.charCount !== b.charCount || a.wordCount !== b.wordCount) return false;
-      if (a.headings.length !== b.headings.length) return false;
-      return a.headings.every(
-        (h, i) =>
-          h.level === b.headings[i].level
-          && h.text === b.headings[i].text
-          && h.pos === b.headings[i].pos,
-      );
-    },
-  });
-
-  const mdHeadings = useMemo(
-    () => (editorMode === "markdown" ? parseMarkdownOutline(markdownSource) : []),
-    [editorMode, markdownSource],
+  if (headings.length === 0) {
+    return (
+      <p className="text-xs text-slate-400 italic">
+        暂无标题
+        <span className="block mt-1 text-[10px] not-italic">
+          {editorMode === "markdown" ? "使用 # / ## / ### 添加标题" : "使用 H1–H3 添加标题"}
+        </span>
+      </p>
+    );
+  }
+  return (
+    <nav className="space-y-0.5" aria-label="文章大纲">
+      {headings.map((h, i) => (
+        <button
+          key={`${h.level}-${h.line ?? h.pos ?? i}-${h.text}`}
+          type="button"
+          onClick={() => onSelect(h)}
+          className="block w-full text-left text-xs py-1 px-1.5 rounded hover:bg-slate-200 text-slate-700 truncate transition-colors"
+          style={{ paddingLeft: `${(Math.min(h.level, 4) - 1) * 10 + 6}px` }}
+          title={h.text}
+        >
+          <span className="text-slate-400 mr-1">H{h.level}</span>
+          {h.text || <span className="text-slate-300 italic">空标题</span>}
+        </button>
+      ))}
+    </nav>
   );
+}
 
-  const headings = editorMode === "markdown" ? mdHeadings : richHeadings;
-
-  const scrollToHeading = (item: OutlineItem) => {
-    if (editorMode === "markdown" && item.line != null && onJumpMarkdownLine) {
-      onJumpMarkdownLine(item.line);
-      return;
-    }
-    if (!editor || item.pos == null) return;
-    editor.chain().focus().setTextSelection(item.pos + 1).run();
-    try {
-      const dom = editor.view.domAtPos(item.pos + 1);
-      const el = dom.node instanceof HTMLElement ? dom.node : dom.node.parentElement;
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    } catch {
-      /* ignore */
-    }
-  };
-
+function SidebarShell({
+  compact,
+  activeTab,
+  setActiveTab,
+  editorMode,
+  headings,
+  charCount,
+  wordCount,
+  article,
+  onSelectHeading,
+}: {
+  compact?: boolean;
+  activeTab: "outline" | "details";
+  setActiveTab: (t: "outline" | "details") => void;
+  editorMode: "richtext" | "markdown";
+  headings: OutlineItem[];
+  charCount: number;
+  wordCount: number;
+  article: { slug: string; author: string; createdAt: string | null; publishedAt: string | null } | null;
+  onSelectHeading: (item: OutlineItem) => void;
+}) {
   const formatDate = (d: string | null) => {
     if (!d) return "—";
     try {
@@ -93,7 +85,6 @@ const EditorSidebar = memo(function EditorSidebar({
       return d;
     }
   };
-
   const showDetails = !compact;
 
   return (
@@ -131,30 +122,7 @@ const EditorSidebar = memo(function EditorSidebar({
 
       <div className="flex-1 overflow-y-auto p-3">
         {activeTab === "outline" || compact ? (
-          headings.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">
-              暂无标题
-              <span className="block mt-1 text-[10px] not-italic">
-                {editorMode === "markdown" ? "使用 # / ## / ### 添加标题" : "使用 H1–H3 添加标题"}
-              </span>
-            </p>
-          ) : (
-            <nav className="space-y-0.5" aria-label="文章大纲">
-              {headings.map((h, i) => (
-                <button
-                  key={`${h.level}-${h.line ?? h.pos ?? i}-${h.text}`}
-                  type="button"
-                  onClick={() => scrollToHeading(h)}
-                  className="block w-full text-left text-xs py-1 px-1.5 rounded hover:bg-slate-200 text-slate-700 truncate transition-colors"
-                  style={{ paddingLeft: `${(Math.min(h.level, 4) - 1) * 10 + 6}px` }}
-                  title={h.text}
-                >
-                  <span className="text-slate-400 mr-1">H{h.level}</span>
-                  {h.text || <span className="text-slate-300 italic">空标题</span>}
-                </button>
-              ))}
-            </nav>
-          )
+          <OutlineNav headings={headings} editorMode={editorMode} onSelect={onSelectHeading} />
         ) : (
           <div className="space-y-3 text-xs">
             {editorMode === "richtext" && (
@@ -187,6 +155,96 @@ const EditorSidebar = memo(function EditorSidebar({
         )}
       </div>
     </div>
+  );
+}
+
+const EditorSidebar = memo(function EditorSidebar({
+  editorMode,
+  editor,
+  markdownSource,
+  onJumpMarkdownLine,
+  article,
+  compact,
+}: {
+  editorMode: "richtext" | "markdown";
+  editor: Editor | null;
+  markdownSource?: string;
+  onJumpMarkdownLine?: (line: number) => void;
+  article: { slug: string; author: string; createdAt: string | null; publishedAt: string | null } | null;
+  compact?: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<"outline" | "details">("outline");
+
+  const mdHeadings = useMemo(
+    () => (editorMode === "markdown" ? parseMarkdownOutline(markdownSource) : []),
+    [editorMode, markdownSource],
+  );
+
+  const scrollToHeading = (item: OutlineItem) => {
+    if (editorMode === "markdown" && item.line != null && onJumpMarkdownLine) {
+      onJumpMarkdownLine(item.line);
+      return;
+    }
+    if (!editor || item.pos == null) return;
+    editor.chain().focus().setTextSelection(item.pos + 1).run();
+    try {
+      const dom = editor.view.domAtPos(item.pos + 1);
+      const el = dom.node instanceof HTMLElement ? dom.node : dom.node.parentElement;
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  if (editorMode === "markdown") {
+    return (
+      <SidebarShell
+        compact={compact}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        editorMode={editorMode}
+        headings={mdHeadings}
+        charCount={0}
+        wordCount={0}
+        article={article}
+        onSelectHeading={scrollToHeading}
+      />
+    );
+  }
+
+  // Richtext: outline stats come from a TipTap-only lazy child
+  return (
+    <Suspense
+      fallback={
+        <SidebarShell
+          compact={compact}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          editorMode={editorMode}
+          headings={[]}
+          charCount={0}
+          wordCount={0}
+          article={article}
+          onSelectHeading={scrollToHeading}
+        />
+      }
+    >
+      <LazyRichTextOutlineSource editor={editor}>
+        {(stats: RichTextOutlineStats) => (
+          <SidebarShell
+            compact={compact}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            editorMode={editorMode}
+            headings={stats.headings}
+            charCount={stats.charCount}
+            wordCount={stats.wordCount}
+            article={article}
+            onSelectHeading={scrollToHeading}
+          />
+        )}
+      </LazyRichTextOutlineSource>
+    </Suspense>
   );
 });
 

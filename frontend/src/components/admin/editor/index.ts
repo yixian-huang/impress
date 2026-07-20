@@ -1,4 +1,4 @@
-// Types
+// Types (light)
 export type {
   EditorPreset,
   EditorFeatures,
@@ -8,8 +8,9 @@ export type {
   ToolbarItemDef,
 } from "./types";
 export type { ModalControls, ModalState } from "./types-internal";
+export { useModalState } from "./useModalState";
 
-// Extension building
+// Extension building — heavy; prefer dynamic import of RichTextEditor / LangEditorMountInner
 export { buildExtensions } from "./extension-groups";
 
 // Presets

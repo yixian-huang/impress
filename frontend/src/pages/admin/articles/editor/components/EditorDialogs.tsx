@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import type { Editor } from "@tiptap/react";
-import { EditorModals } from "@/components/admin/RichTextEditor";
-import type { ModalState } from "@/components/admin/RichTextEditor";
+import type { ModalState } from "@/components/admin/editor/types-internal";
 import { ArticleVersionHistoryPanel, type ArticleDraftSnapshot } from "../VersionHistoryPanel";
 import ArticlePreviewModal, { type ArticlePreviewData } from "../ArticlePreviewModal";
 import ArticleConflictDialog from "../ArticleConflictDialog";
@@ -9,6 +9,7 @@ import TemplatePickerModal from "../TemplatePickerModal";
 import type { ArticleTemplate } from "../articleTemplates";
 import { PublishChecklistDialog } from "./PublishChecklistDialog";
 import type { ChecklistItem } from "../utils/publishChecklist";
+import { LazyEditorModals } from "./lazyEditorSurfaces";
 
 type LangEntry = {
   editor: Editor | null;
@@ -75,7 +76,9 @@ export function EditorDialogs({
     <>
       {Object.entries(langEditors).map(([lang, entry]) =>
         entry.editor ? (
-          <EditorModals key={lang} editor={entry.editor} state={entry.state} />
+          <Suspense key={lang} fallback={null}>
+            <LazyEditorModals editor={entry.editor} state={entry.state} />
+          </Suspense>
         ) : null,
       )}
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
-import { useModalState } from "@/components/admin/RichTextEditor";
+import { useModalState } from "@/components/admin/editor/useModalState";
 import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import type { ArticleDraftSnapshot } from "../VersionHistoryPanel";
@@ -79,7 +79,13 @@ export function useArticleEditors(opts: {
   const enabledLangsRef = useRef(enabledLangs);
   enabledLangsRef.current = enabledLangs;
 
-  const needEnEditor = enabledLangs.includes("en") || viewLayout === "split";
+  /**
+   * Only mount TipTap while in richtext mode so Markdown sessions skip the
+   * extensions chunk entirely. MD→HTML conversion on save does not need TipTap.
+   */
+  const needRichtextSurface = editorMode === "richtext";
+  const needEnEditor =
+    needRichtextSurface && (enabledLangs.includes("en") || viewLayout === "split");
 
   const langEditors = useMemo(
     () => ({
@@ -259,7 +265,7 @@ export function useArticleEditors(opts: {
       langEditors,
       zhEditor,
       enEditor,
-      needZhEditor: true as const,
+      needZhEditor: needRichtextSurface,
       needEnEditor,
       onZhEditorReady,
       onEnEditorReady,
@@ -289,6 +295,7 @@ export function useArticleEditors(opts: {
       langEditors,
       zhEditor,
       enEditor,
+      needRichtextSurface,
       needEnEditor,
       onZhEditorReady,
       onEnEditorReady,

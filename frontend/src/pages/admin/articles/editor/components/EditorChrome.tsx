@@ -1,8 +1,7 @@
-import type { RefObject } from "react";
+import { Suspense, type RefObject } from "react";
 import type { ScheduledPublication } from "@/api/scheduledPublications";
 import type { Editor } from "@tiptap/react";
-import { EditorToolbar, type ModalControls } from "@/components/admin/RichTextEditor";
-import MarkdownToolbar from "@/components/admin/editor/MarkdownToolbar";
+import type { ModalControls } from "@/components/admin/editor/types-internal";
 import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
 import type { EditorSavePhase } from "../saveStatusUtils";
 import type { EditorMetaPanel } from "../hooks/useEditorShell";
@@ -10,6 +9,7 @@ import { EditorActionBar } from "./EditorActionBar";
 import { EditorLangBar } from "./EditorLangBar";
 import { FindReplaceBar } from "./FindReplaceBar";
 import { ChromeMetaPanels, type ChromeMetaFormProps } from "./ChromeMetaPanels";
+import { LazyEditorToolbar, LazyMarkdownToolbar } from "./lazyEditorSurfaces";
 
 type WordStat = { chars: number; words: number };
 
@@ -161,14 +161,18 @@ export function EditorChrome({
         <div className="flex items-stretch border-t border-slate-200 bg-slate-50">
           {editorMode === "richtext" && activeEditorEntry?.editor ? (
             <div className="flex-1 min-w-0 overflow-x-auto">
-              <EditorToolbar
-                editor={activeEditorEntry.editor}
-                modals={activeEditorEntry.modals}
-              />
+              <Suspense fallback={<div className="h-9" />}>
+                <LazyEditorToolbar
+                  editor={activeEditorEntry.editor}
+                  modals={activeEditorEntry.modals}
+                />
+              </Suspense>
             </div>
           ) : editorMode === "markdown" ? (
             <div className="flex-1 min-w-0 overflow-x-auto">
-              <MarkdownToolbar api={markdownApi} />
+              <Suspense fallback={<div className="h-9" />}>
+                <LazyMarkdownToolbar api={markdownApi} />
+              </Suspense>
             </div>
           ) : (
             <div className="flex-1 py-2" />
