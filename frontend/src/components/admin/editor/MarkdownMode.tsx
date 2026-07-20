@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
+import { openSearchPanel } from "@codemirror/search";
 import { markdownToHtml } from "@/lib/markdown";
 import MarkdownHtmlPreview from "./MermaidPreview";
 import type { MarkdownSelectionApi } from "./MarkdownToolbar";
@@ -177,6 +178,24 @@ export default function MarkdownMode({
         return { start: from, end: to };
       },
       focus: () => viewRef.current?.focus(),
+      gotoLine: (line) => {
+        const view = viewRef.current;
+        if (!view) return;
+        const doc = view.state.doc;
+        const safe = Math.min(Math.max(1, line), doc.lines);
+        const lineObj = doc.line(safe);
+        view.dispatch({
+          selection: { anchor: lineObj.from },
+          effects: EditorView.scrollIntoView(lineObj.from, { y: "center" }),
+        });
+        view.focus();
+      },
+      openSearch: () => {
+        const view = viewRef.current;
+        if (!view) return;
+        openSearchPanel(view);
+        view.focus();
+      },
     };
     onApiReady(api);
     return () => onApiReady(null);

@@ -30,9 +30,12 @@ export function EditorWorkspace({
   markdownContent,
   metadata,
   sidebarArticle,
+  showOutline,
+  outlineCompact,
   onSelectLangKey,
   onMarkdownChange,
   onMarkdownApiReady,
+  onJumpMarkdownLine,
 }: {
   viewLayout: "focus" | "split";
   editorMode: "richtext" | "markdown";
@@ -50,11 +53,16 @@ export function EditorWorkspace({
     createdAt: string | null;
     publishedAt: string | null;
   } | null;
+  /** Show outline sidebar (focus layout). */
+  showOutline?: boolean;
+  outlineCompact?: boolean;
   onSelectLangKey: (lang: string) => void;
   onMarkdownChange: (lang: string, val: string) => void;
   onMarkdownApiReady: (api: MarkdownSelectionApi | null) => void;
+  onJumpMarkdownLine?: (line: number) => void;
 }) {
   const activeEntry = langEditors[activeLang];
+  const outlineVisible = showOutline !== false && viewLayout === "focus";
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -168,8 +176,15 @@ export function EditorWorkspace({
         </div>
       </div>
 
-      {editorMode === "richtext" && viewLayout === "focus" && (
-        <EditorSidebar editor={activeEntry?.editor ?? null} article={sidebarArticle} />
+      {outlineVisible && (
+        <EditorSidebar
+          editorMode={editorMode}
+          editor={activeEntry?.editor ?? null}
+          markdownSource={markdownContent[activeLang] ?? ""}
+          onJumpMarkdownLine={onJumpMarkdownLine}
+          article={sidebarArticle}
+          compact={outlineCompact}
+        />
       )}
     </div>
   );

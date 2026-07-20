@@ -20,6 +20,7 @@ import { slugifyTitle } from "./utils/slugify";
 import { statusLabelOf } from "./utils/constants";
 import { toast } from "./utils/toast";
 import { pickPayloadFields } from "./utils/buildArticlePayload";
+import type { LocalDraftSnapshot } from "./utils/localDraft";
 import { useDirtyState } from "./hooks/useDirtyState";
 import { useArticleFormState } from "./hooks/useArticleFormState";
 import {
@@ -33,11 +34,14 @@ import { useOutsideClick } from "./hooks/useOutsideClick";
 import { useSlashMediaBridge } from "./hooks/useSlashMediaBridge";
 import { useArticleSchedule } from "./hooks/useArticleSchedule";
 import { useWordStats } from "./hooks/useWordStats";
+import { useLocalDraft } from "./hooks/useLocalDraft";
 import { EditorMessageBars } from "./components/EditorMessageBars";
 import { EditorLangBar } from "./components/EditorLangBar";
 import { EditorWorkspace } from "./components/EditorWorkspace";
 import { EditorActionBar } from "./components/EditorActionBar";
 import { LangEditorMount } from "./components/LangEditorMount";
+import { LocalDraftBanner } from "./components/LocalDraftBanner";
+import { FindReplaceBar } from "./components/FindReplaceBar";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -87,6 +91,8 @@ export default function ArticleEditorPage() {
   const [previewData, setPreviewData] = useState<ArticlePreviewData | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
   useOutsideClick(langMenuRef, showLangMenu, () => setShowLangMenu(false));
@@ -180,10 +186,106 @@ export default function ArticleEditorPage() {
     setShowPreview(true);
   }, [editors, form, dirty.isDirty]);
 
+  const applyLocalDraft = useCallback((draft: LocalDraftSnapshot) => {
+    dirty.pauseReady();
+    form.setZhTitle(draft.zhTitle || "");
+    form.setEnTitle(draft.enTitle || "");
+    form.setSlug(draft.slug || "");
+    form.setCoverImage(draft.coverImage || "");
+    form.setZhSeoTitle(draft.zhSeoTitle || "");
+    form.setEnSeoTitle(draft.enSeoTitle || "");
+    form.setZhMetaDescription(draft.zhMetaDescription || "");
+    form.setEnMetaDescription(draft.enMetaDescription || "");
+    form.setOgImage(draft.ogImage || "");
+    form.setAuthor(draft.author || "");
+    editors.applyBodiesToEditors(draft.zhBody || "<p></p>", draft.enBody || "<p></p>");
+    if (draft.editorMode === "markdown") {
+      editors.setMarkdownContent({
+        zh: draft.markdownZh || "",
+        en: draft.markdownEn || "",
+      });
+      editors.setEditorMode("markdown");
+    } else {
+      editors.setEditorMode("richtext");
+    }
+    if (draft.enabledLangs?.includes("en") || draft.enTitle || draft.enBody) {
+      editors.ensureEnEnabled();
+    }
+    toast(persistence.setSuccessMessage, "已恢复本地草稿（尚未保存到服务器）", 4000);
+    dirty.resumeReady();
+    dirty.touch();
+  }, [dirty, form, editors, persistence.setSuccessMessage]);
+
+  const {
+    offer: localDraftOffer,
+    restore: restoreLocalDraft,
+    dismiss: dismissLocalDraft,
+    clear: clearLocalDraftCache,
+  } = useLocalDraft({
+    articleId: id,
+    loading: persistence.loading,
+    isDirty: dirty.isDirty,
+    baseUpdatedAt: persistence.baseUpdatedAt,
+    getSnapshot: () => {
+      const bodies = editors.resolveBodies();
+      return {
+        baseUpdatedAt: persistence.baseUpdatedAt,
+        editorMode: editors.editorMode,
+        enabledLangs: editors.enabledLangs,
+        zhTitle: form.zhTitle,
+        enTitle: form.enTitle,
+        slug: form.slug,
+        coverImage: form.coverImage,
+        zhBody: bodies.zhBody,
+        enBody: bodies.enBody,
+        zhSeoTitle: form.zhSeoTitle,
+        enSeoTitle: form.enSeoTitle,
+        zhMetaDescription: form.zhMetaDescription,
+        enMetaDescription: form.enMetaDescription,
+        ogImage: form.ogImage,
+        author: form.author,
+        markdownZh: editors.markdownContent.zh ?? "",
+        markdownEn: editors.markdownContent.en ?? "",
+      };
+    },
+    applySnapshot: applyLocalDraft,
+    getServerCompare: () => ({
+      zhTitle: form.zhTitle,
+      enTitle: form.enTitle,
+      zhBody: form.zhBody,
+      enBody: form.enBody,
+    }),
+  });
+
+  // Clear local draft after a successful server save
+  useEffect(() => {
+    if (dirty.savePhase === "saved" && !dirty.isDirty) {
+      clearLocalDraftCache();
+    }
+  }, [dirty.savePhase, dirty.isDirty, clearLocalDraftCache]);
+
+  const openFind = useCallback(() => {
+    if (editors.editorMode === "markdown") {
+      editors.markdownApi?.openSearch?.();
+      return;
+    }
+    setFindOpen(true);
+  }, [editors.editorMode, editors.markdownApi]);
+
+  const exitOverlay = useCallback(() => {
+    if (findOpen) setFindOpen(false);
+    else if (zenMode) setZenMode(false);
+  }, [findOpen, zenMode]);
+
   useEditorShortcuts({
     canPublish,
+    zenMode,
+    findOpen,
     onSave: (intent) => void persistence.handleSave(intent),
     onPreview: openPreview,
+    onFind: openFind,
+    onToggleZen: () => setZenMode((z) => !z),
+    onExitOverlay: exitOverlay,
   });
 
   const { confirmLeave } = useUnsavedChangesGuard(dirty.isDirty, LEAVE_UNSAVED_MESSAGE);
@@ -275,7 +377,11 @@ export default function ArticleEditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
+    <div
+      className={`flex flex-col min-h-0 bg-white ${
+        zenMode ? "fixed inset-0 z-50 h-screen" : "h-full"
+      }`}
+    >
       <div className="flex-shrink-0 z-20 bg-white border-b border-slate-200 shadow-sm">
         <EditorActionBar
           title={activeTitle?.title || ""}
@@ -296,6 +402,8 @@ export default function ArticleEditorPage() {
           scheduledPublication={schedule.scheduledPublication}
           scheduleLoading={schedule.scheduleLoading}
           scheduleBusy={schedule.scheduleBusy}
+          zenMode={zenMode}
+          onToggleZen={() => setZenMode((z) => !z)}
           onToggleBasic={() => {
             setShowBasicInfo((v) => !v);
             setShowSeo(false);
@@ -331,6 +439,7 @@ export default function ArticleEditorPage() {
           }}
           onOpenTemplate={() => setShowTemplatePicker(true)}
           onPreview={openPreview}
+          onFind={openFind}
           onSave={() => void persistence.handleSave("draft")}
           onPublish={() => void persistence.handleSave("publish")}
           onSchedule={schedule.handleSchedulePublish}
@@ -339,7 +448,7 @@ export default function ArticleEditorPage() {
           onRefreshSchedule={schedule.loadArticleSchedule}
         />
 
-        {showBasicInfo && (
+        {!zenMode && showBasicInfo && (
           <ArticleForm
             slug={form.slug}
             setSlug={dirty.track(form.setSlug)}
@@ -363,7 +472,7 @@ export default function ArticleEditorPage() {
             }}
           />
         )}
-        {showSeo && (
+        {!zenMode && showSeo && (
           <SeoFieldsPanel
             zhSeoTitle={form.zhSeoTitle}
             setZhSeoTitle={dirty.track(form.setZhSeoTitle)}
@@ -377,7 +486,7 @@ export default function ArticleEditorPage() {
             setOgImage={dirty.track(form.setOgImage)}
           />
         )}
-        {showAdvanced && (
+        {!zenMode && showAdvanced && (
           <AdvancedSettingsPanel
             visibility={form.visibility}
             setVisibility={dirty.track(form.setVisibility)}
@@ -392,47 +501,67 @@ export default function ArticleEditorPage() {
           />
         )}
 
-        <EditorLangBar
-          enabledLangs={editors.enabledLangs}
-          activeLangIdx={editors.activeLangIdx}
-          viewLayout={editors.viewLayout}
-          wordStats={wordStats}
-          editorMode={editors.editorMode}
-          translateBusy={bilingual.translateBusy}
-          showLangMenu={showLangMenu}
-          langMenuRef={langMenuRef}
-          onSelectLang={editors.setActiveLangIdx}
-          onRemoveLang={editors.removeLang}
-          onAddLang={(key) => {
-            editors.addLang(key);
-            setShowLangMenu(false);
-          }}
-          onToggleLangMenu={() => setShowLangMenu((v) => !v)}
-          onToggleSplit={() =>
-            editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))
-          }
-          onCopyZhToEn={() => bilingual.handleCopyToOtherLang("zh")}
-          onTranslateZhToEn={() => void bilingual.handleTranslateToOtherLang("zh")}
-          onModeChange={editors.handleModeChange}
-        />
+        {!zenMode && (
+          <EditorLangBar
+            enabledLangs={editors.enabledLangs}
+            activeLangIdx={editors.activeLangIdx}
+            viewLayout={editors.viewLayout}
+            wordStats={wordStats}
+            editorMode={editors.editorMode}
+            translateBusy={bilingual.translateBusy}
+            showLangMenu={showLangMenu}
+            langMenuRef={langMenuRef}
+            onSelectLang={editors.setActiveLangIdx}
+            onRemoveLang={editors.removeLang}
+            onAddLang={(key) => {
+              editors.addLang(key);
+              setShowLangMenu(false);
+            }}
+            onToggleLangMenu={() => setShowLangMenu((v) => !v)}
+            onToggleSplit={() =>
+              editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))
+            }
+            onCopyZhToEn={() => bilingual.handleCopyToOtherLang("zh")}
+            onTranslateZhToEn={() => void bilingual.handleTranslateToOtherLang("zh")}
+            onModeChange={editors.handleModeChange}
+          />
+        )}
 
-        <div className="flex items-stretch border-t border-slate-200 bg-slate-50">
-          {editors.editorMode === "richtext" && editors.activeEntry?.editor ? (
-            <div className="flex-1 min-w-0 overflow-x-auto">
-              <EditorToolbar
-                editor={editors.activeEntry.editor}
-                modals={editors.activeEntry.modals}
-              />
-            </div>
-          ) : editors.editorMode === "markdown" ? (
-            <div className="flex-1 min-w-0 overflow-x-auto">
-              <MarkdownToolbar api={editors.markdownApi} />
-            </div>
-          ) : (
-            <div className="flex-1 py-2" />
-          )}
-        </div>
+        {!zenMode && (
+          <div className="flex items-stretch border-t border-slate-200 bg-slate-50">
+            {editors.editorMode === "richtext" && editors.activeEntry?.editor ? (
+              <div className="flex-1 min-w-0 overflow-x-auto">
+                <EditorToolbar
+                  editor={editors.activeEntry.editor}
+                  modals={editors.activeEntry.modals}
+                />
+              </div>
+            ) : editors.editorMode === "markdown" ? (
+              <div className="flex-1 min-w-0 overflow-x-auto">
+                <MarkdownToolbar api={editors.markdownApi} />
+              </div>
+            ) : (
+              <div className="flex-1 py-2" />
+            )}
+          </div>
+        )}
+
+        {editors.editorMode === "richtext" && (
+          <FindReplaceBar
+            open={findOpen}
+            editor={editors.activeEntry?.editor ?? null}
+            onClose={() => setFindOpen(false)}
+          />
+        )}
       </div>
+
+      {localDraftOffer && (
+        <LocalDraftBanner
+          offer={localDraftOffer}
+          onRestore={restoreLocalDraft}
+          onDismiss={dismissLocalDraft}
+        />
+      )}
 
       <EditorMessageBars
         error={persistence.error}
@@ -457,12 +586,15 @@ export default function ArticleEditorPage() {
         markdownContent={editors.markdownContent}
         metadata={form.metadata}
         sidebarArticle={sidebarArticle}
+        showOutline
+        outlineCompact={zenMode}
         onSelectLangKey={editors.selectLangKey}
         onMarkdownChange={(lang, val) => {
           editors.setMarkdownContent((prev) => ({ ...prev, [lang]: val }));
           dirty.touch();
         }}
         onMarkdownApiReady={editors.setMarkdownApi}
+        onJumpMarkdownLine={(line) => editors.markdownApi?.gotoLine?.(line)}
       />
 
       {/* TipTap instances: ZH always; EN only when bilingual is active */}

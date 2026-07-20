@@ -1,6 +1,7 @@
 import { keymap, placeholder as cmPlaceholder } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { basicSetup } from "codemirror";
 
 function wrapSelection(
@@ -79,6 +80,9 @@ export const markdownFormatKeymap = keymap.of([
 export function createMarkdownBaseExtensions() {
   return [
     basicSetup,
+    search({ top: true }),
+    highlightSelectionMatches(),
+    keymap.of(searchKeymap),
     markdown(),
     cmPlaceholder(MARKDOWN_PLACEHOLDER),
     EditorView.lineWrapping,

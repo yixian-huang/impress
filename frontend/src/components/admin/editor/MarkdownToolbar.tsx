@@ -5,6 +5,10 @@ export interface MarkdownSelectionApi {
   setValue: (next: string, cursor?: { start: number; end: number }) => void;
   getSelection: () => { start: number; end: number };
   focus: () => void;
+  /** Jump to 1-based line and scroll into view (outline nav). */
+  gotoLine?: (line: number) => void;
+  /** Open CodeMirror search panel when available. */
+  openSearch?: () => void;
 }
 
 interface MarkdownToolbarProps {

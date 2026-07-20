@@ -26,6 +26,9 @@ importers:
       '@codemirror/lang-markdown':
         specifier: ^6.5.1
         version: 6.5.1
+      '@codemirror/search':
+        specifier: ^6.6.0
+        version: 6.6.0
       '@codemirror/state':
         specifier: ^6.6.0
         version: 6.6.0
