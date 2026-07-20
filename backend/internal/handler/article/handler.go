@@ -3,6 +3,7 @@ package article
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -334,6 +335,11 @@ type createUpdateInput struct {
 	Visibility        string        `json:"visibility"`
 	Metadata          model.JSONMap `json:"metadata"`
 	ScheduledAt       *time.Time    `json:"scheduledAt"`
+	// BaseUpdatedAt is the client's last-known updatedAt for optimistic concurrency.
+	// When set (and Force is false), the update is rejected with 409 on mismatch.
+	BaseUpdatedAt *time.Time `json:"baseUpdatedAt"`
+	// Force skips optimistic lock and overwrites the latest row.
+	Force bool `json:"force"`
 }
 
 // AdminCreate creates a new article.
@@ -546,8 +552,29 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		existing.Tags = tags
 	}
 
-	if err := h.articleRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+	// Optimistic concurrency: when the client supplies baseUpdatedAt, require a match
+	// unless Force is set (explicit overwrite after conflict dialog).
+	var updateErr error
+	if input.BaseUpdatedAt != nil && !input.Force {
+		updateErr = h.articleRepo.UpdateIfMatch(c.Request.Context(), existing, *input.BaseUpdatedAt)
+	} else {
+		updateErr = h.articleRepo.Update(c.Request.Context(), existing)
+	}
+	if updateErr != nil {
+		if errors.Is(updateErr, repository.ErrArticleVersionConflict) {
+			// Re-read current row so the client can show server timestamp / reload.
+			current, _ := h.articleRepo.FindByID(c.Request.Context(), existing.ID)
+			payload := gin.H{
+				"message": "文章已被他人修改，请重新加载或强制覆盖",
+				"code":    "version_conflict",
+			}
+			if current != nil {
+				payload["currentUpdatedAt"] = current.UpdatedAt
+			}
+			c.JSON(http.StatusConflict, gin.H{"error": payload})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": updateErr.Error()}})
 		return
 	}
 

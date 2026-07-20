@@ -21,8 +21,11 @@ type ArticleRepository interface {
 	// FindBySlug finds an article by slug with Category and Tags preloaded
 	FindBySlug(ctx context.Context, slug string) (*model.Article, error)
 
-	// Update updates an article
+	// Update updates an article (unconditional save)
 	Update(ctx context.Context, article *model.Article) error
+	// UpdateIfMatch updates only when updated_at still matches expectedUpdatedAt (optimistic lock).
+	// Returns ErrArticleVersionConflict when another writer changed the row.
+	UpdateIfMatch(ctx context.Context, article *model.Article, expectedUpdatedAt time.Time) error
 	UpdateScheduledPublication(ctx context.Context, article *model.Article, expectedUpdatedAt time.Time) error
 
 	// Delete deletes an article by ID

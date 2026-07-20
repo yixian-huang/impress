@@ -154,11 +154,41 @@ export async function createArticle(data: Partial<Article>): Promise<Article> {
   return response.data;
 }
 
-export async function updateArticle(id: number, data: Partial<Article>): Promise<Article> {
-  const response = await http.put<Article>(`/admin/articles/${id}`, data, {
+export type UpdateArticleOptions = {
+  /** Last-known server updatedAt for optimistic concurrency. */
+  baseUpdatedAt?: string | null;
+  /** Skip optimistic lock and overwrite. */
+  force?: boolean;
+};
 
-  });
+export async function updateArticle(
+  id: number,
+  data: Partial<Article>,
+  opts?: UpdateArticleOptions,
+): Promise<Article> {
+  const body: Record<string, unknown> = { ...data };
+  if (opts?.baseUpdatedAt) body.baseUpdatedAt = opts.baseUpdatedAt;
+  if (opts?.force) body.force = true;
+  const response = await http.put<Article>(`/admin/articles/${id}`, body, {});
   return response.data;
+}
+
+export function isArticleVersionConflict(err: unknown): {
+  conflict: boolean;
+  currentUpdatedAt?: string;
+  message?: string;
+} {
+  const ax = err as {
+    response?: { status?: number; data?: { error?: { code?: string; currentUpdatedAt?: string; message?: string } } };
+  };
+  if (ax?.response?.status !== 409) return { conflict: false };
+  const e = ax.response?.data?.error;
+  if (e?.code && e.code !== "version_conflict") return { conflict: false };
+  return {
+    conflict: true,
+    currentUpdatedAt: e?.currentUpdatedAt,
+    message: e?.message,
+  };
 }
 
 export async function deleteArticle(id: number): Promise<void> {

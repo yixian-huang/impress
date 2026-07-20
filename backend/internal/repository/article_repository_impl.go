@@ -79,7 +79,8 @@ func (r *GormArticleRepository) Update(ctx context.Context, article *model.Artic
 	return r.db.WithContext(ctx).Save(article).Error
 }
 
-func (r *GormArticleRepository) UpdateScheduledPublication(
+// UpdateIfMatch performs an optimistic-lock update keyed on updated_at.
+func (r *GormArticleRepository) UpdateIfMatch(
 	ctx context.Context,
 	article *model.Article,
 	expectedUpdatedAt time.Time,
@@ -108,6 +109,14 @@ func (r *GormArticleRepository) UpdateScheduledPublication(
 		}
 		return nil
 	})
+}
+
+func (r *GormArticleRepository) UpdateScheduledPublication(
+	ctx context.Context,
+	article *model.Article,
+	expectedUpdatedAt time.Time,
+) error {
+	return r.UpdateIfMatch(ctx, article, expectedUpdatedAt)
 }
 
 // Delete deletes an article by ID

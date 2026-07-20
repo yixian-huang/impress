@@ -104,6 +104,54 @@ const SLASH_ITEMS: SlashCommandItem[] = [
     },
   },
   {
+    title: "提示框",
+    description: "插入高亮提示段落",
+    icon: "💡",
+    keywords: ["tip", "callout", "note", "tishi", "tixing"],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent(
+          `<blockquote><p><strong>提示：</strong>在这里写需要读者注意的内容。</p></blockquote><p></p>`,
+        )
+        .run();
+    },
+  },
+  {
+    title: "FAQ",
+    description: "问答条目",
+    icon: "❓",
+    keywords: ["faq", "qa", "wenda", "question"],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent(
+          `<h3>常见问题</h3><p><strong>Q：问题是什么？</strong><br>A：在这里写回答。</p><p></p>`,
+        )
+        .run();
+    },
+  },
+  {
+    title: "步骤列表",
+    description: "1-2-3 操作步骤",
+    icon: "①",
+    keywords: ["steps", "how-to", "buzhou", "tutorial"],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent(
+          `<h3>步骤</h3><ol><li><p><strong>第一步</strong> — 描述操作</p></li><li><p><strong>第二步</strong> — 描述操作</p></li><li><p><strong>第三步</strong> — 描述操作</p></li></ol><p></p>`,
+        )
+        .run();
+    },
+  },
+  {
     title: "折叠内容",
     description: "可展开/折叠区块",
     icon: "▶",

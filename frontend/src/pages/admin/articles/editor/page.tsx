@@ -6,6 +6,7 @@ import {
   getAdminArticle,
   createArticle,
   updateArticle,
+  isArticleVersionConflict,
   getCategories,
   getTags,
 } from "@/api/articles";
@@ -43,6 +44,9 @@ import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoField
 import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
 import { ArticleVersionHistoryPanel, type ArticleDraftSnapshot } from "./VersionHistoryPanel";
 import ArticlePreviewModal, { type ArticlePreviewData } from "./ArticlePreviewModal";
+import ArticleConflictDialog from "./ArticleConflictDialog";
+import TemplatePickerModal from "./TemplatePickerModal";
+import type { ArticleTemplate } from "./articleTemplates";
 import { translateText } from "@/api/translation";
 import { countWords, htmlToPlainText, plainTextToHtml } from "./bilingualUtils";
 import { SaveStatusBadge } from "./saveStatus";
@@ -160,6 +164,10 @@ export default function ArticleEditorPage() {
     zh: { chars: 0, words: 0 },
     en: { chars: 0, words: 0 },
   });
+  /** Optimistic concurrency token from last load/save. */
+  const [baseUpdatedAt, setBaseUpdatedAt] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ serverUpdatedAt?: string } | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   // Language carousel
   const [enabledLangs, setEnabledLangs] = useState<string[]>(["zh"]);
@@ -191,6 +199,8 @@ export default function ArticleEditorPage() {
   const zhEditor = useEditor({
     extensions: zhExtensions,
     content: zhBody,
+    // Avoid React re-render on every keystroke — content is read at save time.
+    shouldRerenderOnTransaction: false,
     editorProps: { attributes: { class: "tiptap" } },
     onUpdate: () => { markEditorDirty(); },
   });
@@ -198,9 +208,11 @@ export default function ArticleEditorPage() {
   const enEditor = useEditor({
     extensions: enExtensions,
     content: enBody,
+    shouldRerenderOnTransaction: false,
     editorProps: { attributes: { class: "tiptap" } },
     onUpdate: () => { markEditorDirty(); },
   });
+
 
   const { modals: zhModals, state: zhModalState } = useModalState();
   const { modals: enModals, state: enModalState } = useModalState();
@@ -213,6 +225,14 @@ export default function ArticleEditorPage() {
   // Current active language
   const activeLang = enabledLangs[activeLangIdx] || "zh";
   const activeEntry = langEditors[activeLang];
+
+  // Soft-disable inactive language editor to reduce work on large docs
+  useEffect(() => {
+    const zhActive = viewLayout === "split" || activeLang === "zh";
+    const enActive = viewLayout === "split" || activeLang === "en";
+    zhEditor?.setEditable(zhActive);
+    enEditor?.setEditable(enActive);
+  }, [zhEditor, enEditor, activeLang, viewLayout]);
 
   // Sync API-loaded content to editors (fires only when loadArticle sets state)
   useEffect(() => {
@@ -314,6 +334,8 @@ export default function ArticleEditorPage() {
         setEnabledLangs(["zh", "en"]);
       }
       loadedIdRef.current = id;
+      setBaseUpdatedAt(article.updatedAt || null);
+      setConflict(null);
       setIsDirty(false);
       setSavePhase("clean");
       setLastSavedAt(null);
@@ -411,7 +433,10 @@ export default function ArticleEditorPage() {
    * - publish: 发布
    * - autosave: quiet background save (preserves published)
    */
-  const handleSave = useCallback(async (intent: "draft" | "publish" | "autosave" = "draft") => {
+  const handleSave = useCallback(async (
+    intent: "draft" | "publish" | "autosave" = "draft",
+    opts?: { force?: boolean },
+  ) => {
     if (savingRef.current) return;
     if (!zhTitle.trim()) {
       if (intent !== "autosave") setError("请填写中文标题");
@@ -422,6 +447,7 @@ export default function ArticleEditorPage() {
 
     const status = resolveSaveStatus(intent, articleStatus);
     const silent = intent === "autosave";
+    const force = !!opts?.force;
 
     savingRef.current = true;
     setSaving(true);
@@ -434,7 +460,16 @@ export default function ArticleEditorPage() {
       const payload = buildPayload(status);
       const articleId = id ? Number(id) : loadedIdRef.current ? Number(loadedIdRef.current) : null;
       if (articleId) {
-        await updateArticle(articleId, payload as Partial<Article>);
+        const updated = await updateArticle(
+          articleId,
+          payload as Partial<Article>,
+          {
+            baseUpdatedAt: force ? null : baseUpdatedAt,
+            force,
+          },
+        );
+        if (updated?.updatedAt) setBaseUpdatedAt(updated.updatedAt);
+        setConflict(null);
         setArticleStatus(
           status === "published"
             ? "published"
@@ -443,12 +478,13 @@ export default function ArticleEditorPage() {
               : status,
         );
         if (!silent) {
-          setSuccessMessage(intent === "publish" ? "已发布" : "已保存");
+          setSuccessMessage(intent === "publish" ? "已发布" : force ? "已强制覆盖保存" : "已保存");
         }
       } else {
         const created = await createArticle(payload as Partial<Article>);
         setArticleStatus(status === "published" ? "published" : "draft");
         loadedIdRef.current = String(created.id);
+        if (created.updatedAt) setBaseUpdatedAt(created.updatedAt);
         if (!silent) {
           setSuccessMessage(intent === "publish" ? "已创建并发布" : "已保存");
         }
@@ -462,6 +498,15 @@ export default function ArticleEditorPage() {
         window.setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (err: any) {
+      const conf = isArticleVersionConflict(err);
+      if (conf.conflict) {
+        setSavePhase("error");
+        setConflict({ serverUpdatedAt: conf.currentUpdatedAt });
+        if (!silent) {
+          setError(conf.message || "保存冲突：文章已被他人修改");
+        }
+        return;
+      }
       setSavePhase("error");
       const msg = err?.response?.data?.error?.message;
       if (!silent) {
@@ -473,7 +518,8 @@ export default function ArticleEditorPage() {
       savingRef.current = false;
       setSaving(false);
     }
-  }, [zhTitle, slug, articleStatus, buildPayload, id, navigate]);
+  }, [zhTitle, slug, articleStatus, buildPayload, id, navigate, baseUpdatedAt]);
+
 
   // Debounced autosave while dirty (requires title)
   useEffect(() => {
@@ -856,6 +902,47 @@ export default function ArticleEditorPage() {
     setShowLangMenu(false);
   };
 
+  const handleApplyTemplate = useCallback((tpl: ArticleTemplate) => {
+    if (tpl.id !== "blank") {
+      const hasContent =
+        zhTitle.trim() ||
+        enTitle.trim() ||
+        (zhEditor?.getText() || "").trim() ||
+        (enEditor?.getText() || "").trim() ||
+        (markdownContent.zh || "").trim() ||
+        (markdownContent.en || "").trim();
+      if (hasContent && !window.confirm(`应用模板「${tpl.name}」将覆盖当前标题与正文，是否继续？`)) {
+        return;
+      }
+    }
+    readyRef.current = false;
+    if (tpl.zhTitle) setZhTitle(tpl.zhTitle);
+    if (tpl.enTitle) setEnTitle(tpl.enTitle);
+    setZhBody(tpl.zhBody || "<p></p>");
+    setEnBody(tpl.enBody || "<p></p>");
+    zhEditor?.commands.setContent(tpl.zhBody || "<p></p>", { emitUpdate: false });
+    enEditor?.commands.setContent(tpl.enBody || "<p></p>", { emitUpdate: false });
+    if (editorMode === "markdown") {
+      setMarkdownContent({
+        zh: htmlToMarkdown(tpl.zhBody || ""),
+        en: htmlToMarkdown(tpl.enBody || ""),
+      });
+    }
+    if (tpl.enTitle || tpl.enBody) {
+      setEnabledLangs((prev) => (prev.includes("en") ? prev : [...prev, "en"]));
+    }
+    setShowTemplatePicker(false);
+    setSuccessMessage(tpl.id === "blank" ? "已清空为空白文档" : `已应用模板「${tpl.name}」（未保存）`);
+    window.setTimeout(() => setSuccessMessage(""), 3000);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        readyRef.current = true;
+        setIsDirty(true);
+        setSavePhase("dirty");
+      });
+    });
+  }, [zhTitle, enTitle, zhEditor, enEditor, markdownContent, editorMode]);
+
   const removeLang = (langKey: string) => {
     if (langKey === "zh") return; // Can't remove default
     const newLangs = enabledLangs.filter((l) => l !== langKey);
@@ -914,6 +1001,14 @@ export default function ArticleEditorPage() {
                 }}
               />
             )}
+            <button
+              type="button"
+              onClick={() => setShowTemplatePicker(true)}
+              title="应用文章结构模板"
+              className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              模板
+            </button>
             <button
               type="button"
               onClick={openPreview}
@@ -1267,6 +1362,30 @@ export default function ArticleEditorPage() {
         data={previewData}
         onClose={() => setShowPreview(false)}
       />
+
+      <TemplatePickerModal
+        open={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onSelect={handleApplyTemplate}
+      />
+
+      {conflict && (
+        <ArticleConflictDialog
+          serverUpdatedAt={conflict.serverUpdatedAt}
+          busy={saving}
+          onDismiss={() => setConflict(null)}
+          onReload={() => {
+            setConflict(null);
+            loadedIdRef.current = null;
+            readyRef.current = false;
+            void loadArticle();
+          }}
+          onForceOverwrite={() => {
+            setConflict(null);
+            void handleSave("draft", { force: true });
+          }}
+        />
+      )}
     </div>
   );
 }
