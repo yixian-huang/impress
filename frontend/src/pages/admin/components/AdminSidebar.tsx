@@ -70,21 +70,23 @@ function NavLinkItem({
         onFocus={() => handlePrefetchPath(item.path)}
         onTouchStart={() => handlePrefetchPath(item.path)}
         title={collapsed ? item.label : undefined}
-        className={`group flex items-center rounded-lg transition-colors duration-150 ${
+        className={`group flex items-center rounded-xl transition-all duration-150 ${
           collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"
         } ${
           active
-            ? "bg-blue-500/15 text-blue-300 shadow-[inset_3px_0_0_0] shadow-blue-400"
-            : "text-slate-300 hover:bg-white/5 hover:text-white"
+            ? "bg-blue-500/15 text-blue-100 shadow-[inset_3px_0_0_0] shadow-blue-400"
+            : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
         }`}
       >
-        <Icon className={`h-5 w-5 shrink-0 ${active ? "text-blue-300" : "text-slate-400 group-hover:text-slate-200"}`} />
-        {!collapsed && (
-          <span className="ml-3 truncate text-sm font-medium">{item.label}</span>
-        )}
+        <Icon
+          className={`h-[1.125rem] w-[1.125rem] shrink-0 ${
+            active ? "text-blue-300" : "text-slate-400 group-hover:text-slate-200"
+          }`}
+        />
+        {!collapsed && <span className="ml-3 truncate text-[13px] font-medium">{item.label}</span>}
       </Link>
       {showChildren && (
-        <div className="ml-8 mt-0.5 space-y-0.5 border-l border-slate-700 pl-3">
+        <div className="ml-8 mt-0.5 space-y-0.5 border-l border-white/10 pl-3">
           {item.children!.map((child) => {
             const childActive =
               location.pathname === child.path || location.pathname.startsWith(`${child.path}/`);
@@ -96,9 +98,9 @@ function NavLinkItem({
                 onMouseEnter={() => handlePrefetchPath(child.path)}
                 onFocus={() => handlePrefetchPath(child.path)}
                 onTouchStart={() => handlePrefetchPath(child.path)}
-                className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
+                className={`block rounded-lg px-2 py-1.5 text-xs transition-colors ${
                   childActive
-                    ? "text-blue-300 font-medium"
+                    ? "font-medium text-blue-300"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -172,13 +174,27 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex h-full flex-col bg-slate-950 text-white">
-      <div className="flex h-14 shrink-0 items-center border-b border-white/10 px-4">
-        <ProductLogo collapsed={collapsed} className={collapsed ? "mx-auto" : ""} />
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#0b1220] text-white">
+      {/* Soft brand glow */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-blue-500/10 to-transparent"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -left-16 top-24 h-40 w-40 rounded-full bg-blue-600/10 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative flex h-14 shrink-0 items-center border-b border-white/[0.06] px-4">
+        <ProductLogo
+          collapsed={collapsed}
+          className={collapsed ? "mx-auto" : ""}
+          variant="onDark"
+        />
       </div>
 
       {!collapsed && (
-        <div className="shrink-0 px-3 pt-3">
+        <div className="relative shrink-0 px-3 pt-3">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             <input
@@ -186,7 +202,7 @@ function SidebarContent({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="过滤菜单…"
-              className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-8 pr-8 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.06] py-2 pl-8 pr-8 text-xs text-slate-200 placeholder:text-slate-500 outline-none transition focus:border-blue-400/40 focus:bg-white/[0.08] focus:ring-2 focus:ring-blue-500/20"
             />
             {query ? (
               <button
@@ -202,7 +218,7 @@ function SidebarContent({
         </div>
       )}
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
+      <nav className="relative flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
         {filteredGroups.length === 0 ? (
           <p className="px-3 py-6 text-center text-xs text-slate-500">无匹配菜单</p>
         ) : (
@@ -211,12 +227,12 @@ function SidebarContent({
             const showHeader = !collapsed && Boolean(group.label);
 
             return (
-              <div key={group.id} className={groupIndex > 0 ? "mt-3" : ""}>
+              <div key={group.id} className={groupIndex > 0 ? "mt-3.5" : ""}>
                 {showHeader ? (
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.id)}
-                    className="mb-1 flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+                    className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 transition hover:text-slate-300"
                   >
                     <span>{group.label}</span>
                     <ChevronDown
@@ -226,7 +242,7 @@ function SidebarContent({
                 ) : null}
 
                 {collapsed && groupIndex > 0 ? (
-                  <div className="mx-2 mb-2 border-t border-white/10" />
+                  <div className="mx-2 mb-2 border-t border-white/[0.06]" />
                 ) : null}
 
                 {!groupCollapsed || collapsed ? (
@@ -248,11 +264,11 @@ function SidebarContent({
         )}
       </nav>
 
-      <div className="shrink-0 border-t border-white/10 p-2">
+      <div className="relative shrink-0 border-t border-white/[0.06] p-2">
         <button
           type="button"
           onClick={onToggle}
-          className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
           title={collapsed ? "展开侧边栏" : "收起侧边栏"}
         >
           {collapsed ? (
@@ -287,8 +303,11 @@ export default function AdminSidebar({
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onMobileClose} />
-          <aside className="absolute top-0 left-0 h-full w-64 shadow-2xl">
+          <div
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
+            onClick={onMobileClose}
+          />
+          <aside className="absolute top-0 left-0 h-full w-64 overflow-hidden shadow-2xl shadow-slate-950/40">
             <SidebarContent collapsed={false} onToggle={onToggle} onMobileClose={onMobileClose} />
           </aside>
         </div>

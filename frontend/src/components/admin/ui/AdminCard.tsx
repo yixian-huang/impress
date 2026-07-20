@@ -21,10 +21,10 @@ export default function AdminCard({
   return (
     <div className={`${adminTheme.card} ${className}`}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+        <div className={adminTheme.cardHeader}>
           <div className="min-w-0">
-            {title ? <h2 className="text-base font-semibold text-slate-900">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
+            {title ? <h2 className={adminTheme.sectionTitle}>{title}</h2> : null}
+            {description ? <p className={adminTheme.sectionDesc}>{description}</p> : null}
           </div>
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </div>

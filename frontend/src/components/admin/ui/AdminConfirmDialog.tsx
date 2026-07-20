@@ -52,7 +52,7 @@ export default function AdminConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
       <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px]"
         onClick={() => {
           if (!loading) onCancel();
         }}
@@ -63,15 +63,15 @@ export default function AdminConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
+        className="relative w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_24px_64px_rgba(15,23,42,0.18)]"
       >
-        <h2 id={titleId} className="text-base font-semibold text-slate-900">
+        <h2 id={titleId} className="text-base font-semibold tracking-tight text-slate-900">
           {title}
         </h2>
         <p id={descId} className="mt-2 text-sm leading-relaxed text-slate-600 whitespace-pre-wrap">
           {message}
         </p>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
           <AdminButton
             ref={cancelRef}
             type="button"

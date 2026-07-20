@@ -18,7 +18,9 @@ export default function AdminPagination({
   if (totalPages <= 1 && total === undefined) return null;
 
   return (
-    <div className={`mt-4 flex flex-wrap items-center justify-between gap-3 ${className}`}>
+    <div
+      className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 ${className}`}
+    >
       <p className="text-sm text-slate-500">
         {typeof total === "number" ? `共 ${total} 条` : null}
         {totalPages > 1 ? (

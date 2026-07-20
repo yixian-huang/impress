@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ADMIN_DEFAULT_PATH } from "@/router/adminAccess";
 import { PRODUCT_BRAND } from "@/config/productBrand";
+import { AdminButton, AdminInput, AdminErrorBanner } from "@/components/admin/ui";
 
 export default function LoginPage() {
   useDocumentTitle(`${PRODUCT_BRAND.name} 登录`);
@@ -30,68 +31,77 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="flex justify-center">
-            <img className="h-12 w-auto" src="/brand/inkless-wordmark.svg" alt="Inkless" />
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {PRODUCT_BRAND.name} 管理后台
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            请登录以继续
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-800">{error}</div>
+    <div className="admin-scope relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f6f9] px-4 py-12 sm:px-6">
+      {/* Ambient background */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(37,99,235,0.12),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(99,102,241,0.08),_transparent_45%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative w-full max-w-[420px]">
+        <div className="mb-8 text-center">
+          <div className="mb-5 flex justify-center">
+            <div className="rounded-2xl bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80">
+              <img className="h-10 w-10" src="/brand/inkless-mark.svg" alt="Inkless" />
             </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            {PRODUCT_BRAND.name} 管理后台
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">使用管理员账号登录以继续</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_16px_48px_rgba(15,23,42,0.08)] backdrop-blur sm:p-8">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {error ? (
+              <AdminErrorBanner message={error} className="mb-0" onDismiss={() => setError("")} />
+            ) : null}
+
             <div>
-              <label htmlFor="username" className="sr-only">
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-slate-700">
                 用户名
               </label>
-              <input
+              <AdminInput
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="username"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="用户名"
+                placeholder="输入用户名"
               />
             </div>
+
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
                 密码
               </label>
-              <input
+              <AdminInput
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="密码"
+                placeholder="输入密码"
               />
             </div>
-          </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? "登录中..." : "登录"}
-            </button>
-          </div>
-        </form>
+            <AdminButton type="submit" disabled={loading} size="lg" className="w-full">
+              {loading ? "登录中…" : "登录"}
+            </AdminButton>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-slate-400">
+          {PRODUCT_BRAND.fullName} · {PRODUCT_BRAND.domain}
+        </p>
       </div>
     </div>
   );

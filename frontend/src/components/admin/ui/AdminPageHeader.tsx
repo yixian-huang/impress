@@ -24,20 +24,25 @@ export default function AdminPageHeader({
   className = "",
 }: AdminPageHeaderProps) {
   return (
-    <div className={`mb-6 ${className}`}>
+    <div className={`mb-6 sm:mb-7 ${className}`}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="mb-2 flex flex-wrap items-center gap-1 text-xs text-slate-500" aria-label="面包屑">
+        <nav
+          className="mb-2.5 flex flex-wrap items-center gap-1 text-xs text-slate-500"
+          aria-label="面包屑"
+        >
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
             return (
               <span key={`${crumb.label}-${index}`} className="inline-flex items-center gap-1">
                 {index > 0 && <ChevronRight className="h-3 w-3 text-slate-400" aria-hidden />}
                 {crumb.to && !isLast ? (
-                  <Link to={crumb.to} className="hover:text-slate-800 transition-colors">
+                  <Link to={crumb.to} className="transition-colors hover:text-slate-800">
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "text-slate-700 font-medium" : undefined}>{crumb.label}</span>
+                  <span className={isLast ? "font-medium text-slate-700" : undefined}>
+                    {crumb.label}
+                  </span>
                 )}
               </span>
             );
@@ -50,7 +55,7 @@ export default function AdminPageHeader({
           {description ? <p className={adminTheme.pageDesc}>{description}</p> : null}
         </div>
         {actions ? (
-          <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
         ) : null}
       </div>
     </div>
