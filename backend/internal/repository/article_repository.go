@@ -28,9 +28,14 @@ type ArticleRepository interface {
 	// Delete deletes an article by ID
 	Delete(ctx context.Context, id uint) error
 
-	// List returns a paginated list of articles with optional filters
+	// List returns a paginated list of articles with optional filters.
+	// Body fields (zh_body/en_body) are omitted for list performance.
 	List(ctx context.Context, offset, limit int, status string, categoryID *uint, tagID *uint) ([]*model.Article, int64, error)
 
-	// ListPublished returns a paginated list of published articles with optional filters
+	// ListPublished returns a paginated list of published articles with optional filters.
+	// Body fields are omitted for list performance; use FindBySlug for full content.
 	ListPublished(ctx context.Context, offset, limit int, categorySlug string, tagSlug string) ([]*model.Article, int64, error)
+
+	// Count returns the number of articles, optionally filtered by status (empty = all).
+	Count(ctx context.Context, status string) (int64, error)
 }

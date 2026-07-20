@@ -68,6 +68,15 @@ func (r *GormMediaRepository) List(ctx context.Context, offset, limit int, mimeP
 	return items, total, nil
 }
 
+// Count returns total media records.
+func (r *GormMediaRepository) Count(ctx context.Context) (int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&model.Media{}).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 // Delete deletes a media record by ID
 func (r *GormMediaRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&model.Media{}, id)

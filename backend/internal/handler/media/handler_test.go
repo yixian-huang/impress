@@ -27,6 +27,10 @@ func (r *fakeMediaRepository) List(ctx context.Context, offset, limit int, mimeP
 	return nil, 0, nil
 }
 
+func (r *fakeMediaRepository) Count(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (r *fakeMediaRepository) Delete(ctx context.Context, id uint) error {
 	r.deleted = true
 	return nil

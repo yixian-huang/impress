@@ -12,6 +12,7 @@ import (
 
 	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
 	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
+	dashboardHandler "github.com/yixian-huang/inkless/backend/internal/handler/dashboard"
 	articleHandler "github.com/yixian-huang/inkless/backend/internal/handler/article"
 	auditlogHandler "github.com/yixian-huang/inkless/backend/internal/handler/auditlog"
 	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
@@ -68,6 +69,7 @@ type Handlers struct {
 	Bootstrap      *bootstrapHandler.Handler
 	Media          *mediaHandler.Handler
 	Analytics      *analyticsHandler.Handler
+	Dashboard      *dashboardHandler.Handler
 	Category       *categoryHandler.Handler
 	Tag            *tagHandler.Handler
 	Menu           *menuHandler.Handler
@@ -310,6 +312,9 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		{
 			adminAnalytics.GET("/analytics/summary", handlers.Analytics.GetSummary)
 		}
+
+		// Dashboard summary (aggregated counts — prefers dashboard:read, falls back for super-admins via RBAC)
+		adminGroup.GET("/dashboard/summary", require("dashboard", "read"), handlers.Dashboard.Summary)
 
 		// Article management
 		adminGroup.GET("/articles", require("articles", "read"), handlers.Article.AdminList)

@@ -57,3 +57,13 @@ func (r *GormPageViewRepository) CountByPageKey(ctx context.Context, pageKey str
 		Count(&count).Error
 	return count, err
 }
+
+// CountSince returns total views with viewed_at >= since.
+func (r *GormPageViewRepository) CountSince(ctx context.Context, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.PageView{}).
+		Where("viewed_at >= ?", since).
+		Count(&count).Error
+	return count, err
+}

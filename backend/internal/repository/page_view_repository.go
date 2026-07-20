@@ -26,4 +26,7 @@ type PageViewRepository interface {
 
 	// CountByPageKey returns total views for a page key (all time)
 	CountByPageKey(ctx context.Context, pageKey string) (int64, error)
+
+	// CountSince returns total views with viewed_at >= since (all page keys).
+	CountSince(ctx context.Context, since time.Time) (int64, error)
 }

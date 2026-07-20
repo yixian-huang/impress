@@ -24,6 +24,7 @@ import (
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
 	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
+	dashboardHandler "github.com/yixian-huang/inkless/backend/internal/handler/dashboard"
 	articleHandler "github.com/yixian-huang/inkless/backend/internal/handler/article"
 	auditlogHandler "github.com/yixian-huang/inkless/backend/internal/handler/auditlog"
 	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
@@ -456,6 +457,7 @@ func main() {
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache)
 	mediaHandlerInst := mediaHandler.NewHandlerWithStorage(mediaRepo, cfg.UploadDir, "", storageRuntime)
 	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
+	dashboardHandlerInst := dashboardHandler.NewHandler(articleRepo, unifiedPageRepo, mediaRepo, pageViewRepo)
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo, articleRepo)
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
@@ -536,6 +538,7 @@ func main() {
 		Bootstrap:      bootstrapHandlerInst,
 		Media:          mediaHandlerInst,
 		Analytics:      analyticsHandlerInst,
+		Dashboard:      dashboardHandlerInst,
 		Category:       categoryHandlerInst,
 		Tag:            tagHandlerInst,
 		Menu:           menuHandlerInst,

@@ -10,10 +10,7 @@ import {
   Settings2,
   Upload,
 } from "lucide-react";
-import { getAnalyticsSummary } from "@/api/analytics";
-import { getAdminArticles } from "@/api/articles";
-import { listMedia } from "@/api/media";
-import { listUnifiedPages } from "@/api/unifiedPages";
+import { getAdminDashboardSummary } from "@/api/dashboard";
 import {
   AdminCard,
   AdminPageHeader,
@@ -31,62 +28,11 @@ interface QuickAction {
   color: string;
 }
 
-type DashboardStats = {
-  todayVisits: number;
-  pagesCount: number;
-  articlesCount: number;
-  mediaCount: number;
-  errors: Record<string, boolean>;
-};
-
-async function fetchDashboardStats(): Promise<DashboardStats> {
-  const results = await Promise.allSettled([
-    getAnalyticsSummary(),
-    listUnifiedPages(),
-    getAdminArticles(1, 1),
-    listMedia(1, 1),
-  ]);
-
-  const stats: DashboardStats = {
-    todayVisits: 0,
-    pagesCount: 0,
-    articlesCount: 0,
-    mediaCount: 0,
-    errors: {},
-  };
-
-  if (results[0].status === "fulfilled") {
-    stats.todayVisits = results[0].value.totals.today;
-  } else {
-    stats.errors.todayVisits = true;
-  }
-
-  if (results[1].status === "fulfilled") {
-    stats.pagesCount = Array.isArray(results[1].value) ? results[1].value.length : 0;
-  } else {
-    stats.errors.pagesCount = true;
-  }
-
-  if (results[2].status === "fulfilled") {
-    stats.articlesCount = results[2].value.total;
-  } else {
-    stats.errors.articlesCount = true;
-  }
-
-  if (results[3].status === "fulfilled") {
-    stats.mediaCount = results[3].value.total;
-  } else {
-    stats.errors.mediaCount = true;
-  }
-
-  return stats;
-}
-
 export default function AdminDashboardPage() {
   useDocumentTitle("仪表盘");
   const { data, loading } = useAdminQuery(
     adminQueryKeys.dashboardStats,
-    fetchDashboardStats,
+    getAdminDashboardSummary,
     { staleTime: 20_000 },
   );
 
@@ -95,9 +41,9 @@ export default function AdminDashboardPage() {
     pagesCount: 0,
     articlesCount: 0,
     mediaCount: 0,
-    errors: {},
+    errors: {} as Record<string, boolean>,
   };
-  const errors = stats.errors;
+  const errors = stats.errors ?? {};
 
   const quickActions: QuickAction[] = [
     {

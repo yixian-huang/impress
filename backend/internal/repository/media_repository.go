@@ -25,6 +25,9 @@ type MediaRepository interface {
 	// List returns a paginated list of media records, optionally filtered by MIME type prefix
 	List(ctx context.Context, offset, limit int, mimePrefix string) ([]*model.Media, int64, error)
 
+	// Count returns total media records.
+	Count(ctx context.Context) (int64, error)
+
 	// Delete deletes a media record by ID
 	Delete(ctx context.Context, id uint) error
 

@@ -51,8 +51,15 @@ func (r *GormUnifiedPageRepository) FindBySlug(ctx context.Context, slug string)
 	return &page, nil
 }
 
+// unifiedPageListSelectColumns omits large JSON config blobs from list queries.
+const unifiedPageListSelectColumns = "id, slug, zh_title, en_title, zh_description, en_description, " +
+	"mode, template_id, draft_version, published_version, status, scheduled_at, " +
+	"zh_meta_title, en_meta_title, zh_meta_description, en_meta_description, " +
+	"zh_meta_keywords, en_meta_keywords, sort_order, show_in_nav, parent_id, " +
+	"created_at, updated_at, published_at, deleted_at"
+
 func (r *GormUnifiedPageRepository) List(ctx context.Context, status string, mode string, parentID *uint) ([]*model.UnifiedPage, error) {
-	q := r.db.WithContext(ctx).Model(&model.UnifiedPage{})
+	q := r.db.WithContext(ctx).Model(&model.UnifiedPage{}).Select(unifiedPageListSelectColumns)
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -65,6 +72,14 @@ func (r *GormUnifiedPageRepository) List(ctx context.Context, status string, mod
 	var pages []*model.UnifiedPage
 	err := q.Order("sort_order ASC, created_at DESC").Find(&pages).Error
 	return pages, err
+}
+
+func (r *GormUnifiedPageRepository) Count(ctx context.Context) (int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&model.UnifiedPage{}).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 func (r *GormUnifiedPageRepository) ListPublished(ctx context.Context) ([]*model.UnifiedPage, error) {

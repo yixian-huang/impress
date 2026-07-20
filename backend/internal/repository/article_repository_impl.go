@@ -142,6 +142,7 @@ func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, sta
 	}
 
 	if err := r.db.WithContext(ctx).
+		Select(articleListSelectColumns).
 		Preload("Category").
 		Preload("Categories").
 		Preload("Tags").
@@ -155,6 +156,13 @@ func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, sta
 
 	return items, total, nil
 }
+
+// articleListSelectColumns omits large text bodies from list queries.
+// Column names are snake_case as stored by GORM.
+const articleListSelectColumns = "id, slug, status, zh_title, en_title, cover_image, " +
+	"zh_seo_title, en_seo_title, zh_meta_description, en_meta_description, og_image, " +
+	"category_id, author, auto_summary, allow_comments, pinned, visibility, " +
+	"scheduled_at, published_at, created_at, updated_at"
 
 // publishedScope returns a GORM scope that applies the published article filters
 func publishedScope(categorySlug, tagSlug string) func(db *gorm.DB) *gorm.DB {
@@ -189,6 +197,7 @@ func (r *GormArticleRepository) ListPublished(ctx context.Context, offset, limit
 	}
 
 	if err := r.db.WithContext(ctx).
+		Select(articleListSelectColumns).
 		Preload("Category").
 		Preload("Categories").
 		Preload("Tags").
@@ -201,6 +210,19 @@ func (r *GormArticleRepository) ListPublished(ctx context.Context, offset, limit
 	}
 
 	return items, total, nil
+}
+
+// Count returns article totals, optionally filtered by status.
+func (r *GormArticleRepository) Count(ctx context.Context, status string) (int64, error) {
+	var total int64
+	q := r.db.WithContext(ctx).Model(&model.Article{})
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 // buildWhere constructs a GORM scope function for the List query filters
