@@ -35,12 +35,20 @@ import MarkdownToolbar from "@/components/admin/editor/MarkdownToolbar";
 import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import EditorSidebar from "./EditorSidebar";
 import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
 import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
 import { ArticleVersionHistoryPanel } from "./VersionHistoryPanel";
+import { SaveStatusBadge } from "./saveStatus";
+import {
+  LEAVE_UNSAVED_MESSAGE,
+  MODE_SWITCH_MESSAGE,
+  resolveSaveStatus,
+  type EditorSavePhase,
+} from "./saveStatusUtils";
 
 function slugifyTitle(title: string): string {
   return title
@@ -101,12 +109,36 @@ export default function ArticleEditorPage() {
   const [scheduleBusy, setScheduleBusy] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState("");
 
+  // P0: dirty / autosave / leave guards
+  const [isDirty, setIsDirty] = useState(false);
+  const [savePhase, setSavePhase] = useState<EditorSavePhase>("clean");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSaveWasAutosave, setLastSaveWasAutosave] = useState(false);
+  /** Ignore touch() during initial hydrate / programmatic setContent. */
+  const readyRef = useRef(!isEditing);
+  const savingRef = useRef(false);
+
   // Editor mode (richtext / markdown)
   const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("richtext");
   const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({ zh: "", en: "" });
   const [markdownApi, setMarkdownApi] = useState<MarkdownSelectionApi | null>(null);
   // Track whether current article has been loaded (avoid re-fetch wiping edits)
   const loadedIdRef = useRef<string | null>(null);
+
+  const touch = useCallback(() => {
+    if (!readyRef.current) return;
+    setIsDirty(true);
+    setSavePhase((p) => (p === "saving" ? p : "dirty"));
+  }, []);
+
+  const track = useCallback(
+    <T,>(setter: (v: T) => void) =>
+      (v: T) => {
+        setter(v);
+        touch();
+      },
+    [touch],
+  );
 
   // Panel states
   const [showBasicInfo, setShowBasicInfo] = useState(false);
@@ -136,16 +168,24 @@ export default function ArticleEditorPage() {
   // Editors for each language — no onUpdate setState to avoid expensive
   // getHTML() serialization + React re-render cascade on every keystroke.
   // Content is read directly from editors in buildPayload when saving.
+  const markEditorDirty = useCallback(() => {
+    if (!readyRef.current) return;
+    setIsDirty(true);
+    setSavePhase((p) => (p === "saving" ? p : "dirty"));
+  }, []);
+
   const zhEditor = useEditor({
     extensions: zhExtensions,
     content: zhBody,
     editorProps: { attributes: { class: "tiptap" } },
+    onUpdate: () => { markEditorDirty(); },
   });
 
   const enEditor = useEditor({
     extensions: enExtensions,
     content: enBody,
     editorProps: { attributes: { class: "tiptap" } },
+    onUpdate: () => { markEditorDirty(); },
   });
 
   const { modals: zhModals, state: zhModalState } = useModalState();
@@ -220,6 +260,7 @@ export default function ArticleEditorPage() {
   const loadArticle = useCallback(async () => {
     if (!id) return;
     if (loadedIdRef.current === id) return;
+    readyRef.current = false;
     setLoading(true);
     setError(null);
     try {
@@ -259,10 +300,18 @@ export default function ArticleEditorPage() {
         setEnabledLangs(["zh", "en"]);
       }
       loadedIdRef.current = id;
+      setIsDirty(false);
+      setSavePhase("clean");
+      setLastSavedAt(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load article");
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          readyRef.current = true;
+        });
+      });
     }
   }, [id]);
 
@@ -290,6 +339,7 @@ export default function ArticleEditorPage() {
     if (!id) {
       loadedIdRef.current = null;
       setLoading(false);
+      readyRef.current = true;
       return;
     }
     if (loadedIdRef.current !== id) {
@@ -321,7 +371,7 @@ export default function ArticleEditorPage() {
     };
   }, [editorMode, markdownContent, zhEditor, enEditor, zhBody, enBody]);
 
-  const buildPayload = (status: "draft" | "published", publishedAt?: string): Record<string, unknown> => {
+  const buildPayload = useCallback((status: "draft" | "published", publishedAt?: string): Record<string, unknown> => {
     const bodies = resolveBodies();
     const finalSlug = slug.trim() || slugifyTitle(zhTitle);
     const payload: Record<string, unknown> = {
@@ -334,38 +384,115 @@ export default function ArticleEditorPage() {
     };
     if (status === "published") payload.publishedAt = publishedAt ?? new Date().toISOString();
     return payload;
-  };
+  }, [
+    resolveBodies, slug, zhTitle, enTitle, coverImage,
+    zhSeoTitle, enSeoTitle, zhMetaDescription, enMetaDescription, ogImage,
+    selectedCategoryIds, selectedTagIds, author, autoSummary, allowComments,
+    pinned, visibility, metadata,
+  ]);
 
-  const handleSave = async (status: "draft" | "published") => {
-    if (!zhTitle.trim()) { setError("请填写中文标题"); return; }
-    // Auto-fill slug from title when empty so save is not blocked by hidden form field
+  /**
+   * intent:
+   * - draft: manual 保存 (preserves published)
+   * - publish: 发布
+   * - autosave: quiet background save (preserves published)
+   */
+  const handleSave = useCallback(async (intent: "draft" | "publish" | "autosave" = "draft") => {
+    if (savingRef.current) return;
+    if (!zhTitle.trim()) {
+      if (intent !== "autosave") setError("请填写中文标题");
+      return;
+    }
     const finalSlug = slug.trim() || slugifyTitle(zhTitle);
     if (!slug.trim()) setSlug(finalSlug);
 
+    const status = resolveSaveStatus(intent, articleStatus);
+    const silent = intent === "autosave";
+
+    savingRef.current = true;
     setSaving(true);
-    setError(null);
-    setSuccessMessage("");
+    setSavePhase("saving");
+    if (!silent) {
+      setError(null);
+      setSuccessMessage("");
+    }
     try {
       const payload = buildPayload(status);
-      if (isEditing) {
-        await updateArticle(Number(id), payload as Partial<Article>);
-        setArticleStatus(status);
-        setSuccessMessage(status === "published" ? "已发布" : "已保存");
+      const articleId = id ? Number(id) : loadedIdRef.current ? Number(loadedIdRef.current) : null;
+      if (articleId) {
+        await updateArticle(articleId, payload as Partial<Article>);
+        setArticleStatus(
+          status === "published"
+            ? "published"
+            : articleStatus === "scheduled"
+              ? "scheduled"
+              : status,
+        );
+        if (!silent) {
+          setSuccessMessage(intent === "publish" ? "已发布" : "已保存");
+        }
       } else {
         const created = await createArticle(payload as Partial<Article>);
-        setArticleStatus(status);
+        setArticleStatus(status === "published" ? "published" : "draft");
         loadedIdRef.current = String(created.id);
-        setSuccessMessage(status === "published" ? "已创建并发布" : "已保存");
+        if (!silent) {
+          setSuccessMessage(intent === "publish" ? "已创建并发布" : "已保存");
+        }
         navigate(`/admin/articles/edit/${created.id}`, { replace: true });
       }
-      window.setTimeout(() => setSuccessMessage(""), 3000);
+      setIsDirty(false);
+      setSavePhase("saved");
+      setLastSavedAt(new Date());
+      setLastSaveWasAutosave(silent);
+      if (!silent) {
+        window.setTimeout(() => setSuccessMessage(""), 3000);
+      }
     } catch (err: any) {
+      setSavePhase("error");
       const msg = err?.response?.data?.error?.message;
-      setError(msg || (err instanceof Error ? err.message : "保存失败"));
+      if (!silent) {
+        setError(msg || (err instanceof Error ? err.message : "保存失败"));
+      } else {
+        setError(msg || "自动保存失败，请手动保存");
+      }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
-  };
+  }, [zhTitle, slug, articleStatus, buildPayload, id, navigate]);
+
+  // Debounced autosave while dirty (requires title)
+  useEffect(() => {
+    if (!isDirty || saving || loading) return;
+    if (!zhTitle.trim()) return;
+    const t = window.setTimeout(() => {
+      void handleSave("autosave");
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [isDirty, saving, loading, zhTitle, handleSave]);
+
+  // Global shortcuts: ⌘/Ctrl+S save, ⌘/Ctrl+Shift+S publish
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== "s" && e.key !== "S") return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        if (canPublish) void handleSave("publish");
+      } else {
+        void handleSave("draft");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSave, canPublish]);
+
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty, LEAVE_UNSAVED_MESSAGE);
+
+  const handleBack = useCallback(() => {
+    if (!confirmLeave()) return;
+    navigate("/admin/articles");
+  }, [confirmLeave, navigate]);
 
   const handleSchedulePublish = async (scheduledAt: string) => {
     if (!canPublish) return;
@@ -446,6 +573,20 @@ export default function ArticleEditorPage() {
   const handleModeChange = (newMode: "richtext" | "markdown") => {
     if (newMode === editorMode) return;
 
+    const zhHtml = editorMode === "markdown"
+      ? markdownToHtml(markdownContent.zh ?? "")
+      : (zhEditor?.getHTML() || zhBody || "");
+    const enHtml = editorMode === "markdown"
+      ? markdownToHtml(markdownContent.en ?? "")
+      : (enEditor?.getHTML() || enBody || "");
+    const hasBody =
+      (zhHtml && zhHtml !== "<p></p>" && zhHtml.replace(/<[^>]+>/g, "").trim().length > 0) ||
+      (enHtml && enHtml !== "<p></p>" && enHtml.replace(/<[^>]+>/g, "").trim().length > 0);
+
+    if (hasBody || isDirty) {
+      if (!window.confirm(MODE_SWITCH_MESSAGE)) return;
+    }
+
     if (newMode === "markdown" && editorMode === "richtext") {
       // Richtext HTML → Markdown (mermaid, tables, code fences preserved)
       const next: Record<string, string> = { ...markdownContent };
@@ -469,13 +610,16 @@ export default function ArticleEditorPage() {
       setMarkdownApi(null);
     }
     setEditorMode(newMode);
+    touch();
   };
 
   const toggleCategory = (catId: number) => {
     setSelectedCategoryIds((prev) => prev.includes(catId) ? prev.filter((i) => i !== catId) : [...prev, catId]);
+    touch();
   };
   const toggleTag = (tagId: number) => {
     setSelectedTagIds((prev) => prev.includes(tagId) ? prev.filter((i) => i !== tagId) : [...prev, tagId]);
+    touch();
   };
 
   const addLang = (langKey: string) => {
@@ -506,8 +650,8 @@ export default function ArticleEditorPage() {
 
   // Titles per language for the top bar
   const langTitleMap: Record<string, { title: string; setTitle: (v: string) => void; placeholder: string }> = {
-    zh: { title: zhTitle, setTitle: setZhTitle, placeholder: "输入中文标题" },
-    en: { title: enTitle, setTitle: setEnTitle, placeholder: "Enter English title" },
+    zh: { title: zhTitle, setTitle: track(setZhTitle), placeholder: "输入中文标题" },
+    en: { title: enTitle, setTitle: track(setEnTitle), placeholder: "Enter English title" },
   };
 
   return (
@@ -516,7 +660,7 @@ export default function ArticleEditorPage() {
       <div className="flex-shrink-0 z-20 bg-white border-b border-gray-200 shadow-sm">
         {/* Row 1: Back + Title + Actions */}
         <div className="flex items-center gap-3 px-4 py-2">
-          <button onClick={() => navigate("/admin/articles")} className="text-gray-500 hover:text-gray-700 text-sm flex-shrink-0">
+          <button onClick={handleBack} className="text-gray-500 hover:text-gray-700 text-sm flex-shrink-0">
             &larr; 返回
           </button>
           <input
@@ -527,6 +671,11 @@ export default function ArticleEditorPage() {
             placeholder={langTitleMap[activeLang]?.placeholder || "标题"}
           />
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <SaveStatusBadge
+              phase={savePhase}
+              lastSavedAt={lastSavedAt}
+              isAutosave={lastSaveWasAutosave}
+            />
             <PopoverButton label="基本信息" active={showBasicInfo} onClick={() => { setShowBasicInfo(!showBasicInfo); setShowSeo(false); setShowAdvanced(false); }} />
             <PopoverButton label="SEO" active={showSeo} onClick={() => { setShowSeo(!showSeo); setShowBasicInfo(false); setShowAdvanced(false); }} />
             <PopoverButton label="高级" active={showAdvanced} onClick={() => { setShowAdvanced(!showAdvanced); setShowBasicInfo(false); setShowSeo(false); }} />
@@ -552,13 +701,21 @@ export default function ArticleEditorPage() {
               title={articleStatus === "published" ? "定时更新" : "定时"}
             />
             <span className="w-px h-6 bg-gray-200 mx-1" />
-            <button onClick={() => handleSave("draft")} disabled={saving}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            <button
+              onClick={() => void handleSave("draft")}
+              disabled={saving}
+              title="保存 (⌘S / Ctrl+S)"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
               {saving ? "保存中..." : "保存"}
             </button>
             {canPublish && (
-              <button onClick={() => handleSave("published")} disabled={saving}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              <button
+                onClick={() => void handleSave("publish")}
+                disabled={saving}
+                title="发布 (⌘⇧S / Ctrl+Shift+S)"
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
                 {saving ? "发布中..." : "发布"}
               </button>
             )}
@@ -568,9 +725,9 @@ export default function ArticleEditorPage() {
         {/* Settings Panels (slide down) */}
         {showBasicInfo && (
           <ArticleForm
-            slug={slug} setSlug={setSlug}
-            author={author} setAuthor={setAuthor}
-            coverImage={coverImage} setCoverImage={setCoverImage}
+            slug={slug} setSlug={track(setSlug)}
+            author={author} setAuthor={track(setAuthor)}
+            coverImage={coverImage} setCoverImage={track(setCoverImage)}
             showCoverPicker={showCoverPicker} setShowCoverPicker={setShowCoverPicker}
             categories={categories} selectedCategoryIds={selectedCategoryIds} toggleCategory={toggleCategory}
             tags={tags} selectedTagIds={selectedTagIds} toggleTag={toggleTag}
@@ -579,21 +736,21 @@ export default function ArticleEditorPage() {
 
         {showSeo && (
           <SeoFieldsPanel
-            zhSeoTitle={zhSeoTitle} setZhSeoTitle={setZhSeoTitle}
-            enSeoTitle={enSeoTitle} setEnSeoTitle={setEnSeoTitle}
-            zhMetaDescription={zhMetaDescription} setZhMetaDescription={setZhMetaDescription}
-            enMetaDescription={enMetaDescription} setEnMetaDescription={setEnMetaDescription}
-            ogImage={ogImage} setOgImage={setOgImage}
+            zhSeoTitle={zhSeoTitle} setZhSeoTitle={track(setZhSeoTitle)}
+            enSeoTitle={enSeoTitle} setEnSeoTitle={track(setEnSeoTitle)}
+            zhMetaDescription={zhMetaDescription} setZhMetaDescription={track(setZhMetaDescription)}
+            enMetaDescription={enMetaDescription} setEnMetaDescription={track(setEnMetaDescription)}
+            ogImage={ogImage} setOgImage={track(setOgImage)}
           />
         )}
 
         {showAdvanced && (
           <AdvancedSettingsPanel
-            visibility={visibility} setVisibility={setVisibility}
-            autoSummary={autoSummary} setAutoSummary={setAutoSummary}
-            allowComments={allowComments} setAllowComments={setAllowComments}
-            pinned={pinned} setPinned={setPinned}
-            metadata={metadata} setMetadata={setMetadata}
+            visibility={visibility} setVisibility={track(setVisibility)}
+            autoSummary={autoSummary} setAutoSummary={track(setAutoSummary)}
+            allowComments={allowComments} setAllowComments={track(setAllowComments)}
+            pinned={pinned} setPinned={track(setPinned)}
+            metadata={metadata} setMetadata={track(setMetadata)}
           />
         )}
 
@@ -710,7 +867,10 @@ export default function ArticleEditorPage() {
                   key={activeLang}
                   contentKey={activeLang}
                   value={markdownContent[activeLang] ?? ""}
-                  onChange={(val) => setMarkdownContent((prev) => ({ ...prev, [activeLang]: val }))}
+                  onChange={(val) => {
+                    setMarkdownContent((prev) => ({ ...prev, [activeLang]: val }));
+                    touch();
+                  }}
                   onApiReady={setMarkdownApi}
                 />
               </div>
@@ -752,7 +912,7 @@ export default function ArticleEditorPage() {
       <ImagePickerModal
         open={showCoverPicker}
         onClose={() => setShowCoverPicker(false)}
-        onSelect={(item) => { setCoverImage(item.url); setShowCoverPicker(false); }}
+        onSelect={(item) => { setCoverImage(item.url); setShowCoverPicker(false); touch(); }}
       />
 
       {showVersionHistory && isEditing && (
