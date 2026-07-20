@@ -167,6 +167,62 @@ export async function deleteArticle(id: number): Promise<void> {
   });
 }
 
+// ---------- Article Version History ----------
+
+export interface ArticleVersionListItem {
+  id: number;
+  articleId: number;
+  version: number;
+  action: string;
+  summary: string;
+  createdBy: number;
+  createdAt: string;
+  zhTitle?: string;
+  enTitle?: string;
+  status?: string;
+}
+
+export interface ArticleVersionDetail {
+  id: number;
+  articleId: number;
+  version: number;
+  snapshot: Record<string, unknown>;
+  action: string;
+  summary: string;
+  createdBy: number;
+  createdAt: string;
+}
+
+export async function listArticleVersions(
+  id: number,
+  page = 1,
+  pageSize = 50,
+): Promise<{ items: ArticleVersionListItem[]; total: number; page: number; pageSize: number }> {
+  const response = await http.get(`/admin/articles/${id}/versions`, {
+    params: { page, pageSize },
+  });
+  return response.data;
+}
+
+export async function getArticleVersion(
+  id: number,
+  version: number,
+): Promise<ArticleVersionDetail> {
+  const response = await http.get(`/admin/articles/${id}/versions/${version}`);
+  return response.data;
+}
+
+export async function compareArticleVersions(
+  id: number,
+  left: number,
+  right: number,
+): Promise<{ left: ArticleVersionDetail; right: ArticleVersionDetail }> {
+  const response = await http.get(`/admin/articles/${id}/versions/compare`, {
+    params: { left, right },
+  });
+  return response.data;
+}
+
 // ---------- Category APIs ----------
 
 export async function getCategories(): Promise<Category[]> {

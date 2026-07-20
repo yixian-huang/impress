@@ -174,6 +174,7 @@ func main() {
 		&model.Category{},
 		&model.Tag{},
 		&model.Article{},
+		&model.ArticleVersion{},
 		&model.BackupRecord{},
 		&model.AuditEvent{},
 		&model.Page{},
@@ -252,6 +253,7 @@ func main() {
 	categoryRepo := repository.NewGormCategoryRepository(database.DB)
 	tagRepo := repository.NewGormTagRepository(database.DB)
 	articleRepo := repository.NewGormArticleRepository(database.DB)
+	articleVersionRepo := repository.NewGormArticleVersionRepository(database.DB)
 	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
 	pageRepo := repository.NewGormPageRepository(database.DB)
 	installedThemeRepo := repository.NewGormInstalledThemeRepository(database.DB)
@@ -473,7 +475,8 @@ func main() {
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
 	articleHandlerInst := articleHandler.NewHandler(articleRepo, categoryRepo, tagRepo, searchService, bus, publicCache).
 		WithPageViews(pageViewRepo).
-		WithViewTracker(pageViewRecorder)
+		WithViewTracker(pageViewRecorder).
+		WithVersionRepo(articleVersionRepo)
 	auditlogHandlerInst := auditlogHandler.NewHandler(auditEventRepo)
 	sitemapHandlerInst := sitemapHandler.NewHandler(contentDocRepo, articleRepo, cfg.BaseURL)
 	feedHandlerInst := feedHandler.NewHandler(articleRepo, siteConfigRepo, cfg.BaseURL, "Blog", "Latest posts")

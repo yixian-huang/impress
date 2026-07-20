@@ -13,6 +13,7 @@ import (
 
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"github.com/yixian-huang/inkless/backend/internal/service"
@@ -26,6 +27,7 @@ type pageViewTracker interface {
 // Handler handles article-related HTTP requests
 type Handler struct {
 	articleRepo   repository.ArticleRepository
+	versionRepo   repository.ArticleVersionRepository
 	categoryRepo  repository.CategoryRepository
 	tagRepo       repository.TagRepository
 	pvRepo        repository.PageViewRepository
@@ -54,6 +56,12 @@ func NewHandler(
 		eventBus:      eventBus,
 		cache:         cache,
 	}
+}
+
+// WithVersionRepo enables article version history + comparison endpoints.
+func (h *Handler) WithVersionRepo(repo repository.ArticleVersionRepository) *Handler {
+	h.versionRepo = repo
+	return h
 }
 
 // WithPageViews enables visit tracking and viewCount on public article detail.
@@ -416,6 +424,13 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 		return
 	}
 
+	// Snapshot initial version for history
+	action := "create"
+	if created.Status == model.ArticleStatusPublished {
+		action = "publish"
+	}
+	h.recordArticleVersion(c, created, action)
+
 	if article.Status == model.ArticleStatusPublished && h.articleSvc != nil {
 		go h.articleSvc.AfterPublish(context.Background(), article, 0)
 	}
@@ -538,6 +553,15 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		return
 	}
 
+	// Snapshot after successful save for version history / comparison
+	action := "save"
+	if updated.Status == model.ArticleStatusPublished && previousStatus != model.ArticleStatusPublished {
+		action = "publish"
+	} else if updated.Status == model.ArticleStatusPublished {
+		action = "update"
+	}
+	h.recordArticleVersion(c, updated, action)
+
 	// Auto-index on publish, remove from index otherwise
 	if h.articleSvc != nil {
 		if existing.Status == model.ArticleStatusPublished {
@@ -609,6 +633,218 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+}
+
+// --- Version history endpoints ---
+
+// AdminListVersions lists version history for an article.
+func (h *Handler) AdminListVersions(c *gin.Context) {
+	if h.versionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	versions, total, err := h.versionRepo.ListByArticleID(c.Request.Context(), uint(id), offset, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询版本失败"}})
+		return
+	}
+
+	// Lightweight list items (omit full body from list payload for speed)
+	items := make([]gin.H, 0, len(versions))
+	for _, v := range versions {
+		items = append(items, gin.H{
+			"id":        v.ID,
+			"articleId": v.ArticleID,
+			"version":   v.Version,
+			"action":    v.Action,
+			"summary":   v.Summary,
+			"createdBy": v.CreatedBy,
+			"createdAt": v.CreatedAt,
+			// Include titles from snapshot for list display
+			"zhTitle": snapshotString(v.Snapshot, "zhTitle"),
+			"enTitle": snapshotString(v.Snapshot, "enTitle"),
+			"status":  snapshotString(v.Snapshot, "status"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":    items,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
+}
+
+// AdminGetVersion returns a specific version snapshot.
+func (h *Handler) AdminGetVersion(c *gin.Context) {
+	if h.versionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		return
+	}
+	versionNum, err := strconv.Atoi(c.Param("version"))
+	if err != nil || versionNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的版本号"}})
+		return
+	}
+	v, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), uint(id), versionNum)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "版本不存在"}})
+		return
+	}
+	c.JSON(http.StatusOK, v)
+}
+
+// AdminCompareVersions returns two version snapshots for client-side comparison.
+// Query: left=<version>&right=<version>  (defaults: previous vs latest)
+func (h *Handler) AdminCompareVersions(c *gin.Context) {
+	if h.versionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		return
+	}
+	articleID := uint(id)
+
+	leftNum, _ := strconv.Atoi(c.Query("left"))
+	rightNum, _ := strconv.Atoi(c.Query("right"))
+
+	// Default: latest two versions
+	if leftNum < 1 || rightNum < 1 {
+		latest, err := h.versionRepo.GetLatestVersion(c.Request.Context(), articleID)
+		if err != nil || latest < 1 {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "暂无版本记录"}})
+			return
+		}
+		if rightNum < 1 {
+			rightNum = latest
+		}
+		if leftNum < 1 {
+			leftNum = latest - 1
+			if leftNum < 1 {
+				leftNum = 1
+			}
+		}
+	}
+
+	left, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), articleID, leftNum)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": fmt.Sprintf("左版本 v%d 不存在", leftNum)}})
+		return
+	}
+	right, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), articleID, rightNum)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": fmt.Sprintf("右版本 v%d 不存在", rightNum)}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"left":  left,
+		"right": right,
+	})
+}
+
+// recordArticleVersion writes a snapshot of the article after create/update.
+// Failures are logged but do not fail the parent request.
+func (h *Handler) recordArticleVersion(c *gin.Context, article *model.Article, action string) {
+	if h.versionRepo == nil || article == nil {
+		return
+	}
+	ctx := c.Request.Context()
+	latest, err := h.versionRepo.GetLatestVersion(ctx, article.ID)
+	if err != nil {
+		slog.Warn("article version: get latest failed", "articleId", article.ID, "err", err)
+		return
+	}
+	var createdBy uint
+	if uc := middleware.GetUserContext(c); uc != nil {
+		createdBy = uc.UserID
+	}
+	summary := article.ZhTitle
+	if summary == "" {
+		summary = article.EnTitle
+	}
+	if len(summary) > 200 {
+		summary = summary[:200]
+	}
+	v := &model.ArticleVersion{
+		ArticleID: article.ID,
+		Version:   latest + 1,
+		Snapshot:  articleToSnapshot(article),
+		Action:    action,
+		Summary:   summary,
+		CreatedBy: createdBy,
+	}
+	if err := h.versionRepo.Create(ctx, v); err != nil {
+		slog.Warn("article version: create failed", "articleId", article.ID, "err", err)
+	}
+}
+
+func articleToSnapshot(a *model.Article) model.JSONMap {
+	snap := model.JSONMap{
+		"id":                a.ID,
+		"slug":              a.Slug,
+		"status":            string(a.Status),
+		"zhTitle":           a.ZhTitle,
+		"enTitle":           a.EnTitle,
+		"zhBody":            a.ZhBody,
+		"enBody":            a.EnBody,
+		"coverImage":        a.CoverImage,
+		"zhSeoTitle":        a.ZhSeoTitle,
+		"enSeoTitle":        a.EnSeoTitle,
+		"zhMetaDescription": a.ZhMetaDescription,
+		"enMetaDescription": a.EnMetaDescription,
+		"ogImage":           a.OgImage,
+		"author":            a.Author,
+		"autoSummary":       a.AutoSummary,
+		"allowComments":     a.AllowComments,
+		"pinned":            a.Pinned,
+		"visibility":        a.Visibility,
+	}
+	if a.Metadata != nil {
+		snap["metadata"] = a.Metadata
+	}
+	if a.CategoryID != nil {
+		snap["categoryId"] = *a.CategoryID
+	}
+	if a.PublishedAt != nil {
+		snap["publishedAt"] = a.PublishedAt.Format(time.RFC3339)
+	}
+	return snap
+}
+
+func snapshotString(snap model.JSONMap, key string) string {
+	if snap == nil {
+		return ""
+	}
+	if v, ok := snap[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }
 
 // resolveCategoryIDs looks up categories by their IDs and returns them

@@ -40,6 +40,7 @@ import EditorSidebar from "./EditorSidebar";
 import ArticleForm from "./ArticleForm";
 import { SeoFieldsPanel, AdvancedSettingsPanel, PopoverButton } from "./SeoFields";
 import ArticleTypographyRoot from "@/components/blog/ArticleTypographyRoot";
+import { ArticleVersionHistoryPanel } from "./VersionHistoryPanel";
 
 function slugifyTitle(title: string): string {
   return title
@@ -112,6 +113,7 @@ export default function ArticleEditorPage() {
   const [showSeo, setShowSeo] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // Language carousel
   const [enabledLangs, setEnabledLangs] = useState<string[]>(["zh"]);
@@ -509,9 +511,9 @@ export default function ArticleEditorPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-6">
-      {/* Sticky Header: Action Bar */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+    <div className="flex flex-col h-full min-h-0 bg-white">
+      {/* Header stack: action bar → language tabs → toolbar (never overlays content) */}
+      <div className="flex-shrink-0 z-20 bg-white border-b border-gray-200 shadow-sm">
         {/* Row 1: Back + Title + Actions */}
         <div className="flex items-center gap-3 px-4 py-2">
           <button onClick={() => navigate("/admin/articles")} className="text-gray-500 hover:text-gray-700 text-sm flex-shrink-0">
@@ -525,12 +527,17 @@ export default function ArticleEditorPage() {
             placeholder={langTitleMap[activeLang]?.placeholder || "标题"}
           />
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Settings popover buttons */}
             <PopoverButton label="基本信息" active={showBasicInfo} onClick={() => { setShowBasicInfo(!showBasicInfo); setShowSeo(false); setShowAdvanced(false); }} />
             <PopoverButton label="SEO" active={showSeo} onClick={() => { setShowSeo(!showSeo); setShowBasicInfo(false); setShowAdvanced(false); }} />
             <PopoverButton label="高级" active={showAdvanced} onClick={() => { setShowAdvanced(!showAdvanced); setShowBasicInfo(false); setShowSeo(false); }} />
+            {isEditing && (
+              <PopoverButton
+                label="历史版本"
+                active={showVersionHistory}
+                onClick={() => setShowVersionHistory(true)}
+              />
+            )}
             <span className="w-px h-6 bg-gray-200 mx-1" />
-            {/* Compact scheduled publish inline with actions */}
             <ScheduledPublicationPanel
               compact
               item={scheduledPublication}
@@ -590,10 +597,78 @@ export default function ArticleEditorPage() {
           />
         )}
 
-        {/* Row 2: Editor Toolbar (richtext or markdown) + Mode Switcher */}
-        <div className="flex items-center border-t border-gray-100">
+        {/* Row 2: Language tabs — above toolbar so they are never covered */}
+        <div className="flex items-center gap-1 px-4 pt-1.5 pb-0 border-t border-gray-100 bg-gray-50/80">
+          {enabledLangs.map((lang, idx) => {
+            const info = ALL_LANGS.find((l) => l.key === lang);
+            return (
+              <button
+                key={lang}
+                onClick={() => setActiveLangIdx(idx)}
+                className={`group relative px-4 py-1.5 text-sm rounded-t-lg border border-b-0 transition-colors ${
+                  idx === activeLangIdx
+                    ? "bg-white border-gray-300 text-gray-900 font-medium shadow-sm"
+                    : "bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/80"
+                }`}
+              >
+                {info?.label || lang}
+                {lang !== "zh" && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); removeLang(lang); }}
+                    className="ml-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    &times;
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {enabledLangs.length < ALL_LANGS.length && (
+            <div className="relative" ref={langMenuRef}>
+              <button onClick={() => setShowLangMenu(!showLangMenu)}
+                className="px-2 py-1.5 text-sm text-gray-400 hover:text-gray-600 rounded-t-lg hover:bg-gray-100"
+                title="添加语言">
+                + 语言
+              </button>
+              {showLangMenu && (
+                <div className="absolute top-full left-0 mt-0.5 py-1 bg-white rounded-lg shadow-lg border border-gray-200 z-40 min-w-[100px]">
+                  {ALL_LANGS.filter((l) => !enabledLangs.includes(l.key)).map((l) => (
+                    <button key={l.key} onClick={() => addLang(l.key)}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700">
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {enabledLangs.length > 1 && (
+            <div className="ml-auto flex items-center gap-1 pb-1">
+              <button
+                onClick={() => setActiveLangIdx((i) => Math.max(0, i - 1))}
+                disabled={activeLangIdx === 0}
+                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+              >&larr;</button>
+              <span className="text-xs text-gray-400">{activeLangIdx + 1}/{enabledLangs.length}</span>
+              <button
+                onClick={() => setActiveLangIdx((i) => Math.min(enabledLangs.length - 1, i + 1))}
+                disabled={activeLangIdx === enabledLangs.length - 1}
+                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+              >&rarr;</button>
+            </div>
+          )}
+
+          <div className={`pb-1 ${enabledLangs.length > 1 ? "ml-2" : "ml-auto"}`}>
+            <EditorModeSwitcher mode={editorMode} onModeChange={handleModeChange} />
+          </div>
+        </div>
+
+        {/* Row 3: Editor Toolbar for active language/mode */}
+        <div className="flex items-stretch border-t border-gray-200 bg-gray-50">
           {editorMode === "richtext" && activeEntry?.editor ? (
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-x-auto">
               <EditorToolbar editor={activeEntry.editor} modals={activeEntry.modals} />
             </div>
           ) : editorMode === "markdown" ? (
@@ -601,15 +676,12 @@ export default function ArticleEditorPage() {
               <MarkdownToolbar api={markdownApi} />
             </div>
           ) : (
-            <div className="flex-1" />
+            <div className="flex-1 py-2" />
           )}
-          <div className="px-3 py-1.5 flex-shrink-0">
-            <EditorModeSwitcher mode={editorMode} onModeChange={handleModeChange} />
-          </div>
         </div>
       </div>
 
-      {/* Error Bar */}
+      {/* Error / success bars */}
       {error && (
         <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-800 text-sm flex-shrink-0">
           {error}
@@ -630,79 +702,13 @@ export default function ArticleEditorPage() {
 
       {/* Main Content: Editor + Sidebar */}
       <div className="flex-1 flex min-h-0">
-        {/* Left: Language Carousel + Editor Content */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white">
-          {/* Language tabs + add button */}
-          <div className="flex items-center gap-1 px-4 pt-2 pb-0 flex-shrink-0">
-            {enabledLangs.map((lang, idx) => {
-              const info = ALL_LANGS.find((l) => l.key === lang);
-              return (
-                <button
-                  key={lang}
-                  onClick={() => setActiveLangIdx(idx)}
-                  className={`group relative px-4 py-1.5 text-sm rounded-t-lg border border-b-0 transition-colors ${
-                    idx === activeLangIdx
-                      ? "bg-white border-gray-300 text-gray-900 font-medium"
-                      : "bg-gray-50 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {info?.label || lang}
-                  {lang !== "zh" && (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); removeLang(lang); }}
-                      className="ml-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      &times;
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Add language button */}
-            {enabledLangs.length < ALL_LANGS.length && (
-              <div className="relative" ref={langMenuRef}>
-                <button onClick={() => setShowLangMenu(!showLangMenu)}
-                  className="px-2 py-1.5 text-sm text-gray-400 hover:text-gray-600 rounded-t-lg hover:bg-gray-50"
-                  title="添加语言">
-                  + 语言
-                </button>
-                {showLangMenu && (
-                  <div className="absolute top-full left-0 mt-0.5 py-1 bg-white rounded-lg shadow-lg border border-gray-200 z-40 min-w-[100px]">
-                    {ALL_LANGS.filter((l) => !enabledLangs.includes(l.key)).map((l) => (
-                      <button key={l.key} onClick={() => addLang(l.key)}
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700">
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Carousel navigation arrows */}
-            {enabledLangs.length > 1 && (
-              <div className="ml-auto flex items-center gap-1">
-                <button
-                  onClick={() => setActiveLangIdx((i) => Math.max(0, i - 1))}
-                  disabled={activeLangIdx === 0}
-                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                >&larr;</button>
-                <span className="text-xs text-gray-400">{activeLangIdx + 1}/{enabledLangs.length}</span>
-                <button
-                  onClick={() => setActiveLangIdx((i) => Math.min(enabledLangs.length - 1, i + 1))}
-                  disabled={activeLangIdx === enabledLangs.length - 1}
-                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                >&rarr;</button>
-              </div>
-            )}
-          </div>
-
-          {/* Editor Content Area — fill remaining space */}
-          <div className={`flex-1 min-h-0 border-t border-gray-300 ${editorMode === "markdown" ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <div className={`flex-1 min-h-0 ${editorMode === "markdown" ? "overflow-hidden" : "overflow-y-auto"}`}>
             {editorMode === "markdown" ? (
               <div className="h-full min-h-0 p-3">
                 <MarkdownMode
+                  key={activeLang}
+                  contentKey={activeLang}
                   value={markdownContent[activeLang] ?? ""}
                   onChange={(val) => setMarkdownContent((prev) => ({ ...prev, [activeLang]: val }))}
                   onApiReady={setMarkdownApi}
@@ -731,7 +737,6 @@ export default function ArticleEditorPage() {
           </div>
         </div>
 
-        {/* Right: Sidebar — Outline + Details (richtext only; markdown has its own live preview) */}
         {editorMode === "richtext" && (
           <EditorSidebar
             editor={activeEntry?.editor ?? null}
@@ -740,7 +745,6 @@ export default function ArticleEditorPage() {
         )}
       </div>
 
-      {/* Modals */}
       {Object.entries(langEditors).map(([lang, entry]) =>
         entry.editor ? <EditorModals key={lang} editor={entry.editor} state={entry.state} /> : null
       )}
@@ -750,6 +754,13 @@ export default function ArticleEditorPage() {
         onClose={() => setShowCoverPicker(false)}
         onSelect={(item) => { setCoverImage(item.url); setShowCoverPicker(false); }}
       />
+
+      {showVersionHistory && isEditing && (
+        <ArticleVersionHistoryPanel
+          articleId={Number(id)}
+          onClose={() => setShowVersionHistory(false)}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,8 @@ interface MarkdownModeProps {
   onImageUpload?: (file: File) => Promise<string>;
   /** Expose selection/wrap API for the external Markdown toolbar. */
   onApiReady?: (api: MarkdownSelectionApi | null) => void;
+  /** Optional key identity (e.g. active locale) — forces debounce reset when it changes. */
+  contentKey?: string;
 }
 
 export default function MarkdownMode({
@@ -16,16 +18,42 @@ export default function MarkdownMode({
   onChange,
   onImageUpload,
   onApiReady,
+  contentKey,
 }: MarkdownModeProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineGutterRef = useRef<HTMLDivElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef<"editor" | "preview" | null>(null);
   const [debounced, setDebounced] = useState(value);
 
+  // Live preview: short debounce while typing; immediate when contentKey/locale switches
   useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(value), 200);
+    setDebounced(value);
+  }, [contentKey]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: locale switch
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(value), 150);
     return () => window.clearTimeout(t);
   }, [value]);
 
   const previewHtml = useMemo(() => markdownToHtml(debounced), [debounced]);
+
+  const lineCount = useMemo(() => {
+    // Always at least 1 line for empty content
+    if (!value) return 1;
+    let n = 1;
+    for (let i = 0; i < value.length; i++) {
+      if (value.charCodeAt(i) === 10) n++;
+    }
+    return n;
+  }, [value]);
+
+  const lineNumbers = useMemo(() => {
+    const lines: number[] = new Array(lineCount);
+    for (let i = 0; i < lineCount; i++) lines[i] = i + 1;
+    return lines;
+  }, [lineCount]);
 
   // Keep latest value/onChange for the selection API without re-creating every keystroke
   const valueRef = useRef(value);
@@ -57,6 +85,49 @@ export default function MarkdownMode({
     onApiReady(api);
     return () => onApiReady(null);
   }, [onApiReady]);
+
+  const syncScroll = useCallback((source: "editor" | "preview") => {
+    if (syncingRef.current && syncingRef.current !== source) return;
+    const editorEl = editorScrollRef.current;
+    const previewEl = previewScrollRef.current;
+    if (!editorEl || !previewEl) return;
+
+    const from = source === "editor" ? editorEl : previewEl;
+    const to = source === "editor" ? previewEl : editorEl;
+    const fromMax = from.scrollHeight - from.clientHeight;
+    const toMax = to.scrollHeight - to.clientHeight;
+    if (fromMax <= 0 || toMax <= 0) {
+      // Still sync line gutter with editor scroll
+      if (source === "editor" && lineGutterRef.current) {
+        lineGutterRef.current.scrollTop = editorEl.scrollTop;
+      }
+      return;
+    }
+
+    const ratio = from.scrollTop / fromMax;
+    syncingRef.current = source;
+    to.scrollTop = ratio * toMax;
+    if (source === "editor" && lineGutterRef.current) {
+      lineGutterRef.current.scrollTop = editorEl.scrollTop;
+    } else if (source === "preview" && lineGutterRef.current && editorEl) {
+      lineGutterRef.current.scrollTop = editorEl.scrollTop;
+    }
+    // Release lock on next frame so mutual scroll events don't loop
+    requestAnimationFrame(() => {
+      syncingRef.current = null;
+    });
+  }, []);
+
+  const handleEditorScroll = useCallback(() => {
+    if (lineGutterRef.current && editorScrollRef.current) {
+      lineGutterRef.current.scrollTop = editorScrollRef.current.scrollTop;
+    }
+    syncScroll("editor");
+  }, [syncScroll]);
+
+  const handlePreviewScroll = useCallback(() => {
+    syncScroll("preview");
+  }, [syncScroll]);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -137,25 +208,56 @@ export default function MarkdownMode({
         <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-b border-gray-200">
           Markdown
         </div>
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onDrop={handleDrop}
-          onPaste={handlePaste}
-          onKeyDown={handleKeyDown}
-          className="flex-1 min-h-0 w-full font-mono text-sm p-4 resize-none focus:ring-0 focus:outline-none bg-white"
-          placeholder={"# 标题\n\n支持 **Markdown**、表格与 ```mermaid 图表```…"}
-          spellCheck={false}
-        />
+        <div className="flex-1 min-h-0 flex">
+          {/* Line numbers */}
+          <div
+            ref={lineGutterRef}
+            aria-hidden
+            className="flex-shrink-0 w-10 overflow-hidden select-none bg-gray-50 border-r border-gray-100 text-right font-mono text-xs leading-6 text-gray-400 py-4"
+          >
+            <div className="px-2">
+              {lineNumbers.map((n) => (
+                <div key={n}>{n}</div>
+              ))}
+            </div>
+          </div>
+          <div
+            ref={editorScrollRef}
+            onScroll={handleEditorScroll}
+            className="flex-1 min-w-0 min-h-0 overflow-auto"
+          >
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onDrop={handleDrop}
+              onPaste={handlePaste}
+              onKeyDown={handleKeyDown}
+              className="block w-full min-h-full font-mono text-sm leading-6 p-4 resize-none focus:ring-0 focus:outline-none bg-white border-0"
+              style={{ minHeight: "100%" }}
+              placeholder={"# 标题\n\n支持 **Markdown**、表格与 ```mermaid 图表```…"}
+              spellCheck={false}
+              rows={Math.max(lineCount, 20)}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Live preview */}
+      {/* Live preview — always renders currently active (debounced) content */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-white">
-        <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-b border-gray-200">
-          实时预览
+        <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <span>实时预览</span>
+          {contentKey ? (
+            <span className="text-[10px] uppercase tracking-wide text-gray-400">
+              {contentKey}
+            </span>
+          ) : null}
         </div>
-        <div className="flex-1 min-h-0 overflow-auto p-4">
+        <div
+          ref={previewScrollRef}
+          onScroll={handlePreviewScroll}
+          className="flex-1 min-h-0 overflow-auto p-4"
+        >
           <MarkdownHtmlPreview
             html={previewHtml}
             className="markdown-preview article-typography max-w-none text-sm leading-relaxed

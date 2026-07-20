@@ -332,6 +332,9 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 		adminGroup.PUT("/articles/:id", require("articles", "update"), handlers.Article.AdminUpdate)
 		adminGroup.DELETE("/articles/:id", require("articles", "delete"), handlers.Article.AdminDelete)
 		adminGroup.GET("/articles/:id/export", require("articles", "read"), handlers.Article.AdminExportMarkdown)
+		adminGroup.GET("/articles/:id/versions", require("articles", "read"), handlers.Article.AdminListVersions)
+		adminGroup.GET("/articles/:id/versions/compare", require("articles", "read"), handlers.Article.AdminCompareVersions)
+		adminGroup.GET("/articles/:id/versions/:version", require("articles", "read"), handlers.Article.AdminGetVersion)
 		adminGroup.POST("/articles/import", require("articles", "create"), handlers.Article.AdminImportMarkdown)
 
 		scheduledPublications := adminGroup.Group("/scheduled-publications")
