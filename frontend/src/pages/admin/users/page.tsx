@@ -11,15 +11,22 @@ import {
 import {
   AdminBadge,
   AdminButton,
+  AdminCheckbox,
   AdminErrorBanner,
+  AdminField,
+  AdminInput,
   AdminLoading,
+  AdminModal,
   AdminPageHeader,
   AdminPagination,
+  AdminSelect,
   AdminTable,
   AdminTableBody,
   AdminTableHead,
   AdminTd,
+  AdminTextButton,
   AdminTh,
+  AdminTr,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -222,7 +229,7 @@ export default function AdminUsersPage() {
                 </tr>
               ) : (
                 users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/80">
+                  <AdminTr key={u.id}>
                     <AdminTd className="font-medium text-slate-900">{u.username}</AdminTd>
                     <AdminTd>{u.role === "admin" ? "管理员" : "编辑"}</AdminTd>
                     <AdminTd>
@@ -238,25 +245,15 @@ export default function AdminUsersPage() {
                     <AdminTd className="whitespace-nowrap text-slate-500">
                       {new Date(u.createdAt).toLocaleDateString("zh-CN")}
                     </AdminTd>
-                    <AdminTd className="space-x-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(u)}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        编辑
-                      </button>
+                    <AdminTd className="space-x-3 text-right">
+                      <AdminTextButton onClick={() => openEdit(u)}>编辑</AdminTextButton>
                       {!u.isSuperAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(u)}
-                          className="text-sm font-medium text-red-600 hover:text-red-800"
-                        >
+                        <AdminTextButton tone="danger" onClick={() => handleDelete(u)}>
                           删除
-                        </button>
+                        </AdminTextButton>
                       )}
                     </AdminTd>
-                  </tr>
+                  </AdminTr>
                 ))
               )}
             </AdminTableBody>
@@ -271,122 +268,89 @@ export default function AdminUsersPage() {
         </>
       )}
 
-      {/* Create/Edit Dialog */}
-      {showDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDialog(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 space-y-4">
-              <h2 className="text-lg font-bold text-gray-900">
-                {editingUser ? "编辑用户" : "创建用户"}
-              </h2>
+      <AdminModal
+        open={showDialog}
+        title={editingUser ? "编辑用户" : "创建用户"}
+        onClose={() => setShowDialog(false)}
+        footer={
+          <>
+            <AdminButton variant="secondary" size="sm" onClick={() => setShowDialog(false)}>
+              取消
+            </AdminButton>
+            <AdminButton size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "保存中…" : "保存"}
+            </AdminButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError ? <AdminErrorBanner message={formError} className="mb-0" /> : null}
 
-              {formError && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>
-              )}
+          <AdminField label="用户名">
+            <AdminInput
+              type="text"
+              value={form.username}
+              onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+              placeholder="输入用户名"
+              disabled={editingUser?.isSuperAdmin}
+            />
+          </AdminField>
 
-              {/* Username */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                <input
-                  type="text"
-                  value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="输入用户名"
-                  disabled={editingUser?.isSuperAdmin}
-                />
+          <AdminField label={editingUser ? "密码（留空不修改）" : "密码"}>
+            <AdminInput
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              placeholder={editingUser ? "留空不修改" : "输入密码（至少6位）"}
+            />
+          </AdminField>
+
+          <AdminField label="角色">
+            <AdminSelect
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+              disabled={editingUser?.isSuperAdmin}
+              className="w-full"
+            >
+              <option value="admin">管理员</option>
+              <option value="editor">编辑</option>
+            </AdminSelect>
+          </AdminField>
+
+          {!editingUser?.isSuperAdmin && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-700">权限</span>
+                <AdminTextButton onClick={toggleAllPermissions} className="text-xs">
+                  {ALL_PERMISSIONS.every((p) => form.permissions.includes(p.key))
+                    ? "取消全选"
+                    : "全选"}
+                </AdminTextButton>
               </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  密码{editingUser ? "（留空不修改）" : ""}
-                </label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={editingUser ? "留空不修改" : "输入密码（至少6位）"}
-                />
-              </div>
-
-              {/* Role */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={editingUser?.isSuperAdmin}
-                >
-                  <option value="admin">管理员</option>
-                  <option value="editor">编辑</option>
-                </select>
-              </div>
-
-              {/* Permissions */}
-              {!editingUser?.isSuperAdmin && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">权限</label>
-                    <button
-                      type="button"
-                      onClick={toggleAllPermissions}
-                      className="text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      {ALL_PERMISSIONS.every((p) => form.permissions.includes(p.key))
-                        ? "取消全选"
-                        : "全选"}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {ALL_PERMISSIONS.map((perm) => (
-                      <label
-                        key={perm.key}
-                        className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 px-2 py-1.5 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.permissions.includes(perm.key)}
-                          onChange={() => togglePermission(perm.key)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        {perm.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {editingUser?.isSuperAdmin && (
-                <div className="p-3 bg-amber-50 text-amber-700 rounded-lg text-sm">
-                  超级管理员拥有全部权限，不可修改权限设置。
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setShowDialog(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? "保存中..." : "保存"}
-                </button>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {ALL_PERMISSIONS.map((perm) => (
+                  <label
+                    key={perm.key}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <AdminCheckbox
+                      checked={form.permissions.includes(perm.key)}
+                      onChange={() => togglePermission(perm.key)}
+                    />
+                    {perm.label}
+                  </label>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
+          {editingUser?.isSuperAdmin && (
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              超级管理员拥有全部权限，不可修改权限设置。
+            </div>
+          )}
+        </div>
+      </AdminModal>
     </div>
   );
 }

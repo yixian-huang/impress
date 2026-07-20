@@ -5,8 +5,16 @@ import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import RecropModal from "@/components/admin/RecropModal";
 import {
   AdminButton,
+  AdminCard,
+  AdminEmptyState,
   AdminErrorBanner,
+  AdminInfoBanner,
+  AdminInput,
+  AdminLoading,
+  AdminModal,
   AdminPageHeader,
+  AdminPagination,
+  AdminSuccessBanner,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -231,7 +239,7 @@ export default function MediaPage() {
         }
         actions={
           <>
-            <label className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+            <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
               直接上传
               <input
                 type="file"
@@ -247,88 +255,78 @@ export default function MediaPage() {
         }
       />
 
-      {/* Hint text */}
-      <p className="text-xs text-gray-400 mb-4">
-        提示: 可直接粘贴 (Ctrl+V) 或拖放图片到页面上传
+      <p className="mb-4 text-xs text-slate-500">
+        提示：可直接粘贴 (Ctrl+V) 或拖放图片到页面上传
       </p>
 
-      {/* Upload in progress */}
       {uploadingPaste && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm flex items-center gap-2">
-          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          正在上传...
-        </div>
+        <AdminInfoBanner
+          message={
+            <>
+              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              正在上传…
+            </>
+          }
+        />
       )}
 
-      {/* Upload success */}
-      {uploadSuccess && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-          上传成功
-        </div>
-      )}
+      {uploadSuccess && <AdminSuccessBanner message="上传成功" />}
 
       {displayError && (
         <AdminErrorBanner message={displayError} onDismiss={() => setActionError(null)} />
       )}
 
       {showUpload && (
-        <div className="mb-6 p-6 bg-white shadow rounded-lg">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">裁剪上传</h2>
+        <AdminCard className="mb-6" title="裁剪上传">
           <ImageCropUpload onUpload={handleUpload} />
-        </div>
+        </AdminCard>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">加载中...</div>
-        </div>
+        <AdminLoading />
       ) : items.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <p className="text-gray-500 mb-1">暂无图片</p>
-          <p className="text-sm text-gray-400">点击上传按钮、粘贴 (Ctrl+V) 或拖放文件到此处</p>
-        </div>
+        <AdminEmptyState
+          title="暂无媒体文件"
+          description="点击上传按钮、粘贴 (Ctrl+V) 或拖放文件到此处"
+        />
       ) : (
         <>
-          {/* Image grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="group relative bg-white rounded-lg shadow overflow-hidden"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
               >
-                {/* Thumbnail */}
-                <div className="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                <div className="flex aspect-square items-center justify-center overflow-hidden bg-slate-100">
                   {item.mimeType.startsWith("image/") ? (
                     <img
                       src={item.url}
                       alt={item.filename}
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-cover"
                       loading="lazy"
                     />
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
                       <span className="text-4xl">
-                        {item.mimeType.startsWith("video/") ? "🎬" : item.mimeType.startsWith("audio/") ? "🎵" : "📄"}
+                        {item.mimeType.startsWith("video/")
+                          ? "🎬"
+                          : item.mimeType.startsWith("audio/")
+                            ? "🎵"
+                            : "📄"}
                       </span>
-                      <span className="text-xs text-gray-500 uppercase">{item.mimeType.split("/")[1]}</span>
+                      <span className="text-xs uppercase text-slate-500">
+                        {item.mimeType.split("/")[1]}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="p-3">
                   {editingId === item.id ? (
-                    <input
+                    <AdminInput
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -337,12 +335,12 @@ export default function MediaPage() {
                         if (e.key === "Enter") handleRename(item, editName);
                         if (e.key === "Escape") setEditingId(null);
                       }}
-                      className="text-xs font-medium text-gray-700 w-full border border-blue-400 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="px-2 py-1 text-xs"
                       autoFocus
                     />
                   ) : (
                     <p
-                      className="text-xs font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600"
+                      className="cursor-pointer truncate text-xs font-medium text-slate-700 hover:text-blue-600"
                       title="点击重命名"
                       onClick={() => {
                         setEditingId(item.id);
@@ -352,73 +350,48 @@ export default function MediaPage() {
                       {item.filename}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-slate-500">
                     {formatFileSize(item.size)}
                     {item.width && item.height && ` · ${item.width}×${item.height}`}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="mt-0.5 text-xs text-slate-400">
                     {new Date(item.createdAt).toLocaleDateString("zh-CN")}
                   </p>
                 </div>
 
-                {/* Hover actions */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-950/45 opacity-0 transition-opacity group-hover:opacity-100">
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopyUrl(item.url)}
-                      className="px-3 py-1.5 text-xs bg-white text-gray-800 rounded-md hover:bg-gray-100"
-                    >
+                    <AdminButton size="sm" variant="secondary" onClick={() => handleCopyUrl(item.url)}>
                       复制 URL
-                    </button>
-                    <button
-                      onClick={() => setCropItem(item)}
-                      className="px-3 py-1.5 text-xs bg-white text-gray-800 rounded-md hover:bg-gray-100"
-                    >
+                    </AdminButton>
+                    <AdminButton size="sm" variant="secondary" onClick={() => setCropItem(item)}>
                       裁剪
-                    </button>
+                    </AdminButton>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleShowUsages(item)}
-                      className="px-3 py-1.5 text-xs bg-white text-gray-800 rounded-md hover:bg-gray-100"
-                    >
+                    <AdminButton size="sm" variant="secondary" onClick={() => handleShowUsages(item)}>
                       查看引用
-                    </button>
-                    <button
+                    </AdminButton>
+                    <AdminButton
+                      size="sm"
+                      variant="danger"
                       onClick={() => handleDelete(item)}
                       disabled={deleting === item.id}
-                      className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                     >
-                      {deleting === item.id ? "删除中..." : "删除"}
-                    </button>
+                      {deleting === item.id ? "删除中…" : "删除"}
+                    </AdminButton>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                上一页
-              </button>
-              <span className="text-sm text-gray-600">
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                下一页
-              </button>
-            </div>
-          )}
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setPage}
+          />
         </>
       )}
 
@@ -434,41 +407,32 @@ export default function MediaPage() {
         />
       )}
 
-      {/* Usages modal */}
-      {usageItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-[90vw] max-w-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">图片引用 - {usageItem.filename}</h3>
-              <button
-                onClick={() => setUsageItem(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+      <AdminModal
+        open={Boolean(usageItem)}
+        title={usageItem ? `图片引用 · ${usageItem.filename}` : "图片引用"}
+        onClose={() => setUsageItem(null)}
+      >
+        {loadingUsages ? (
+          <p className="text-sm text-slate-500">加载中…</p>
+        ) : usages.length === 0 ? (
+          <p className="text-sm text-slate-500">该图片未被任何页面或文章引用</p>
+        ) : (
+          <ul className="space-y-3">
+            {usages.map((u, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5"
               >
-                &times;
-              </button>
-            </div>
-            <div className="p-6 max-h-96 overflow-y-auto">
-              {loadingUsages ? (
-                <p className="text-gray-500">加载中...</p>
-              ) : usages.length === 0 ? (
-                <p className="text-gray-500">该图片未被任何页面或文章引用</p>
-              ) : (
-                <ul className="space-y-3">
-                  {usages.map((u, i) => (
-                    <li key={i} className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-800 whitespace-nowrap">
-                        {usageTypeLabel[u.type] || u.type}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900 truncate">{u.title}</span>
-                      <span className="text-xs text-gray-500 whitespace-nowrap">({u.field})</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                <span className="whitespace-nowrap rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/15">
+                  {usageTypeLabel[u.type] || u.type}
+                </span>
+                <span className="truncate text-sm font-medium text-slate-900">{u.title}</span>
+                <span className="whitespace-nowrap text-xs text-slate-500">({u.field})</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </AdminModal>
     </div>
   );
 }

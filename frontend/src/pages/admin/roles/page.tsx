@@ -13,14 +13,21 @@ import {
 import {
   AdminBadge,
   AdminButton,
+  AdminCheckbox,
   AdminErrorBanner,
+  AdminField,
+  AdminInput,
   AdminLoading,
+  AdminModal,
   AdminPageHeader,
   AdminTable,
   AdminTableBody,
   AdminTableHead,
   AdminTd,
+  AdminTextarea,
+  AdminTextButton,
   AdminTh,
+  AdminTr,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -220,11 +227,11 @@ export default function AdminRolesPage() {
               </tr>
             ) : (
               roles.map((role) => (
-                <tr key={role.id} className="hover:bg-slate-50/80">
+                <AdminTr key={role.id}>
                   <AdminTd className="font-medium text-slate-900">
                     <div className="flex items-center gap-2">
                       {role.is_system && (
-                        <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                       )}
@@ -244,155 +251,127 @@ export default function AdminRolesPage() {
                   <AdminTd className="text-slate-500">
                     {new Date(role.created_at).toLocaleDateString("zh-CN")}
                   </AdminTd>
-                  <AdminTd className="space-x-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(role)}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                    >
-                      编辑
-                    </button>
+                  <AdminTd className="space-x-3 text-right">
+                    <AdminTextButton onClick={() => openEdit(role)}>编辑</AdminTextButton>
                     {!role.is_system && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(role)}
-                        disabled={deleting}
-                        className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                      >
+                      <AdminTextButton tone="danger" onClick={() => handleDelete(role)} disabled={deleting}>
                         删除
-                      </button>
+                      </AdminTextButton>
                     )}
                   </AdminTd>
-                </tr>
+                </AdminTr>
               ))
             )}
           </AdminTableBody>
         </AdminTable>
       )}
 
-      {/* Create/Edit Dialog */}
-      {showDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDialog(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 space-y-4">
-              <h2 className="text-lg font-bold text-gray-900">
-                {editingRole ? "编辑角色" : "创建角色"}
-              </h2>
+      <AdminModal
+        open={showDialog}
+        title={editingRole ? "编辑角色" : "创建角色"}
+        onClose={() => setShowDialog(false)}
+        widthClass="max-w-2xl"
+        footer={
+          <>
+            <AdminButton variant="secondary" size="sm" onClick={() => setShowDialog(false)}>
+              取消
+            </AdminButton>
+            <AdminButton size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "保存中…" : "保存"}
+            </AdminButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError ? <AdminErrorBanner message={formError} className="mb-0" /> : null}
 
-              {formError && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{formError}</div>
-              )}
+          <AdminField label="角色标识 *">
+            <AdminInput
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="font-mono"
+              placeholder="如: editor, reviewer"
+              disabled={editingRole?.is_system}
+            />
+          </AdminField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">角色标识 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                  placeholder="如: editor, reviewer"
-                  disabled={editingRole?.is_system}
-                />
-              </div>
+          <AdminField label="角色名称 *">
+            <AdminInput
+              type="text"
+              value={form.display_name}
+              onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
+              placeholder="如: 编辑员、审核员"
+            />
+          </AdminField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">角色名称 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={form.display_name}
-                  onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="如: 编辑员、审核员"
-                />
-              </div>
+          <AdminField label="描述">
+            <AdminTextarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="角色的功能说明"
+              rows={2}
+            />
+          </AdminField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="角色的功能说明"
-                  rows={2}
-                />
-              </div>
-
-              {/* Permissions grouped by resource */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">权限配置</label>
-                {Object.keys(groupedPermissions).length === 0 ? (
-                  <p className="text-sm text-gray-500">暂无可配置权限</p>
-                ) : (
-                  <div className="space-y-3 border border-gray-200 rounded-lg p-3">
-                    {Object.entries(groupedPermissions).map(([resource, perms]) => {
-                      const keys = perms.map((p) => `${p.resource}:${p.action}`);
-                      const allSelected = keys.every((k) => form.permissions.includes(k));
-                      return (
-                        <div key={resource}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleResourceGroup(resource)}
-                              className={`text-xs font-semibold px-2 py-0.5 rounded ${allSelected ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"} hover:opacity-80`}
+          <div>
+            <div className="mb-2 text-sm font-medium text-slate-700">权限配置</div>
+            {Object.keys(groupedPermissions).length === 0 ? (
+              <p className="text-sm text-slate-500">暂无可配置权限</p>
+            ) : (
+              <div className="space-y-3 rounded-2xl border border-slate-200 p-3">
+                {Object.entries(groupedPermissions).map(([resource, perms]) => {
+                  const keys = perms.map((p) => `${p.resource}:${p.action}`);
+                  const allSelected = keys.every((k) => form.permissions.includes(k));
+                  return (
+                    <div key={resource}>
+                      <div className="mb-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleResourceGroup(resource)}
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold transition ${
+                            allSelected
+                              ? "bg-blue-50 text-blue-700 ring-1 ring-blue-600/15"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {resource}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 pl-1 sm:grid-cols-3">
+                        {perms.map((perm) => {
+                          const key = `${perm.resource}:${perm.action}`;
+                          return (
+                            <label
+                              key={perm.id}
+                              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 hover:bg-slate-50"
                             >
-                              {resource}
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pl-2">
-                            {perms.map((perm) => {
-                              const key = `${perm.resource}:${perm.action}`;
-                              return (
-                                <label
-                                  key={perm.id}
-                                  className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={form.permissions.includes(key)}
-                                    onChange={() => togglePermission(key)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <span>{perm.action}</span>
-                                  {perm.description && (
-                                    <span className="text-gray-400 text-xs truncate">{perm.description}</span>
-                                  )}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                              <AdminCheckbox
+                                checked={form.permissions.includes(key)}
+                                onChange={() => togglePermission(key)}
+                              />
+                              <span>{perm.action}</span>
+                              {perm.description ? (
+                                <span className="truncate text-xs text-slate-400">{perm.description}</span>
+                              ) : null}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
-              {editingRole?.is_system && (
-                <div className="p-3 bg-amber-50 text-amber-700 rounded-lg text-sm">
-                  系统角色的标识不可修改，但可以调整权限配置。
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setShowDialog(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? "保存中..." : "保存"}
-                </button>
-              </div>
-            </div>
+            )}
           </div>
+
+          {editingRole?.is_system && (
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              系统角色的标识不可修改，但可以调整权限配置。
+            </div>
+          )}
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

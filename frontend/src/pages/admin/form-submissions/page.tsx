@@ -10,7 +10,10 @@ import type { FormSubmission } from "@/api/formSubmissions";
 import {
   AdminBadge,
   AdminButton,
+  AdminCheckbox,
   AdminErrorBanner,
+  AdminFilterChip,
+  AdminInfoBanner,
   AdminLoading,
   AdminPageHeader,
   AdminPagination,
@@ -18,7 +21,10 @@ import {
   AdminTableBody,
   AdminTableHead,
   AdminTd,
+  AdminTextButton,
   AdminTh,
+  AdminToolbar,
+  AdminTr,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -180,57 +186,45 @@ export default function AdminFormSubmissionsPage() {
         }
       />
 
-      {/* Status Tabs */}
-      <div className="mb-6 flex gap-1 border-b border-gray-200">
+      <AdminToolbar className="mb-4">
         {STATUS_TABS.map((tab) => {
           const isActive = statusFilter === tab.value;
           const unreadCount = tab.value === "unread" ? (counts.unread || 0) : 0;
           return (
-            <button
+            <AdminFilterChip
               key={tab.value}
+              active={isActive}
               onClick={() => handleTabChange(tab.value)}
-              className={`relative px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                isActive
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
             >
               {tab.label}
-              {tab.value === "unread" && unreadCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+              {tab.value === "unread" && unreadCount > 0 ? (
+                <span className="ml-1.5 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 py-0.5 text-[10px] font-bold leading-none text-white">
                   {unreadCount}
                 </span>
-              )}
-            </button>
+              ) : null}
+            </AdminFilterChip>
           );
         })}
-      </div>
+      </AdminToolbar>
 
-      {/* Bulk Actions */}
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <span className="text-sm text-blue-700">
-            已选 {selectedIds.size} 项
-          </span>
-          <button
-            onClick={() => handleBulkStatus("read")}
-            className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            标为已读
-          </button>
-          <button
-            onClick={() => handleBulkStatus("unread")}
-            className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            标为未读
-          </button>
-          <button
-            onClick={() => handleBulkStatus("archived")}
-            className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            归档
-          </button>
-        </div>
+        <AdminInfoBanner
+          className="mb-4 items-center"
+          message={
+            <div className="flex flex-wrap items-center gap-2">
+              <span>已选 {selectedIds.size} 项</span>
+              <AdminButton size="sm" variant="secondary" onClick={() => handleBulkStatus("read")}>
+                标为已读
+              </AdminButton>
+              <AdminButton size="sm" variant="secondary" onClick={() => handleBulkStatus("unread")}>
+                标为未读
+              </AdminButton>
+              <AdminButton size="sm" variant="secondary" onClick={() => handleBulkStatus("archived")}>
+                归档
+              </AdminButton>
+            </div>
+          }
+        />
       )}
 
       {(actionError || error) && (
@@ -248,11 +242,10 @@ export default function AdminFormSubmissionsPage() {
             <AdminTableHead>
               <tr>
                 <AdminTh>
-                  <input
-                    type="checkbox"
+                  <AdminCheckbox
                     checked={data.items.length > 0 && selectedIds.size === data.items.length}
                     onChange={handleSelectAll}
-                    className="rounded border-gray-300"
+                    aria-label="全选"
                   />
                 </AdminTh>
                 <AdminTh>姓名</AdminTh>
@@ -268,19 +261,16 @@ export default function AdminFormSubmissionsPage() {
                 const isExpanded = expandedId === item.id;
                 return (
                   <Fragment key={item.id}>
-                    <tr
-                      className={`hover:bg-slate-50/80 cursor-pointer ${
-                        item.status === "unread" ? "font-medium" : ""
-                      }`}
+                    <AdminTr
+                      className={`cursor-pointer ${item.status === "unread" ? "font-medium" : ""}`}
                       onClick={() => handleToggleExpand(item.id)}
                     >
                       <AdminTd>
                         <span onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
+                          <AdminCheckbox
                             checked={selectedIds.has(item.id)}
                             onChange={() => handleToggleSelect(item.id)}
-                            className="rounded border-gray-300"
+                            aria-label={`选择 ${item.name}`}
                           />
                         </span>
                       </AdminTd>
@@ -297,45 +287,46 @@ export default function AdminFormSubmissionsPage() {
                       </AdminTd>
                       <AdminTd>
                         <div
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-3"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {item.status === "unread" ? (
-                            <button
+                            <AdminTextButton
+                              className="text-xs"
                               onClick={() => handleStatusChange(item.id, "read")}
-                              className="text-blue-600 hover:text-blue-800 text-xs"
                               title="标为已读"
                             >
                               已读
-                            </button>
+                            </AdminTextButton>
                           ) : item.status === "read" ? (
-                            <button
+                            <AdminTextButton
+                              className="text-xs"
                               onClick={() => handleStatusChange(item.id, "unread")}
-                              className="text-blue-600 hover:text-blue-800 text-xs"
                               title="标为未读"
                             >
                               未读
-                            </button>
+                            </AdminTextButton>
                           ) : null}
                           {item.status !== "archived" && (
-                            <button
+                            <AdminTextButton
+                              className="text-xs text-amber-600 hover:text-amber-800"
                               onClick={() => handleStatusChange(item.id, "archived")}
-                              className="text-yellow-600 hover:text-yellow-800 text-xs"
                               title="归档"
                             >
                               归档
-                            </button>
+                            </AdminTextButton>
                           )}
-                          <button
+                          <AdminTextButton
+                            tone="danger"
+                            className="text-xs"
                             onClick={() => handleDelete(item.id)}
-                            className="text-red-600 hover:text-red-800 text-xs"
                             title="删除"
                           >
                             删除
-                          </button>
+                          </AdminTextButton>
                         </div>
                       </AdminTd>
-                    </tr>
+                    </AdminTr>
                     {isExpanded && (
                       <tr>
                         <AdminTd colSpan={7} className="bg-slate-50">

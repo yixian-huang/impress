@@ -72,19 +72,19 @@ function AnalyticsBody({ data }: { data: AnalyticsSummary }) {
         <AdminStatCard
           label="今日访问"
           value={data.totals.today.toLocaleString()}
-          colorClass="bg-blue-500"
+          colorClass="bg-gradient-to-br from-blue-500 to-blue-700"
           icon={<span className="text-sm font-bold">今</span>}
         />
         <AdminStatCard
           label="近 7 天"
           value={data.totals.last7d.toLocaleString()}
-          colorClass="bg-emerald-500"
+          colorClass="bg-gradient-to-br from-emerald-500 to-emerald-700"
           icon={<span className="text-sm font-bold">7d</span>}
         />
         <AdminStatCard
           label="近 30 天"
           value={data.totals.last30d.toLocaleString()}
-          colorClass="bg-violet-500"
+          colorClass="bg-gradient-to-br from-violet-500 to-violet-700"
           icon={<span className="text-sm font-bold">30</span>}
         />
       </div>
@@ -100,7 +100,7 @@ function AnalyticsBody({ data }: { data: AnalyticsSummary }) {
         </AdminTableHead>
         <AdminTableBody>
           {data.pages.map((page) => (
-            <tr key={page.pageKey} className="hover:bg-slate-50/80">
+            <tr key={page.pageKey} className="transition-colors hover:bg-slate-50/70">
               <AdminTd className="whitespace-nowrap font-medium text-slate-900">
                 {PAGE_KEY_LABELS[page.pageKey] || page.pageKey}
                 <span className="ml-2 text-xs text-slate-400">{page.pageKey}</span>

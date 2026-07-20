@@ -4,14 +4,18 @@ import {
   AdminBadge,
   AdminButton,
   AdminErrorBanner,
+  AdminInput,
   AdminLoading,
   AdminPageHeader,
   AdminPagination,
+  AdminSelect,
   AdminTable,
   AdminTableBody,
   AdminTableHead,
   AdminTd,
   AdminTh,
+  AdminToolbar,
+  AdminTr,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAdminQuery } from "@/lib/adminQuery";
@@ -103,42 +107,40 @@ export default function AdminAuditLogsPage() {
         }
       />
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-wrap gap-4">
-        <select
+      <AdminToolbar className="mb-6">
+        <AdminSelect
           value={filters.action || ""}
           onChange={(e) => handleFilterChange("action", e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="操作类型"
         >
           {ACTION_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
-        </select>
-
-        <input
+        </AdminSelect>
+        <AdminInput
           type="text"
           placeholder="操作人"
           value={filters.actor || ""}
           onChange={(e) => handleFilterChange("actor", e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="max-w-[10rem]"
         />
-
-        <input
+        <AdminInput
           type="date"
           value={filters.from || ""}
           onChange={(e) => handleFilterChange("from", e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="max-w-[11rem]"
+          aria-label="开始日期"
         />
-
-        <input
+        <AdminInput
           type="date"
           value={filters.to || ""}
           onChange={(e) => handleFilterChange("to", e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="max-w-[11rem]"
+          aria-label="结束日期"
         />
-      </div>
+      </AdminToolbar>
 
       {error && (
         <AdminErrorBanner message={error.message || "获取审计日志失败，请稍后重试"} />
@@ -161,7 +163,7 @@ export default function AdminAuditLogsPage() {
             </AdminTableHead>
             <AdminTableBody>
               {data.items.map((event: AuditEvent) => (
-                <tr key={event.id} className="hover:bg-slate-50/80">
+                <AdminTr key={event.id}>
                   <AdminTd className="whitespace-nowrap">
                     {new Date(event.createdAt).toLocaleString("zh-CN")}
                   </AdminTd>
@@ -176,7 +178,7 @@ export default function AdminAuditLogsPage() {
                   <AdminTd className="max-w-xs truncate text-slate-500" title={event.details}>
                     {formatDetailsSummary(event.details)}
                   </AdminTd>
-                </tr>
+                </AdminTr>
               ))}
               {data.items.length === 0 && (
                 <tr>

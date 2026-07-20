@@ -24,6 +24,22 @@ export function AdminTableBody({ children }: { children: ReactNode }) {
   return <tbody className="divide-y divide-slate-100/90 bg-white">{children}</tbody>;
 }
 
+export function AdminTr({
+  children,
+  className = "",
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <tr className={`${adminTheme.tableRow} ${className}`} onClick={onClick}>
+      {children}
+    </tr>
+  );
+}
+
 export function AdminTh({
   children,
   className = "",

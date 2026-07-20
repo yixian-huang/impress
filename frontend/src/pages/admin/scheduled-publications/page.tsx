@@ -10,15 +10,20 @@ import {
 import {
   AdminBadge,
   AdminButton,
+  AdminEmptyState,
   AdminErrorBanner,
+  AdminFilterChip,
   AdminLoading,
   AdminPageHeader,
   AdminPagination,
+  AdminSelect,
   AdminTable,
   AdminTableBody,
   AdminTableHead,
   AdminTd,
   AdminTh,
+  AdminToolbar,
+  AdminTr,
 } from "@/components/admin/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -150,39 +155,36 @@ export default function AdminScheduledPublicationsPage() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select
+      <AdminToolbar className="mb-4">
+        <AdminSelect
           value={resourceFilter}
           onChange={(event) => {
             setResourceFilter(event.target.value as ScheduledPublicationResourceType | "");
             setPage(1);
           }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          aria-label="资源类型"
         >
           {resourceOptions.map((option) => (
-            <option key={option.value || "all"} value={option.value}>{option.label}</option>
+            <option key={option.value || "all"} value={option.value}>
+              {option.label}
+            </option>
           ))}
-        </select>
+        </AdminSelect>
         <div className="flex flex-wrap items-center gap-2">
           {statusOptions.map((option) => (
-            <button
+            <AdminFilterChip
               key={option.value || "all"}
-              type="button"
+              active={statusFilter === option.value}
               onClick={() => {
                 setStatusFilter(option.value);
                 setPage(1);
               }}
-              className={`rounded-md border px-3 py-1.5 text-sm ${
-                statusFilter === option.value
-                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
             >
               {option.label}
-            </button>
+            </AdminFilterChip>
           ))}
         </div>
-      </div>
+      </AdminToolbar>
 
       {displayError && (
         <AdminErrorBanner message={displayError} onDismiss={() => setActionError("")} />
@@ -191,9 +193,7 @@ export default function AdminScheduledPublicationsPage() {
       {loading ? (
         <AdminLoading />
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 py-16 text-center text-sm text-slate-500">
-          暂无定时发布任务
-        </div>
+        <AdminEmptyState title="暂无定时发布任务" description="调整筛选条件，或在编辑器中安排定时发布。" />
       ) : (
         <AdminTable>
           <AdminTableHead>
@@ -210,7 +210,7 @@ export default function AdminScheduledPublicationsPage() {
             {items.map((item) => {
               const canManage = canManageResource(item.resourceType);
               return (
-                <tr key={item.id} className="hover:bg-slate-50/80">
+                <AdminTr key={item.id}>
                   <AdminTd>
                     <div className="max-w-xs truncate text-sm font-medium text-slate-900">
                       {item.title || `#${item.resourceId}`}
@@ -237,28 +237,29 @@ export default function AdminScheduledPublicationsPage() {
                   </AdminTd>
                   <AdminTd className="text-right">
                     {item.status === "pending" && canManage && (
-                      <button
-                        type="button"
+                      <AdminButton
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleCancel(item)}
                         disabled={busyId === item.id}
-                        className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-800"
                       >
-                        {busyId === item.id ? "处理中..." : "取消"}
-                      </button>
+                        {busyId === item.id ? "处理中…" : "取消"}
+                      </AdminButton>
                     )}
                     {item.status === "failed" && canManage && (
-                      <button
-                        type="button"
+                      <AdminButton
+                        variant="soft"
+                        size="sm"
                         onClick={() => handleRetry(item)}
                         disabled={busyId === item.id}
-                        className="text-sm font-medium text-orange-700 hover:text-orange-900 disabled:opacity-50"
                       >
-                        {busyId === item.id ? "处理中..." : "重试"}
-                      </button>
+                        {busyId === item.id ? "处理中…" : "重试"}
+                      </AdminButton>
                     )}
                     {!canManage && <span className="text-slate-400">无权限</span>}
                   </AdminTd>
-                </tr>
+                </AdminTr>
               );
             })}
           </AdminTableBody>

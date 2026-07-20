@@ -7,6 +7,7 @@ import {
   AdminButton,
   AdminEmptyState,
   AdminErrorBanner,
+  AdminFilterChip,
   AdminLoading,
   AdminPageHeader,
   AdminPagination,
@@ -14,7 +15,10 @@ import {
   AdminTableBody,
   AdminTableHead,
   AdminTd,
+  AdminTextButton,
   AdminTh,
+  AdminToolbar,
+  AdminTr,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -120,30 +124,25 @@ export default function AdminArticlesPage() {
         <AdminErrorBanner message={displayError} onDismiss={() => setActionError(null)} />
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-500">状态：</span>
+      <AdminToolbar className="mb-4">
+        <span className="text-sm text-slate-500">状态</span>
         {[
           { value: "", label: "全部" },
           { value: "draft", label: "草稿" },
           { value: "published", label: "已发布" },
         ].map((opt) => (
-          <button
+          <AdminFilterChip
             key={opt.value}
-            type="button"
+            active={statusFilter === opt.value}
             onClick={() => {
               setStatusFilter(opt.value);
               setPage(1);
             }}
-            className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-              statusFilter === opt.value
-                ? "border-blue-300 bg-blue-50 text-blue-700"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
           >
             {opt.label}
-          </button>
+          </AdminFilterChip>
         ))}
-      </div>
+      </AdminToolbar>
 
       {loading ? (
         <AdminLoading />
@@ -171,7 +170,7 @@ export default function AdminArticlesPage() {
             </AdminTableHead>
             <AdminTableBody>
               {articles.map((article) => (
-                <tr key={article.id} className="hover:bg-slate-50/80">
+                <AdminTr key={article.id}>
                   <AdminTd>
                     <div className="max-w-xs truncate text-sm font-medium text-slate-900">
                       {article.zhTitle || article.enTitle || "（未命名）"}
@@ -185,26 +184,23 @@ export default function AdminArticlesPage() {
                   <AdminTd className="whitespace-nowrap text-slate-500">
                     {new Date(article.createdAt).toLocaleDateString("zh-CN")}
                   </AdminTd>
-                  <AdminTd className="whitespace-nowrap text-right">
-                    <button
-                      type="button"
+                  <AdminTd className="whitespace-nowrap space-x-3 text-right">
+                    <AdminTextButton
                       onClick={() => navigate(`/admin/articles/edit/${article.id}`)}
                       onMouseEnter={() => prefetchAdminEditors()}
                       onFocus={() => prefetchAdminEditors()}
-                      className="mr-3 text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       编辑
-                    </button>
-                    <button
-                      type="button"
+                    </AdminTextButton>
+                    <AdminTextButton
+                      tone="danger"
                       onClick={() => handleDelete(article)}
                       disabled={deleting === article.id}
-                      className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
                     >
                       {deleting === article.id ? "…" : "删除"}
-                    </button>
+                    </AdminTextButton>
                   </AdminTd>
-                </tr>
+                </AdminTr>
               ))}
             </AdminTableBody>
           </AdminTable>

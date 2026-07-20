@@ -8,9 +8,19 @@ import {
 import type { Category } from "@/api/articles";
 import MetadataEditor from "@/components/admin/MetadataEditor";
 import {
+  AdminBadge,
   AdminButton,
+  AdminCard,
+  AdminCheckbox,
+  AdminEmptyState,
   AdminErrorBanner,
+  AdminField,
+  AdminInput,
+  AdminLoading,
   AdminPageHeader,
+  AdminSelect,
+  AdminTextarea,
+  AdminTextButton,
   useAdminConfirm,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -226,46 +236,39 @@ export default function CategoriesPage() {
     excludeId?: number,
   ) => (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
-          <input
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <AdminField label="Slug">
+          <AdminInput
             type="text"
             value={vals.slug}
             onChange={(e) => setters.setSlug(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             placeholder="category-slug"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">中文名称</label>
-          <input
+        </AdminField>
+        <AdminField label="中文名称">
+          <AdminInput
             type="text"
             value={vals.zhName}
             onChange={(e) => setters.setZhName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            placeholder="Chinese name"
+            placeholder="中文名称"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">English Name</label>
-          <input
+        </AdminField>
+        <AdminField label="English Name">
+          <AdminInput
             type="text"
             value={vals.enName}
             onChange={(e) => setters.setEnName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             placeholder="English name"
           />
-        </div>
+        </AdminField>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">父级分类</label>
-          <select
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <AdminField label="父级分类">
+          <AdminSelect
             value={vals.parentId ?? ""}
             onChange={(e) => setters.setParentId(e.target.value ? Number(e.target.value) : null)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            className="w-full"
           >
             <option value="">无 (顶级分类)</option>
             {allFlat
@@ -275,77 +278,60 @@ export default function CategoriesPage() {
                   {c.zhName || c.enName}
                 </option>
               ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">封面图片 URL</label>
-          <input
+          </AdminSelect>
+        </AdminField>
+        <AdminField label="封面图片 URL">
+          <AdminInput
             type="text"
             value={vals.coverImage}
             onChange={(e) => setters.setCoverImage(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             placeholder="https://..."
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">排序</label>
-          <input
+        </AdminField>
+        <AdminField label="排序">
+          <AdminInput
             type="number"
             value={vals.sortOrder}
             onChange={(e) => setters.setSortOrder(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />
-        </div>
+        </AdminField>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">中文描述</label>
-          <textarea
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <AdminField label="中文描述">
+          <AdminTextarea
             value={vals.zhDescription}
             onChange={(e) => setters.setZhDescription(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            placeholder="Chinese description"
+            placeholder="中文描述"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">English Description</label>
-          <textarea
+        </AdminField>
+        <AdminField label="English Description">
+          <AdminTextarea
             value={vals.enDescription}
             onChange={(e) => setters.setEnDescription(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             placeholder="English description"
           />
-        </div>
+        </AdminField>
       </div>
 
-      <div className="flex items-center gap-6">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={vals.hideFromList}
-            onChange={(e) => setters.setHideFromList(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          从列表隐藏
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={vals.preventCascade}
-            onChange={(e) => setters.setPreventCascade(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          阻止级联
-        </label>
+      <div className="flex flex-wrap items-center gap-6">
+        <AdminCheckbox
+          checked={vals.hideFromList}
+          onChange={(e) => setters.setHideFromList(e.target.checked)}
+          label="从列表隐藏"
+        />
+        <AdminCheckbox
+          checked={vals.preventCascade}
+          onChange={(e) => setters.setPreventCascade(e.target.checked)}
+          label="阻止级联"
+        />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">元数据</label>
+      <AdminField label="元数据">
         <MetadataEditor value={vals.metadata} onChange={setters.setMetadata} />
-      </div>
+      </AdminField>
     </div>
   );
 
@@ -368,10 +354,8 @@ export default function CategoriesPage() {
 
       {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
-      {/* New category form */}
       {showNew && (
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-base font-semibold text-slate-900">新建分类</h2>
+        <AdminCard className="mb-6" title="新建分类">
           {renderFormFields(
             "new",
             {
@@ -388,31 +372,23 @@ export default function CategoriesPage() {
               setSortOrder: setNewSortOrder, setMetadata: setNewMetadata,
             },
           )}
-          <button
-            onClick={handleCreate}
-            disabled={saving}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50"
-          >
-            {saving ? "Creating..." : "Create"}
-          </button>
-        </div>
+          <AdminButton className="mt-4" size="sm" onClick={handleCreate} disabled={saving}>
+            {saving ? "创建中…" : "创建"}
+          </AdminButton>
+        </AdminCard>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">Loading...</div>
-        </div>
+        <AdminLoading />
       ) : flatList.length === 0 ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">No categories yet. Create one above.</p>
-        </div>
+        <AdminEmptyState title="暂无分类" description="点击「新建分类」创建第一个分类。" />
       ) : (
         <div className="space-y-2">
           {flatList.map(({ cat, depth }) => (
-            <div key={cat.id} className="bg-white shadow rounded-lg overflow-hidden">
+            <AdminCard key={cat.id} padded={false} className="overflow-hidden">
               {editingId === cat.id ? (
-                <div className="p-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">编辑分类</h3>
+                <div className="p-5 sm:p-6">
+                  <h3 className="mb-4 text-sm font-semibold text-slate-900">编辑分类</h3>
                   {renderFormFields(
                     "edit",
                     {
@@ -430,73 +406,57 @@ export default function CategoriesPage() {
                     },
                     cat.id,
                   )}
-                  <div className="mt-4 flex items-center gap-3">
-                    <button
-                      onClick={handleUpdate}
-                      disabled={saving}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:opacity-50"
-                    >
-                      {saving ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-                    >
-                      Cancel
-                    </button>
+                  <div className="mt-4 flex items-center gap-2">
+                    <AdminButton size="sm" onClick={handleUpdate} disabled={saving}>
+                      {saving ? "保存中…" : "保存"}
+                    </AdminButton>
+                    <AdminButton size="sm" variant="secondary" onClick={() => setEditingId(null)}>
+                      取消
+                    </AdminButton>
                   </div>
                 </div>
               ) : (
                 <div
-                  className="px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-                  style={{ paddingLeft: `${1.5 + depth * 1.5}rem` }}
+                  className="flex items-center justify-between px-5 py-4 transition hover:bg-slate-50/80 sm:px-6"
+                  style={{ paddingLeft: `${1.25 + depth * 1.25}rem` }}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {depth > 0 && (
-                      <span className="text-gray-300 text-sm">{"└─"}</span>
-                    )}
+                  <div className="flex min-w-0 items-center gap-3">
+                    {depth > 0 && <span className="text-sm text-slate-300">{"└─"}</span>}
                     {cat.coverImage && (
                       <img
                         src={cat.coverImage}
                         alt=""
-                        className="w-8 h-8 rounded object-cover shrink-0"
+                        className="h-8 w-8 shrink-0 rounded-lg object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     )}
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
+                      <div className="truncate text-sm font-medium text-slate-900">
                         {cat.zhName || cat.enName}
                         {cat.enName && cat.zhName && (
-                          <span className="text-gray-400 ml-2 font-normal">{cat.enName}</span>
+                          <span className="ml-2 font-normal text-slate-400">{cat.enName}</span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500">{cat.slug}</div>
+                      <div className="text-xs text-slate-500">{cat.slug}</div>
                     </div>
-                    {cat.hideFromList && (
-                      <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">隐藏</span>
-                    )}
+                    {cat.hideFromList && <AdminBadge>隐藏</AdminBadge>}
                     {cat.sortOrder > 0 && (
-                      <span className="text-xs text-gray-400">#{cat.sortOrder}</span>
+                      <span className="text-xs text-slate-400">#{cat.sortOrder}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => startEdit(cat)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
+                  <div className="flex shrink-0 items-center gap-3">
+                    <AdminTextButton onClick={() => startEdit(cat)}>编辑</AdminTextButton>
+                    <AdminTextButton
+                      tone="danger"
                       onClick={() => handleDelete(cat)}
                       disabled={deleting === cat.id}
-                      className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
                     >
-                      {deleting === cat.id ? "..." : "删除"}
-                    </button>
+                      {deleting === cat.id ? "…" : "删除"}
+                    </AdminTextButton>
                   </div>
                 </div>
               )}
-            </div>
+            </AdminCard>
           ))}
         </div>
       )}

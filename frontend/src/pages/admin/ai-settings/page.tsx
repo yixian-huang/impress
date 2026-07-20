@@ -7,7 +7,16 @@ import {
   type AIHealthResult,
   type AIProviderName,
 } from "@/api/aiConfig";
-import { AdminLoading, AdminPageHeader } from "@/components/admin/ui";
+import {
+  AdminButton,
+  AdminCard,
+  AdminErrorBanner,
+  AdminField,
+  AdminInput,
+  AdminLoading,
+  AdminPageHeader,
+  AdminSuccessBanner,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface AIFormState {
@@ -128,86 +137,99 @@ export default function AdminAISettingsPage() {
         description="统一管理翻译、知识问答和建站向导使用的 AI 提供方"
       />
 
-      <div className="rounded-lg bg-white p-6 shadow">
+      <AdminCard>
         <div className="grid gap-3 md:grid-cols-3">
-          {PROVIDERS.map((provider) => (
-            <label
-              key={provider.value}
-              className={`cursor-pointer rounded-lg border-2 p-4 transition-colors ${
-                form.provider === provider.value
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <input
-                className="sr-only"
-                type="radio"
-                name="provider"
-                value={provider.value}
-                checked={form.provider === provider.value}
-                onChange={() => {
-                  setForm((current) => ({ ...current, provider: provider.value }));
-                  setHealth(null);
-                }}
-              />
-              <span className="block text-sm font-semibold text-gray-900">{provider.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-gray-500">{provider.description}</span>
-            </label>
-          ))}
+          {PROVIDERS.map((provider) => {
+            const active = form.provider === provider.value;
+            return (
+              <label
+                key={provider.value}
+                className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+                  active
+                    ? "border-blue-500 bg-blue-50/80 shadow-sm shadow-blue-600/10"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                }`}
+              >
+                <input
+                  className="sr-only"
+                  type="radio"
+                  name="provider"
+                  value={provider.value}
+                  checked={active}
+                  onChange={() => {
+                    setForm((current) => ({ ...current, provider: provider.value }));
+                    setHealth(null);
+                  }}
+                />
+                <span className="block text-sm font-semibold text-slate-900">{provider.label}</span>
+                <span className="mt-1 block text-xs leading-5 text-slate-500">
+                  {provider.description}
+                </span>
+              </label>
+            );
+          })}
         </div>
 
         {enabled && (
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">API Key</label>
-              <input
+            <AdminField label="API Key" className="md:col-span-2">
+              <AdminInput
                 type="password"
                 autoComplete="new-password"
                 value={form.apiKey}
-                onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
-                placeholder={hasAPIKey ? `已配置 ${maskedAPIKey}，留空保持不变` : "请输入 API Key"}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, apiKey: event.target.value }))
+                }
+                placeholder={
+                  hasAPIKey ? `已配置 ${maskedAPIKey}，留空保持不变` : "请输入 API Key"
+                }
+                className="font-mono"
               />
-            </div>
+            </AdminField>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Base URL</label>
-              <input
+            <AdminField label="Base URL">
+              <AdminInput
                 type="url"
                 value={form.baseUrl}
-                onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))}
-                placeholder={form.provider === "anthropic" ? "https://api.anthropic.com" : "https://api.openai.com/v1"}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, baseUrl: event.target.value }))
+                }
+                placeholder={
+                  form.provider === "anthropic"
+                    ? "https://api.anthropic.com"
+                    : "https://api.openai.com/v1"
+                }
+                className="font-mono"
               />
-            </div>
+            </AdminField>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">默认模型</label>
-              <input
+            <AdminField label="默认模型">
+              <AdminInput
                 type="text"
                 value={form.model}
-                onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, model: event.target.value }))
+                }
                 placeholder={form.provider === "anthropic" ? "claude-sonnet-4-5" : "gpt-4o-mini"}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                className="font-mono"
               />
-            </div>
+            </AdminField>
           </div>
         )}
 
-        {message && (
-          <div
-            className={`mt-5 rounded-lg p-3 text-sm ${
-              message.kind === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
+        {message?.kind === "success" ? (
+          <AdminSuccessBanner message={message.text} className="mt-5 mb-0" />
+        ) : null}
+        {message?.kind === "error" ? (
+          <AdminErrorBanner message={message.text} className="mt-5 mb-0" />
+        ) : null}
 
         {health && (
           <div
-            className={`mt-5 rounded-lg p-3 text-sm ${
-              health.healthy ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+            className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${
+              health.healthy
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
             }`}
           >
             {health.healthy ? "连接正常" : "当前未启用"}：{health.message || health.provider}
@@ -215,27 +237,17 @@ export default function AdminAISettingsPage() {
           </div>
         )}
 
-        <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
           {enabled && (
-            <button
-              type="button"
-              onClick={handleTest}
-              disabled={testing}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {testing ? "测试中..." : "测试连接"}
-            </button>
+            <AdminButton variant="secondary" onClick={handleTest} disabled={testing}>
+              {testing ? "测试中…" : "测试连接"}
+            </AdminButton>
           )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "保存中..." : "保存并应用"}
-          </button>
+          <AdminButton onClick={handleSave} disabled={saving}>
+            {saving ? "保存中…" : "保存并应用"}
+          </AdminButton>
         </div>
-      </div>
+      </AdminCard>
     </div>
   );
 }
