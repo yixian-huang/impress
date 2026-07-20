@@ -55,6 +55,7 @@ func autoMigrateModels() []interface{} {
 	return []interface{}{
 		&model.User{},
 		&model.RefreshToken{},
+		&model.APIKey{},
 		&model.ContentDocument{},
 		&model.Media{},
 		&model.PageView{},

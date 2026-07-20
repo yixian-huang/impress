@@ -1,7 +1,7 @@
 # PicGo 对接预研（Inkless CMS）
 
-日期：2026-07-21 · 状态：**预研**（未实现文档落地 / 未改 API）  
-对照：图床产品 **img.li / imgli** 已写正式短文 `imgli/docs/ops/picgo.md`。
+日期：2026-07-21 · 状态：**预研 + API Key 已实现**（见 `docs/picgo.md`）  
+对照：图床产品 **img.li / imgli** 正式短文 `imgli/docs/ops/picgo.md`。
 
 ## 1. 目标
 
@@ -12,8 +12,8 @@
 | 项 | 现状 |
 |---|---|
 | 上传路由 | `POST /admin/media/upload`（admin 路由组，见 `routes_admin.go`） |
-| 鉴权 | **JWT Bearer**（`middleware.Auth`），非长期 API Token |
-| 权限 | RBAC：`media:create` |
+| 鉴权 | **JWT** 或长期 **API Key**（`ink_…` Bearer；见 `docs/picgo.md`） |
+| 权限 | RBAC `media:create` ∩ API Key scope `media:create` |
 | 表单字段 | multipart **`file`**（与 imgli 相同） |
 | 成功响应 | **HTTP 201**，**裸 `Media` JSON**（无 `status/data` 信封） |
 | URL 字段 | **`url`**（`json:"url"`） |
@@ -46,7 +46,7 @@
 |---|---|---|
 | 产品定位 | 图床 / 外链 | CMS 媒体库（进站内内容） |
 | 路径 | `/api/v1/upload` | `/admin/media/upload` |
-| 鉴权 | 长期 **API Token**（设置页） | 登录 **JWT**（会过期，需 refresh） |
+| 鉴权 | 长期 **API Token**（设置页） | 长期 **API Key**（`ink_…`）或 JWT |
 | 信封 | `{status,data:{links:{url}}}` | 直接 `Media` |
 | JSON Path | `data.links.url` | `url` |
 | HTTP 码 | 200 | **201** |
@@ -88,7 +88,7 @@ PicGo **不会**自动调 `/auth/refresh`。
 | 方案 | 工作量 | 说明 |
 |---|---|---|
 | **A. 文档约定「用长会话 + 过期重登」** | 文档 | 个人站勉强可用，体验差 |
-| **B. 新增「媒体上传 API Key」** | 中 | 类似 imgli Token，scope=`media:create`，长期有效；**推荐产品化** |
+| **B. 新增「媒体上传 API Key」** | 中 | ✅ 已实现：`ink_` 前缀、`/admin/api-keys`、scope `media:create` |
 | **C. 专用 PicGo 插件** | 高 | 内置 login/refresh；维护成本高 |
 | **D. 网关侧 Basic/固定密钥反代到 admin upload** | 运维 | 安全边界要慎做 |
 

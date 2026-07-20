@@ -60,6 +60,16 @@ func registerAdminMedia(admin *gin.RouterGroup, h *Handlers, require requireFn) 
 	admin.PUT("/media/folders/:id", require("media", "update"), h.MediaFolder.Rename)
 	admin.DELETE("/media/folders/:id", require("media", "delete"), h.MediaFolder.Delete)
 	admin.PUT("/media/:id/move", require("media", "update"), h.MediaFolder.MoveMedia)
+
+	// Personal API keys (PicGo / CLI). Management requires session JWT only;
+	// using the key itself for media upload is gated by require("media", …) + scope.
+	if h.APIKey != nil {
+		keys := admin.Group("")
+		keys.Use(middleware.RequireSessionJWT())
+		keys.GET("/api-keys", h.APIKey.List)
+		keys.POST("/api-keys", h.APIKey.Create)
+		keys.DELETE("/api-keys/:id", h.APIKey.Revoke)
+	}
 }
 
 func registerAdminContent(

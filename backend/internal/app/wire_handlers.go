@@ -9,6 +9,7 @@ import (
 	"github.com/yixian-huang/inkless/backend/internal/db"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
+	apiKeyHandler "github.com/yixian-huang/inkless/backend/internal/handler/api_key"
 	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
 	articleHandler "github.com/yixian-huang/inkless/backend/internal/handler/article"
 	auditlogHandler "github.com/yixian-huang/inkless/backend/internal/handler/auditlog"
@@ -219,6 +220,8 @@ func wireHandlers(
 	wizardSvc := service.NewWizardServiceWithRegistry(registry, r.unifiedPage)
 	themeExportSvc := service.NewThemeExportService(r.pageTemplate, r.siteConfig)
 
+	apiKeySvc := service.NewAPIKeyService(database.DB)
+
 	handlers := &Handlers{
 		Auth: authHandler.NewHandler(r.user, r.refreshToken, cfg),
 		Article: articleHandler.NewHandler(r.article, r.category, r.tag, searchService, bus, publicCache).
@@ -228,6 +231,7 @@ func wireHandlers(
 		Public:         publicHandlerInst,
 		Bootstrap:      bootstrapHandler.NewHandler(r.contentDoc, r.installedTheme, r.page, r.unifiedPage, r.siteConfig, publicCache),
 		Media:          mediaHandler.NewHandlerWithStorage(r.media, cfg.UploadDir, "", storageRuntime),
+		APIKey:         apiKeyHandler.NewHandler(apiKeySvc),
 		Analytics:      analyticsHandler.NewHandler(r.pageView).WithCache(publicCache),
 		Dashboard:      dashboardHandler.NewHandler(r.article, r.unifiedPage, r.media, r.pageView).WithCache(publicCache),
 		Category:       categoryHandler.NewHandler(r.category, r.article),
@@ -270,6 +274,7 @@ func wireHandlers(
 		ContentDocRepo: r.contentDoc,
 		AuditWriter:    auditDbWriter,
 		Build:          build,
+		APIKeyAuth:     apiKeySvc,
 	}
 
 	log.Info("Handlers initialized")

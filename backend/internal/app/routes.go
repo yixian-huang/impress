@@ -68,6 +68,11 @@ type Handlers struct {
 	Public         *publicHandler.Handler
 	Bootstrap      *bootstrapHandler.Handler
 	Media          *mediaHandler.Handler
+	APIKey         interface {
+		List(*gin.Context)
+		Create(*gin.Context)
+		Revoke(*gin.Context)
+	}
 	Analytics      *analyticsHandler.Handler
 	Dashboard      *dashboardHandler.Handler
 	Category       *categoryHandler.Handler
@@ -117,6 +122,8 @@ type RouteDeps struct {
 	ContentDocRepo repository.ContentDocumentRepository
 	AuditWriter    audit.Writer
 	Build          BuildInfo
+	// APIKeyAuth optional long-lived token authenticator (PicGo).
+	APIKeyAuth middleware.APIKeyAuthenticator
 }
 
 // registerRoutes sets up all route groups, middleware, and endpoint registrations
@@ -258,7 +265,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 
 		// Protected auth routes
 		authProtected := authGroup.Group("")
-		authProtected.Use(middleware.Auth(cfg.JWTSecret))
+		authProtected.Use(middleware.Auth(cfg.JWTSecret, deps.APIKeyAuth))
 		{
 			authProtected.GET("/me", handlers.Auth.Me)
 		}
@@ -296,7 +303,7 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 			c.Next()
 		})
 	}
-	adminGroup.Use(middleware.Auth(cfg.JWTSecret))
+	adminGroup.Use(middleware.Auth(cfg.JWTSecret, deps.APIKeyAuth))
 	adminGroup.Use(middleware.AuditMutations(deps.AuditWriter))
 	// Load RBAC user (roles + permissions) once per request. JWT already
 	// validates admin|editor; RequireAdminOrEditor is redundant and would

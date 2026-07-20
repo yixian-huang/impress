@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/yixian-huang/inkless/backend/internal/model"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 	"github.com/yixian-huang/inkless/backend/pkg/auth"
 )
 
@@ -415,6 +418,84 @@ func TestMiddlewareChain_EditorOrAdmin(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+editorToken)
 	w = httptest.NewRecorder()
 
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// fakeAPIKeyAuth implements APIKeyAuthenticator for tests.
+type fakeAPIKeyAuth struct {
+	principal *service.APIKeyPrincipal
+	err       error
+}
+
+func (f *fakeAPIKeyAuth) Authenticate(ctx context.Context, plaintext string) (*service.APIKeyPrincipal, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.principal, nil
+}
+
+func TestAuth_APIKeyBearer(t *testing.T) {
+	router := setupTestRouter()
+	keyAuth := &fakeAPIKeyAuth{principal: &service.APIKeyPrincipal{
+		UserID: 9, Username: "alice", Role: model.RoleAdmin,
+		Scopes: []string{"media:create"}, KeyID: 3,
+	}}
+
+	router.GET("/protected", Auth(testJWTSecret, keyAuth), func(c *gin.Context) {
+		uc := GetUserContext(c)
+		require.NotNil(t, uc)
+		assert.Equal(t, uint(9), uc.UserID)
+		assert.Equal(t, []string{"media:create"}, GetAPIKeyScopes(c))
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer ink_deadbeef")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAuth_APIKeyInvalid(t *testing.T) {
+	router := setupTestRouter()
+	keyAuth := &fakeAPIKeyAuth{err: errors.New("not found")}
+
+	router.GET("/protected", Auth(testJWTSecret, keyAuth), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer ink_bad")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestRequireSessionJWT_BlocksAPIKey(t *testing.T) {
+	router := setupTestRouter()
+	keyAuth := &fakeAPIKeyAuth{principal: &service.APIKeyPrincipal{
+		UserID: 1, Username: "a", Role: model.RoleAdmin,
+		Scopes: []string{"media:create"}, KeyID: 1,
+	}}
+
+	router.GET("/keys", Auth(testJWTSecret, keyAuth), RequireSessionJWT(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	// API key blocked
+	req := httptest.NewRequest(http.MethodGet, "/keys", nil)
+	req.Header.Set("Authorization", "Bearer ink_abc")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	// JWT allowed
+	token, err := auth.GenerateAccessToken(1, "a", "admin", testJWTSecret)
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodGet, "/keys", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }

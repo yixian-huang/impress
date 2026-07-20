@@ -113,6 +113,7 @@ func resolveRBACUser(
 
 // RequirePermission checks resource:action against the RBAC user already on the
 // context (preferred). Falls back to a single load if LoadRBACUser was not mounted.
+// When authenticated via API key, the key scopes must also include resource:action.
 func RequirePermission(resource, action string, userRepo repository.UserRepository, rbacCache *cache.Cache) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, apiErr := resolveRBACUser(c, userRepo, rbacCache)
@@ -126,12 +127,31 @@ func RequirePermission(resource, action string, userRepo repository.UserReposito
 			))
 			return
 		}
+		if scopes := GetAPIKeyScopes(c); scopes != nil {
+			need := resource + ":" + action
+			if !apiKeyScopeAllows(scopes, need) {
+				respondWithError(c, apierror.Forbidden(
+					fmt.Sprintf("API key scope denied: %s", need),
+				))
+				return
+			}
+		}
 		c.Next()
 	}
 }
 
+func apiKeyScopeAllows(scopes []string, need string) bool {
+	for _, s := range scopes {
+		if s == need {
+			return true
+		}
+	}
+	return false
+}
+
 // RequireAnyPermission returns middleware that checks if the user has at least
-// one of the given permissions.
+// one of the given permissions. When authenticated via API key, the matching
+// permission must also be present in the key scopes (RBAC ∩ scope).
 func RequireAnyPermission(perms []PermissionPair, userRepo repository.UserRepository, rbacCache *cache.Cache) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, apiErr := resolveRBACUser(c, userRepo, rbacCache)
@@ -139,11 +159,17 @@ func RequireAnyPermission(perms []PermissionPair, userRepo repository.UserReposi
 			respondWithError(c, apiErr)
 			return
 		}
+		scopes := GetAPIKeyScopes(c)
 		for _, p := range perms {
-			if user.HasRBACPermission(p.Resource, p.Action) {
-				c.Next()
-				return
+			if !user.HasRBACPermission(p.Resource, p.Action) {
+				continue
 			}
+			need := p.Resource + ":" + p.Action
+			if scopes != nil && !apiKeyScopeAllows(scopes, need) {
+				continue
+			}
+			c.Next()
+			return
 		}
 		respondWithError(c, apierror.Forbidden("Permission denied: insufficient permissions"))
 	}

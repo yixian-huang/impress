@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/internal/service"
 	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 	"github.com/yixian-huang/inkless/backend/pkg/auth"
 )
@@ -18,6 +20,10 @@ type ContextKey string
 const (
 	// UserContextKey is the context key for storing authenticated user info
 	UserContextKey ContextKey = "user"
+	// apiKeyScopesKey holds scopes when authenticated via personal API key.
+	apiKeyScopesKey = "api_key_scopes"
+	// apiKeyIDKey holds the API key id for audit (optional).
+	apiKeyIDKey = "api_key_id"
 )
 
 // UserContext represents the authenticated user information stored in context
@@ -27,8 +33,18 @@ type UserContext struct {
 	Role     model.Role
 }
 
-// Auth returns a middleware that validates bearer tokens and injects user context
-func Auth(jwtSecret string) gin.HandlerFunc {
+// APIKeyAuthenticator resolves long-lived API keys (optional second auth path).
+type APIKeyAuthenticator interface {
+	Authenticate(ctx context.Context, plaintext string) (*service.APIKeyPrincipal, error)
+}
+
+// Auth returns a middleware that validates bearer tokens (JWT or API key) and injects user context.
+// apiKeys is optional; when nil, only JWT is accepted.
+func Auth(jwtSecret string, apiKeys ...APIKeyAuthenticator) gin.HandlerFunc {
+	var keyAuth APIKeyAuthenticator
+	if len(apiKeys) > 0 {
+		keyAuth = apiKeys[0]
+	}
 	return func(c *gin.Context) {
 		// Extract bearer token from Authorization header
 		authHeader := c.GetHeader("Authorization")
@@ -50,7 +66,29 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		// Parse and validate token
+		// Long-lived API keys (ink_…) for PicGo / CLI
+		if keyAuth != nil && strings.HasPrefix(tokenString, service.APIKeyPrefix) {
+			p, err := keyAuth.Authenticate(c.Request.Context(), tokenString)
+			if err != nil || p == nil {
+				respondWithError(c, apierror.Unauthorized("Invalid API key"))
+				return
+			}
+			if !p.Role.IsValid() {
+				respondWithError(c, apierror.Unauthorized("Invalid role for API key owner"))
+				return
+			}
+			c.Set(string(UserContextKey), &UserContext{
+				UserID:   p.UserID,
+				Username: p.Username,
+				Role:     p.Role,
+			})
+			c.Set(apiKeyScopesKey, p.Scopes)
+			c.Set(apiKeyIDKey, p.KeyID)
+			c.Next()
+			return
+		}
+
+		// Parse and validate JWT
 		claims, err := auth.ParseToken(tokenString, jwtSecret)
 		if err != nil {
 			// Map auth errors to API errors
@@ -81,6 +119,34 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 		}
 		c.Set(string(UserContextKey), userCtx)
 
+		c.Next()
+	}
+}
+
+// GetAPIKeyScopes returns scopes when the request used an API key; nil for JWT sessions.
+func GetAPIKeyScopes(c *gin.Context) []string {
+	if c == nil {
+		return nil
+	}
+	v, ok := c.Get(apiKeyScopesKey)
+	if !ok {
+		return nil
+	}
+	scopes, ok := v.([]string)
+	if !ok {
+		return nil
+	}
+	return scopes
+}
+
+// RequireSessionJWT rejects personal API keys. Use for sensitive self-service
+// routes such as creating/revoking API keys (must use a browser/session JWT).
+func RequireSessionJWT() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, ok := c.Get(apiKeyIDKey); ok {
+			respondWithError(c, apierror.Forbidden("Use a session JWT to manage API keys"))
+			return
+		}
 		c.Next()
 	}
 }
