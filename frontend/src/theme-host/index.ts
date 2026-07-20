@@ -54,6 +54,7 @@ export {
   useContentMaxWidth,
   useIsReadingLayout,
   useIsThemeHomePath,
+  useThemeSettings,
 } from "@/plugins/hooks";
 export { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 export { useSEODefaults } from "@/hooks/useSEODefaults";

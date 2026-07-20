@@ -30,6 +30,7 @@ export const THEME_HOST_VALUE_EXPORTS = [
   "useContentMaxWidth",
   "useIsReadingLayout",
   "useIsThemeHomePath",
+  "useThemeSettings",
   "useGlobalConfig",
   "useSEODefaults",
   "useLocaleMode",
