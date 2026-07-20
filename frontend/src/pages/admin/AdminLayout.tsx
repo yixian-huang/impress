@@ -13,6 +13,7 @@ import { getAdminRoutePermission, hasAdminRoutePermission } from "@/router/admin
 import AdminKeepAliveOutlet from "./components/AdminKeepAliveOutlet";
 import AdminSidebar from "./components/AdminSidebar";
 import AdminTopbar from "./components/AdminTopbar";
+import { AdminMediaUploadHost } from "./components/AdminMediaUploadHost";
 
 // Pull the high-frequency admin pack into the AdminLayout chunk graph so the
 // first authenticated shell load already warms dashboard/articles/pages/media/settings.
@@ -112,6 +113,8 @@ export default function AdminLayout() {
           <AdminKeepAliveOutlet />
         </main>
       </div>
+
+      <AdminMediaUploadHost />
     </div>
   );
 }

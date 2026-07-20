@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import {
   EDITOR_SHORTCUTS,
   SHORTCUT_GROUP_LABELS,
@@ -41,8 +42,11 @@ export function ShortcutHelpModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const isApple = useMemo(() => detectApplePlatform(), []);
+
+  useFocusTrap(open, panelRef, closeRef);
 
   const groups = useMemo(
     () =>
@@ -53,16 +57,6 @@ export function ShortcutHelpModal({
       })).filter((g) => g.items.length > 0),
     [],
   );
-
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeRef.current?.focus();
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   if (!open) return null;
 
@@ -75,6 +69,7 @@ export function ShortcutHelpModal({
       role="presentation"
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcut-help-title"

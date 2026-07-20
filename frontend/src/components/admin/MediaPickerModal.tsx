@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { listMedia, uploadMedia } from "@/api/media";
+import { listMedia } from "@/api/media";
 import type { MediaItem } from "@/api/media";
+import { formatUploadError, uploadMediaTracked } from "@/lib/mediaUploadTracked";
 
 interface MediaPickerModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ export default function MediaPickerModal({
 }: MediaPickerModalProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -55,11 +57,14 @@ export default function MediaPickerModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setUploading(true);
     try {
-      const item = await uploadMedia(file);
+      const item = await uploadMediaTracked(file);
       onSelect(item);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "上传失败");
+      setError(formatUploadError(err, "上传失败"));
+    } finally {
+      setUploading(false);
     }
     e.target.value = "";
   };
@@ -75,9 +80,19 @@ export default function MediaPickerModal({
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <div className="flex items-center gap-3">
-            <label className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-              上传
-              <input type="file" accept={accept} onChange={handleDirectUpload} className="hidden" />
+            <label
+              className={`inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 ${
+                uploading ? "opacity-50 pointer-events-none" : ""
+              }`}
+            >
+              {uploading ? "上传中…" : "上传"}
+              <input
+                type="file"
+                accept={accept}
+                onChange={handleDirectUpload}
+                className="hidden"
+                disabled={uploading}
+              />
             </label>
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
           </div>

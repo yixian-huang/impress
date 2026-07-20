@@ -36,9 +36,7 @@ import { LangEditorMount } from "./components/LangEditorMount";
 import { LocalDraftBanner } from "./components/LocalDraftBanner";
 import { EditorChrome } from "./components/EditorChrome";
 import { EditorDialogs } from "./components/EditorDialogs";
-import { MediaUploadTray } from "./components/MediaUploadTray";
 import { ShortcutHelpModal } from "./components/ShortcutHelpModal";
-import { useMediaUploadTray } from "./hooks/useMediaUploadTray";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -51,7 +49,6 @@ export default function ArticleEditorPage() {
   const form = useArticleFormState();
   const dirty = useDirtyState(!isEditing);
   const shell = useEditorShell();
-  const uploadTray = useMediaUploadTray();
   const editors = useArticleEditors({
     zhBody: form.zhBody,
     enBody: form.enBody,
@@ -587,13 +584,6 @@ export default function ArticleEditorPage() {
             ? undefined
             : () => publishGate.requestPublish({ force: true })
         }
-      />
-
-      <MediaUploadTray
-        items={uploadTray.items}
-        onDismiss={uploadTray.dismiss}
-        onRetry={uploadTray.retry}
-        canRetry={uploadTray.canRetry}
       />
 
       <ShortcutHelpModal

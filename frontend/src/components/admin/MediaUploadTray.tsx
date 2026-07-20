@@ -1,4 +1,4 @@
-import type { UploadTrayItem } from "../hooks/useMediaUploadTray";
+import type { UploadTrayItem } from "@/hooks/useMediaUploadTray";
 
 function formatSize(bytes: number): string {
   if (!bytes) return "";

@@ -1,4 +1,4 @@
-import { uploadMedia } from "@/api/media";
+import { uploadMedia, type MediaItem } from "@/api/media";
 
 export const DEFAULT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 
@@ -68,37 +68,40 @@ export type UploadMediaTrackedOptions = {
 };
 
 /**
- * Upload a media file with progress events.
- * On failure, emits `error` with an optional retry that re-invokes the same work
- * (same tray id, so the UI updates in place).
+ * Upload a media file/blob with progress events.
+ * Returns the full MediaItem so pickers can select it immediately.
+ * On failure, emits `error` with retry that re-runs the same work (same tray id).
  */
 export async function uploadMediaTracked(
-  file: File,
+  file: File | Blob,
   opts?: UploadMediaTrackedOptions,
-): Promise<{ url: string; filename: string }> {
+): Promise<MediaItem> {
   const id = makeUploadId();
   const name =
     (opts?.filename || (file instanceof File ? file.name : "") || "image").trim() || "image";
   const maxSize = opts?.maxSize ?? DEFAULT_IMAGE_MAX_BYTES;
+  const size = file.size ?? 0;
 
-  if (file.size > maxSize) {
-    const mb = (file.size / 1024 / 1024).toFixed(1);
+  if (size > maxSize) {
+    const mb = (size / 1024 / 1024).toFixed(1);
     const maxMb = Math.round(maxSize / 1024 / 1024);
     const message = `「${name}」过大（${mb}MB），上限 ${maxMb}MB`;
     emitMediaUpload({ type: "error", id, name, message });
     throw new Error(message);
   }
 
-  const run = async (): Promise<{ url: string; filename: string }> => {
-    emitMediaUpload({ type: "start", id, name, size: file.size });
+  const run = async (): Promise<MediaItem> => {
+    emitMediaUpload({ type: "start", id, name, size });
     try {
-      const media = await uploadMedia(file, opts?.filename, {
+      const media = await uploadMedia(file, opts?.filename ?? name, {
         onProgress: (percent) => emitMediaUpload({ type: "progress", id, percent }),
       });
-      const result = { url: media.url, filename: media.filename || name };
-      opts?.onInserted?.(result);
+      opts?.onInserted?.({
+        url: media.url,
+        filename: media.filename || name,
+      });
       emitMediaUpload({ type: "success", id });
-      return result;
+      return media;
     } catch (err) {
       const detail = formatUploadError(err);
       const message = `「${name}」上传失败：${detail}`;

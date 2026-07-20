@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import Cropper, { ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
-import { uploadMedia } from "@/api/media";
 import type { MediaItem } from "@/api/media";
+import { formatUploadError, uploadMediaTracked } from "@/lib/mediaUploadTracked";
 import {
   ZoomIn,
   ZoomOut,
@@ -79,12 +79,13 @@ export default function ImageCropUpload({
 
     try {
       const croppedBlob = await getCroppedBlob();
-      const item = await uploadMedia(croppedBlob, `cropped-${Date.now()}.jpg`);
+      const filename = `cropped-${Date.now()}.jpg`;
+      const item = await uploadMediaTracked(croppedBlob, { filename });
       onUpload(item);
       setShowCropper(false);
       setImageSrc(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "上传失败");
+      setError(formatUploadError(err, "上传失败"));
     } finally {
       setUploading(false);
     }
@@ -99,12 +100,13 @@ export default function ImageCropUpload({
     try {
       const response = await fetch(imageSrc);
       const blob = await response.blob();
-      const item = await uploadMedia(blob, `upload-${Date.now()}.jpg`);
+      const filename = `upload-${Date.now()}.jpg`;
+      const item = await uploadMediaTracked(blob, { filename });
       onUpload(item);
       setShowCropper(false);
       setImageSrc(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "上传失败");
+      setError(formatUploadError(err, "上传失败"));
     } finally {
       setUploading(false);
     }
