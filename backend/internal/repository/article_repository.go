@@ -55,6 +55,16 @@ type ArticleRepository interface {
 	// content for reading still comes from FindBySlug.
 	ListPublished(ctx context.Context, offset, limit int, categorySlug string, tagSlug string) ([]*model.Article, int64, error)
 
+	// ListPublishedSitemapMeta returns published public articles for sitemap/feed meta
+	// (slug + timestamps only — no bodies, no taxonomy preloads).
+	ListPublishedSitemapMeta(ctx context.Context, limit int) ([]ArticleSitemapMeta, error)
+
 	// Count returns the number of articles, optionally filtered by status (empty = all).
 	Count(ctx context.Context, status string) (int64, error)
+}
+
+// ArticleSitemapMeta is a lean projection for sitemap/URL listing.
+type ArticleSitemapMeta struct {
+	Slug      string
+	UpdatedAt time.Time
 }

@@ -70,6 +70,10 @@ func (r *migrationArticleRepoStub) ListPublished(context.Context, int, int, stri
 	return nil, 0, nil
 }
 
+func (r *migrationArticleRepoStub) ListPublishedSitemapMeta(context.Context, int) ([]repository.ArticleSitemapMeta, error) {
+	return nil, nil
+}
+
 type migrationCategoryRepoStub struct {
 	mu             sync.Mutex
 	bySlug         map[string]*model.Category

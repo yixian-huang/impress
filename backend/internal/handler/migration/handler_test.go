@@ -76,6 +76,10 @@ func (r *handlerArticleRepoStub) ListPublished(context.Context, int, int, string
 	return nil, 0, nil
 }
 
+func (r *handlerArticleRepoStub) ListPublishedSitemapMeta(context.Context, int) ([]repository.ArticleSitemapMeta, error) {
+	return nil, nil
+}
+
 func (r *handlerArticleRepoStub) Count(context.Context, string) (int64, error) {
 	return 0, nil
 }

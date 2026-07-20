@@ -38,6 +38,10 @@ func (m *mockArticleRepo) ListPublished(context.Context, int, int, string, strin
 	return m.items, int64(len(m.items)), nil
 }
 
+func (m *mockArticleRepo) ListPublishedSitemapMeta(context.Context, int) ([]repository.ArticleSitemapMeta, error) {
+	return nil, nil
+}
+
 func (m *mockArticleRepo) Count(context.Context, string) (int64, error) {
 	return 0, nil
 }

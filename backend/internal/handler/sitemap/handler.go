@@ -139,9 +139,9 @@ func (h *Handler) GetSitemap(c *gin.Context) {
 		set.URLs = append(set.URLs, u)
 	}
 
-	// Add published articles to sitemap
+	// Add published articles to sitemap (meta-only: no bodies / taxonomy preloads)
 	if h.articleRepo != nil {
-		articles, _, err := h.articleRepo.ListPublished(c.Request.Context(), 0, 1000, "", "")
+		articles, err := h.articleRepo.ListPublishedSitemapMeta(c.Request.Context(), 1000)
 		if err == nil {
 			for _, article := range articles {
 				path := "/articles/" + article.Slug

@@ -218,6 +218,25 @@ func publishedScope(categorySlug, tagSlug string) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
+// ListPublishedSitemapMeta returns slug + updated_at for sitemap generation.
+func (r *GormArticleRepository) ListPublishedSitemapMeta(ctx context.Context, limit int) ([]ArticleSitemapMeta, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	var rows []ArticleSitemapMeta
+	err := r.db.WithContext(ctx).
+		Model(&model.Article{}).
+		Select("slug, updated_at").
+		Scopes(publishedScope("", "")).
+		Order("published_at DESC, created_at DESC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 // ListPublished returns a paginated list of published articles.
 // Includes zh_body/en_body for public list excerpts (handlers should truncate).
 func (r *GormArticleRepository) ListPublished(ctx context.Context, offset, limit int, categorySlug string, tagSlug string) ([]*model.Article, int64, error) {
