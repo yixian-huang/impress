@@ -362,7 +362,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/inkless/backend/data
+ReadWritePaths=/opt/inkless/data /opt/inkless/uploads /opt/inkless/backups /opt/inkless/plugins /opt/inkless/data/plugins
 
 [Install]
 WantedBy=multi-user.target

@@ -20,8 +20,8 @@ CONF_FILE="$ROOT_DIR/.prod_server"
 # ── pCloud config ────────────────────────────────────
 PCLOUD_REMOTE="pcloud:/deploy/inkless"
 PCLOUD_API="https://eapi.pcloud.com"
-PCLOUD_USER="pcloudd@hotmail.com"
-PCLOUD_PASS="Gx62qo6mvvu@Pcloud"
+PCLOUD_USER="${PCLOUD_USER:-}"
+PCLOUD_PASS="${PCLOUD_PASS:-}"
 PCLOUD_AUTH=""  # filled by pcloud_auth()
 
 # ── Colors ──────────────────────────────────────────
@@ -56,6 +56,10 @@ remote_exec() {
 
 # Authenticate with pCloud API, store auth token
 pcloud_auth() {
+  if [[ -z "${PCLOUD_USER}" || -z "${PCLOUD_PASS}" ]]; then
+    step_fail "pCloud credentials are required via PCLOUD_USER and PCLOUD_PASS"
+    exit 1
+  fi
   PCLOUD_AUTH=$(curl -sf "${PCLOUD_API}/userinfo?getauth=1&username=${PCLOUD_USER}&password=${PCLOUD_PASS}" \
     | python3 -c "import sys,json; print(json.load(sys.stdin)['auth'])")
   if [ -z "$PCLOUD_AUTH" ]; then
@@ -75,15 +79,18 @@ pcloud_get_link() {
   local resp
   resp=$(curl -sf "${PCLOUD_API}/getfilelink?auth=${PCLOUD_AUTH}&path=/deploy/inkless/${filepath}")
   local url
-  url=$(echo "$resp" | python3 -c "
+  if ! url=$(printf '%s\n' "$resp" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 if 'hosts' not in d:
     print('ERROR:' + d.get('error', 'unknown'), file=sys.stderr)
     sys.exit(1)
 print('https://' + d['hosts'][0] + d['path'])
-")
-  if [ $? -ne 0 ] || [ -z "$url" ]; then
+"); then
+    step_fail "获取 pCloud 下载链接失败"
+    exit 1
+  fi
+  if [[ -z "$url" ]]; then
     step_fail "获取 pCloud 下载链接失败"
     exit 1
   fi

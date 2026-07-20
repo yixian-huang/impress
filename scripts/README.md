@@ -16,9 +16,14 @@ This directory contains production build and deployment automation scripts for t
 | `qb-artifact-activate.sh` | Quick-Box artifact activate (deploy server) | `artifactDeployConfig.activateCommand` |
 | `qb-artifact-rollback.sh` | Quick-Box artifact rollback | `artifactDeployConfig.rollbackCommand` |
 | `check-external-identity.sh` | Read-only GitHub, DNS, TLS, npm, and Go identity check | `./scripts/check-external-identity.sh --expect-cutover` |
+| `check-systemd-unit.sh` | Validate the production systemd unit and canonical Inkless paths | `bash scripts/check-systemd-unit.sh` |
 | `migrate-db.sh` | Migrate SQLite to PostgreSQL | `TARGET_DB_DSN="..." ./scripts/migrate-db.sh` |
 | `long-agent.mjs` | Long-running autonomous agent | `pnpm agent:run` |
 | `agent-usage.mjs` | Agent cost and usage tracking | `pnpm agent:usage` |
+
+`deploy-run.sh` is a legacy pCloud transport and requires `PCLOUD_USER` and
+`PCLOUD_PASS` at runtime. Never commit those credentials; the Quick-Box artifact
+path remains the recommended production deployment flow.
 
 ## Quick Start
 
