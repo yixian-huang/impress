@@ -24,6 +24,9 @@ jobs:
       - name: Check legacy brand residue
         run: bash scripts/check-brand-residue.sh
 
+      - name: Validate production systemd unit
+        run: bash scripts/check-systemd-unit.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
