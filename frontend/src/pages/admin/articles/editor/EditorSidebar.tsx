@@ -11,8 +11,8 @@ interface HeadingItem {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-gray-700 font-medium">{value}</span>
+      <span className="text-slate-400">{label}</span>
+      <span className="text-slate-700 font-medium">{value}</span>
     </div>
   );
 }
@@ -67,13 +67,13 @@ const EditorSidebar = memo(function EditorSidebar({ editor, article }: {
   };
 
   return (
-    <div className="w-60 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex flex-col min-h-0">
+    <div className="w-60 flex-shrink-0 border-l border-slate-200 bg-slate-50 flex flex-col min-h-0">
       {/* Tab switcher */}
-      <div className="flex border-b border-gray-200 flex-shrink-0">
+      <div className="flex border-b border-slate-200 flex-shrink-0">
         <button
           onClick={() => setActiveTab("outline")}
           className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "outline" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-gray-500 hover:text-gray-700"
+            activeTab === "outline" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-slate-500 hover:text-slate-700"
           }`}
         >
           大纲
@@ -81,7 +81,7 @@ const EditorSidebar = memo(function EditorSidebar({ editor, article }: {
         <button
           onClick={() => setActiveTab("details")}
           className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "details" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-gray-500 hover:text-gray-700"
+            activeTab === "details" ? "text-blue-700 border-b-2 border-blue-600 bg-white" : "text-slate-500 hover:text-slate-700"
           }`}
         >
           详情
@@ -92,19 +92,19 @@ const EditorSidebar = memo(function EditorSidebar({ editor, article }: {
       <div className="flex-1 overflow-y-auto p-3">
         {activeTab === "outline" ? (
           headings.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">暂无标题</p>
+            <p className="text-xs text-slate-400 italic">暂无标题</p>
           ) : (
             <nav className="space-y-0.5">
               {headings.map((h, i) => (
                 <button
                   key={i}
                   onClick={() => scrollToHeading(h.pos)}
-                  className="block w-full text-left text-xs py-1 px-1.5 rounded hover:bg-gray-200 text-gray-700 truncate transition-colors"
+                  className="block w-full text-left text-xs py-1 px-1.5 rounded hover:bg-slate-200 text-slate-700 truncate transition-colors"
                   style={{ paddingLeft: `${(h.level - 1) * 12 + 6}px` }}
                   title={h.text}
                 >
-                  <span className="text-gray-400 mr-1">H{h.level}</span>
-                  {h.text || <span className="text-gray-300 italic">空标题</span>}
+                  <span className="text-slate-400 mr-1">H{h.level}</span>
+                  {h.text || <span className="text-slate-300 italic">空标题</span>}
                 </button>
               ))}
             </nav>
@@ -120,7 +120,7 @@ const EditorSidebar = memo(function EditorSidebar({ editor, article }: {
                 {article.author && <DetailRow label="作者" value={article.author} />}
                 {article.slug && (
                   <div>
-                    <div className="text-gray-400 mb-0.5">访问链接</div>
+                    <div className="text-slate-400 mb-0.5">访问链接</div>
                     <a
                       href={`/articles/${article.slug}`}
                       target="_blank"

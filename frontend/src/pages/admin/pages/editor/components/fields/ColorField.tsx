@@ -1,26 +1,26 @@
+import { AdminField, AdminInput } from "@/components/admin/ui";
 import type { FieldProps } from "./types";
 
 export default function ColorField({ schema, value, onChange }: FieldProps) {
   const colorValue = (value as string) ?? "";
 
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {schema.label}
-      </label>
+    <AdminField label={schema.label}>
       <div className="flex items-center gap-2">
-        <input
+        <AdminInput
           type="text"
-          className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+          className="rounded-lg py-1.5 font-mono text-xs"
           value={colorValue}
           placeholder={schema.placeholder ?? "#000000"}
           onChange={(e) => onChange(e.target.value)}
         />
-        <div
-          className="w-6 h-6 rounded border border-gray-300 shrink-0"
-          style={{ backgroundColor: colorValue || "transparent" }}
+        <input
+          type="color"
+          value={colorValue && /^#/.test(colorValue) ? colorValue : "#000000"}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-slate-200"
         />
       </div>
-    </div>
+    </AdminField>
   );
 }

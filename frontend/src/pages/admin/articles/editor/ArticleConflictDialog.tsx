@@ -25,11 +25,11 @@ export default function ArticleConflictDialog({
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
         <h3 className="text-lg font-semibold text-red-700 mb-2">保存冲突</h3>
-        <p className="text-sm text-gray-600 mb-2">
+        <p className="text-sm text-slate-600 mb-2">
           这篇文章在服务器上已被其他人（或另一个标签页）修改。继续保存可能覆盖对方的更改。
         </p>
         {timeLabel && (
-          <p className="text-xs text-gray-500 mb-4">
+          <p className="text-xs text-slate-500 mb-4">
             服务器最新更新时间：<strong>{timeLabel}</strong>
           </p>
         )}
@@ -38,7 +38,7 @@ export default function ArticleConflictDialog({
             type="button"
             onClick={onDismiss}
             disabled={busy}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
           >
             继续编辑
           </button>

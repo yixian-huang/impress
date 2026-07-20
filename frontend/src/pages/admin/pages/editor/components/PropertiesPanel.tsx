@@ -35,7 +35,7 @@ export default function PropertiesPanel({ section, onDataChange, onSettingsChang
   return (
     <div>
       <div className="mb-3">
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-slate-500">
           类型: {section.type}
           {section.variant ? ` / ${section.variant}` : ""}
           {section.locked ? " (锁定)" : ""}
@@ -44,13 +44,13 @@ export default function PropertiesPanel({ section, onDataChange, onSettingsChang
 
       {showJsonEditor ? (
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">数据 (JSON)</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">数据 (JSON)</label>
           {jsonMode ? (
             <textarea
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
               rows={12}
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs font-mono resize-none"
+              className="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono resize-none"
               spellCheck={false}
             />
           ) : (
@@ -60,7 +60,7 @@ export default function PropertiesPanel({ section, onDataChange, onSettingsChang
                 try { onDataChange(JSON.parse(e.target.value)); } catch { /* ignore parse errors while typing */ }
               }}
               rows={12}
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs font-mono resize-none"
+              className="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono resize-none"
               spellCheck={false}
             />
           )}
@@ -79,7 +79,7 @@ export default function PropertiesPanel({ section, onDataChange, onSettingsChang
           <button
             type="button"
             onClick={jsonMode ? switchToForm : switchToJson}
-            className="text-xs text-gray-400 hover:text-blue-500 underline"
+            className="text-xs text-slate-400 hover:text-blue-500 underline"
           >
             {jsonMode ? "切换到表单编辑" : "切换到 JSON 编辑"}
           </button>

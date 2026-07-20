@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdminButton, AdminInput } from "@/components/admin/ui";
 
 interface MetadataEditorProps {
   value: Record<string, unknown>;
@@ -32,51 +33,47 @@ export default function MetadataEditor({ value, onChange }: MetadataEditorProps)
     <div className="space-y-2">
       {entries.map(([key, val]) => (
         <div key={key} className="flex items-center gap-2">
-          <input
+          <AdminInput
             type="text"
             value={key}
             readOnly
-            className="w-1/3 px-2 py-1.5 border border-gray-300 rounded text-sm bg-gray-50"
+            className="w-1/3 rounded-lg bg-slate-50 py-1.5"
           />
-          <input
+          <AdminInput
             type="text"
             value={String(val ?? "")}
             onChange={(e) => handleValueChange(key, e.target.value)}
-            className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm"
+            className="flex-1 rounded-lg py-1.5"
           />
           <button
             type="button"
             onClick={() => handleRemove(key)}
-            className="px-2 py-1.5 text-red-500 hover:text-red-700 text-sm"
+            className="px-2 py-1.5 text-sm text-red-500 hover:text-red-700"
           >
             ×
           </button>
         </div>
       ))}
       <div className="flex items-center gap-2">
-        <input
+        <AdminInput
           type="text"
           value={newKey}
           onChange={(e) => setNewKey(e.target.value)}
           placeholder="Key"
-          className="w-1/3 px-2 py-1.5 border border-gray-300 rounded text-sm"
+          className="w-1/3 rounded-lg py-1.5"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         />
-        <input
+        <AdminInput
           type="text"
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
           placeholder="Value"
-          className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm"
+          className="flex-1 rounded-lg py-1.5"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         />
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded text-sm"
-        >
-          Add
-        </button>
+        <AdminButton type="button" size="sm" variant="secondary" onClick={handleAdd}>
+          添加
+        </AdminButton>
       </div>
     </div>
   );

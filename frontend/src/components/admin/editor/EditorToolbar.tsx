@@ -23,7 +23,7 @@ const EditorToolbar = memo(function EditorToolbar({ editor, modals, config }: Ed
   return (
     <>
       {config.rows.map((row, rowIdx) => (
-        <div key={rowIdx} className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
+        <div key={rowIdx} className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 bg-slate-50">
           {row.map((item, itemIdx) => {
             if (item === "divider") {
               return <ToolbarDivider key={`d-${itemIdx}`} />;
@@ -108,7 +108,7 @@ export function ToolbarButton({ active, onClick, title, children }: {
     <button
       type="button" onClick={onClick} title={title}
       className={`px-2 py-1 text-sm rounded transition-colors ${
-        active ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+        active ? "bg-blue-100 text-blue-700" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
       }`}
     >
       {children}
@@ -117,5 +117,5 @@ export function ToolbarButton({ active, onClick, title, children }: {
 }
 
 export function ToolbarDivider() {
-  return <div className="w-px h-5 bg-gray-300 mx-1" />;
+  return <div className="w-px h-5 bg-slate-300 mx-1" />;
 }

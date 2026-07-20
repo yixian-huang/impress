@@ -35,12 +35,12 @@ export function SaveStatusBadge({
   if (phase === "saved" || phase === "clean") {
     if (!time) {
       return (
-        <span className="text-xs text-gray-400 whitespace-nowrap">已保存</span>
+        <span className="text-xs text-slate-400 whitespace-nowrap">已保存</span>
       );
     }
     return (
       <span
-        className="text-xs text-gray-500 whitespace-nowrap"
+        className="text-xs text-slate-500 whitespace-nowrap"
         title={isAutosave ? "自动保存" : "手动保存"}
       >
         {isAutosave ? "自动保存" : "已保存"} · {time}

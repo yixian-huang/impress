@@ -178,25 +178,25 @@ export function ArticleVersionHistoryPanel({
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center gap-2">
             {view === "compare" && (
               <button
                 type="button"
                 onClick={() => setView("list")}
-                className="text-sm text-gray-500 hover:text-gray-800 mr-1"
+                className="text-sm text-slate-500 hover:text-slate-800 mr-1"
               >
                 ← 返回
               </button>
             )}
-            <h3 className="text-base font-semibold text-gray-900">
+            <h3 className="text-base font-semibold text-slate-900">
               {view === "compare" ? "版本比对" : "历史版本"}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            className="text-slate-400 hover:text-slate-600 text-xl leading-none"
           >
             &times;
           </button>

@@ -62,13 +62,13 @@ export default function ImagePickerModal({ open, onClose, onSelect }: ImagePicke
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-[90vw] max-w-4xl max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
+      <div className="flex max-h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">选择图片</h3>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">选择图片</h3>
           <div className="flex items-center gap-3">
-            <label className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 cursor-pointer">
+            <label className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
               直接上传
               <input
                 type="file"
@@ -85,7 +85,7 @@ export default function ImagePickerModal({ open, onClose, onSelect }: ImagePicke
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              className="text-slate-400 hover:text-slate-600 text-xl leading-none"
             >
               ×
             </button>
@@ -101,18 +101,18 @@ export default function ImagePickerModal({ open, onClose, onSelect }: ImagePicke
           )}
 
           {showUpload && (
-            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+            <div className="mb-6 p-4 border rounded-lg bg-slate-50">
               <ImageCropUpload onUpload={handleUpload} />
             </div>
           )}
 
           {loading ? (
             <div className="flex items-center justify-center h-48">
-              <div className="text-gray-600">加载中...</div>
+              <div className="text-slate-600">加载中...</div>
             </div>
           ) : items.length === 0 ? (
             <div className="flex items-center justify-center h-48">
-              <p className="text-gray-500">暂无图片</p>
+              <p className="text-slate-500">暂无图片</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -120,7 +120,7 @@ export default function ImagePickerModal({ open, onClose, onSelect }: ImagePicke
                 <button
                   key={item.id}
                   onClick={() => onSelect(item)}
-                  className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors"
+                  className="group relative aspect-square bg-slate-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors"
                 >
                   <img
                     src={item.url}
@@ -139,21 +139,21 @@ export default function ImagePickerModal({ open, onClose, onSelect }: ImagePicke
 
         {/* Footer with pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-center gap-2">
+          <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
             >
               上一页
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-slate-600">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
             >
               下一页
             </button>

@@ -1,18 +1,16 @@
+import { AdminField, AdminTextarea } from "@/components/admin/ui";
 import type { FieldProps } from "./types";
 
 export default function TextareaField({ schema, value, onChange }: FieldProps) {
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {schema.label}
-      </label>
-      <textarea
+    <AdminField label={schema.label}>
+      <AdminTextarea
         rows={3}
-        className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+        className="rounded-lg py-1.5"
         value={(value as string) ?? ""}
         placeholder={schema.placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-    </div>
+    </AdminField>
   );
 }

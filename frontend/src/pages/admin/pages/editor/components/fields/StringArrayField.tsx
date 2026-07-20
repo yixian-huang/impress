@@ -34,7 +34,7 @@ export default function StringArrayField({ schema, value, onChange }: FieldProps
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
+      <label className="block text-xs font-medium text-slate-600 mb-1">
         {schema.label}
       </label>
       <div className="space-y-1">
@@ -42,14 +42,14 @@ export default function StringArrayField({ schema, value, onChange }: FieldProps
           <div key={index} className="flex gap-1 items-center">
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               value={item}
               onChange={(e) => update(index, e.target.value)}
             />
             <button
               type="button"
               title="上移"
-              className="px-1 text-gray-400 hover:text-gray-600 text-sm"
+              className="px-1 text-slate-400 hover:text-slate-600 text-sm"
               onClick={() => moveUp(index)}
             >
               ▲
@@ -57,7 +57,7 @@ export default function StringArrayField({ schema, value, onChange }: FieldProps
             <button
               type="button"
               title="下移"
-              className="px-1 text-gray-400 hover:text-gray-600 text-sm"
+              className="px-1 text-slate-400 hover:text-slate-600 text-sm"
               onClick={() => moveDown(index)}
             >
               ▼

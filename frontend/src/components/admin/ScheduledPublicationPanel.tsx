@@ -24,9 +24,9 @@ interface ScheduledPublicationPanelProps {
 const statusClasses: Record<string, string> = {
   pending: "bg-blue-50 text-blue-700 border-blue-200",
   running: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  succeeded: "bg-green-50 text-green-700 border-green-200",
+  succeeded: "bg-emerald-50 text-emerald-700 border-emerald-200",
   failed: "bg-red-50 text-red-700 border-red-200",
-  cancelled: "bg-gray-50 text-gray-600 border-gray-200",
+  cancelled: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 const statusLabels: Record<string, string> = {
@@ -104,7 +104,7 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
           type="button"
           onClick={onRefresh}
           disabled={busy}
-          className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          className="rounded border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           title="刷新定时发布状态"
         >
           刷新
@@ -156,15 +156,15 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
   if (compact) {
     return (
       <div className="flex items-center gap-2 text-xs min-w-0">
-        <span className="text-gray-500 flex-shrink-0">{title}</span>
+        <span className="text-slate-500 flex-shrink-0">{title}</span>
         {loading ? (
-          <span className="text-gray-400">…</span>
+          <span className="text-slate-400">…</span>
         ) : item ? (
           <>
             <span className={`rounded-full border px-2 py-0.5 flex-shrink-0 ${statusClasses[item.status] ?? statusClasses.cancelled}`}>
               {statusLabels[item.status] ?? item.status}
             </span>
-            <span className="text-gray-700 truncate" title={formatDateTime(item.scheduledAt)}>
+            <span className="text-slate-700 truncate" title={formatDateTime(item.scheduledAt)}>
               {formatDateTime(item.scheduledAt)}
             </span>
             {hasFailed && item.lastError && (
@@ -174,7 +174,7 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
             )}
           </>
         ) : (
-          <span className="text-gray-400">未安排</span>
+          <span className="text-slate-400">未安排</span>
         )}
         <div className="flex items-center gap-1.5 flex-shrink-0">{actions}</div>
         {localError && <span className="text-red-600 truncate max-w-[12rem]" title={localError}>{localError}</span>}
@@ -187,9 +187,9 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
   }
 
   return (
-    <section className="rounded-md border border-gray-200 bg-white p-3 text-xs">
+    <section className="rounded-md border border-slate-200 bg-white p-3 text-xs">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-gray-800">{title}</h3>
+        <h3 className="font-semibold text-slate-800">{title}</h3>
         {item && (
           <span className={`rounded-full border px-2 py-0.5 ${statusClasses[item.status] ?? statusClasses.cancelled}`}>
             {statusLabels[item.status] ?? item.status}
@@ -198,17 +198,17 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
       </div>
 
       {loading ? (
-        <p className="text-gray-500">加载定时发布状态...</p>
+        <p className="text-slate-500">加载定时发布状态...</p>
       ) : item ? (
-        <div className="space-y-1.5 text-gray-600">
+        <div className="space-y-1.5 text-slate-600">
           <div className="flex justify-between gap-3">
-            <span className="text-gray-400">计划时间</span>
-            <span className="text-right font-medium text-gray-800">{formatDateTime(item.scheduledAt)}</span>
+            <span className="text-slate-400">计划时间</span>
+            <span className="text-right font-medium text-slate-800">{formatDateTime(item.scheduledAt)}</span>
           </div>
           {typeof item.expectedVersion === "number" && (
             <div className="flex justify-between gap-3">
-              <span className="text-gray-400">目标版本</span>
-              <span className="font-medium text-gray-800">{item.expectedVersion}</span>
+              <span className="text-slate-400">目标版本</span>
+              <span className="font-medium text-slate-800">{item.expectedVersion}</span>
             </div>
           )}
           {hasFailed && item.lastError && (
@@ -218,7 +218,7 @@ export const ScheduledPublicationPanel = memo(function ScheduledPublicationPanel
           )}
         </div>
       ) : (
-        <p className="text-gray-500">当前没有待发布任务。</p>
+        <p className="text-slate-500">当前没有待发布任务。</p>
       )}
 
       {localError && (

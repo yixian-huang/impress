@@ -38,15 +38,21 @@ export function AdminField({
   children,
   className = "",
 }: {
-  label?: string;
+  label?: ReactNode;
   htmlFor?: string;
-  hint?: string;
+  hint?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <div className={className}>
-      {label ? <AdminLabel htmlFor={htmlFor}>{label}</AdminLabel> : null}
+      {label != null && label !== "" ? (
+        typeof label === "string" ? (
+          <AdminLabel htmlFor={htmlFor}>{label}</AdminLabel>
+        ) : (
+          <div className={cx("mb-1.5", adminTheme.label)}>{label}</div>
+        )
+      ) : null}
       {children}
       {hint ? <AdminHint>{hint}</AdminHint> : null}
     </div>

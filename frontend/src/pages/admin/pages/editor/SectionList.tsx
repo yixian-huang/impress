@@ -43,47 +43,66 @@ export default function SectionListItem({
       onDrop={draggable ? dragHandlers.onDrop : undefined}
       onDragEnd={draggable ? dragHandlers.onDragEnd : undefined}
       onClick={onSelect}
-      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer select-none border transition-colors ${
+      className={`flex cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
         isSelected
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-200 bg-white hover:border-gray-300"
+          ? "border-blue-500 bg-blue-50 shadow-sm shadow-blue-600/10"
+          : "border-slate-200 bg-white hover:border-slate-300"
       }`}
     >
-      {/* drag grip or lock icon */}
       {locked ? (
-        <span className="text-gray-400 text-xs" title="模板锁定">&#128274;</span>
+        <span className="text-xs text-slate-400" title="模板锁定">
+          &#128274;
+        </span>
       ) : draggable ? (
-        <span className="text-gray-400 cursor-grab text-xs" title="拖拽排序">&#x2630;</span>
+        <span className="cursor-grab text-xs text-slate-400" title="拖拽排序">
+          &#x2630;
+        </span>
       ) : (
-        <span className="text-gray-300 text-xs">&#x2630;</span>
+        <span className="text-xs text-slate-300">&#x2630;</span>
       )}
 
-      {/* index + label */}
-      <span className="flex-1 text-sm text-gray-800 truncate">
-        <span className="text-gray-400 mr-1">{index + 1}.</span>
+      <span className="flex-1 truncate text-sm text-slate-800">
+        <span className="mr-1 text-slate-400">{index + 1}.</span>
         {label}
       </span>
 
-      {/* up / down / delete — only for composable & unlocked */}
       {isComposable && !locked && (
         <>
           <button
-            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveUp();
+            }}
             disabled={index === 0}
-            className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
+            className="px-1 text-xs text-slate-400 hover:text-slate-700 disabled:opacity-30"
             title="上移"
-          >&#9650;</button>
+          >
+            &#9650;
+          </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveDown();
+            }}
             disabled={index === total - 1}
-            className="text-gray-400 hover:text-gray-700 disabled:opacity-30 text-xs px-1"
+            className="px-1 text-xs text-slate-400 hover:text-slate-700 disabled:opacity-30"
             title="下移"
-          >&#9660;</button>
+          >
+            &#9660;
+          </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="text-gray-400 hover:text-red-600 text-sm px-1"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="px-1 text-sm text-slate-400 hover:text-red-600"
             title="删除"
-          >&times;</button>
+          >
+            &times;
+          </button>
         </>
       )}
     </div>

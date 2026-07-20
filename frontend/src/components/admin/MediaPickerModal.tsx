@@ -70,16 +70,16 @@ export default function MediaPickerModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-[90vw] max-w-4xl max-h-[80vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
+      <div className="flex max-h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <div className="flex items-center gap-3">
-            <label className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 cursor-pointer">
+            <label className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
               上传
               <input type="file" accept={accept} onChange={handleDirectUpload} className="hidden" />
             </label>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
           </div>
         </div>
 
@@ -89,11 +89,11 @@ export default function MediaPickerModal({
           )}
           {loading ? (
             <div className="flex items-center justify-center h-48">
-              <div className="text-gray-600">加载中...</div>
+              <div className="text-slate-600">加载中...</div>
             </div>
           ) : items.length === 0 ? (
             <div className="flex items-center justify-center h-48">
-              <p className="text-gray-500">暂无文件</p>
+              <p className="text-slate-500">暂无文件</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -101,12 +101,12 @@ export default function MediaPickerModal({
                 <button
                   key={item.id}
                   onClick={() => onSelect(item)}
-                  className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors flex items-center justify-center"
+                  className="group relative aspect-square bg-slate-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors flex items-center justify-center"
                 >
                   {isImage(item) ? (
                     <img src={item.url} alt={item.filename} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
                       <span className="text-3xl">{item.mimeType.startsWith("video/") ? "\uD83C\uDFAC" : "\uD83C\uDFB5"}</span>
                       <span className="text-xs truncate max-w-full px-2">{item.filename}</span>
                     </div>
@@ -121,19 +121,19 @@ export default function MediaPickerModal({
         </div>
 
         {totalPages > 1 && (
-          <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-center gap-2">
+          <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
             >
               上一页
             </button>
-            <span className="text-sm text-gray-600">{page} / {totalPages}</span>
+            <span className="text-sm text-slate-600">{page} / {totalPages}</span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
             >
               下一页
             </button>

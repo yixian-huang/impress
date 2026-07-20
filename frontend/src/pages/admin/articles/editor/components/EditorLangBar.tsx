@@ -40,7 +40,7 @@ export function EditorLangBar({
   onModeChange: (mode: "richtext" | "markdown") => void;
 }) {
   return (
-    <div className="flex items-center gap-1 px-4 pt-1.5 pb-0 border-t border-gray-100 bg-gray-50/80">
+    <div className="flex items-center gap-1 px-4 pt-1.5 pb-0 border-t border-slate-100 bg-slate-50/80">
       {enabledLangs.map((lang, idx) => {
         const info = ALL_LANGS.find((l) => l.key === lang);
         return (
@@ -50,12 +50,12 @@ export function EditorLangBar({
             onClick={() => onSelectLang(idx)}
             className={`group relative px-4 py-1.5 text-sm rounded-t-lg border border-b-0 transition-colors ${
               idx === activeLangIdx
-                ? "bg-white border-gray-300 text-gray-900 font-medium shadow-sm"
-                : "bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/80"
+                ? "bg-white border-slate-200 text-slate-900 font-medium shadow-sm"
+                : "bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/80"
             }`}
           >
             <span>{info?.label || lang}</span>
-            <span className="ml-1.5 text-[10px] text-gray-400 font-normal tabular-nums">
+            <span className="ml-1.5 text-[10px] text-slate-400 font-normal tabular-nums">
               {(wordStats[lang as LangKey]?.words ?? 0).toLocaleString()} 词
             </span>
             {lang !== "zh" && viewLayout !== "split" && (
@@ -64,7 +64,7 @@ export function EditorLangBar({
                   e.stopPropagation();
                   onRemoveLang(lang);
                 }}
-                className="ml-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="ml-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 &times;
               </span>
@@ -78,19 +78,19 @@ export function EditorLangBar({
           <button
             type="button"
             onClick={onToggleLangMenu}
-            className="px-2 py-1.5 text-sm text-gray-400 hover:text-gray-600 rounded-t-lg hover:bg-gray-100"
+            className="px-2 py-1.5 text-sm text-slate-400 hover:text-slate-600 rounded-t-lg hover:bg-slate-100"
             title="添加语言"
           >
             + 语言
           </button>
           {showLangMenu && (
-            <div className="absolute top-full left-0 mt-0.5 py-1 bg-white rounded-lg shadow-lg border border-gray-200 z-40 min-w-[100px]">
+            <div className="absolute top-full left-0 mt-0.5 py-1 bg-white rounded-lg shadow-lg border border-slate-200 z-40 min-w-[100px]">
               {ALL_LANGS.filter((l) => !enabledLangs.includes(l.key)).map((l) => (
                 <button
                   key={l.key}
                   type="button"
                   onClick={() => onAddLang(l.key)}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700"
+                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 text-slate-700"
                 >
                   {l.label}
                 </button>
@@ -108,7 +108,7 @@ export function EditorLangBar({
           className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
             viewLayout === "split"
               ? "bg-blue-50 border-blue-300 text-blue-800"
-              : "border-gray-200 text-gray-600 hover:bg-gray-100"
+              : "border-slate-200 text-slate-600 hover:bg-slate-100"
           }`}
         >
           并排
@@ -119,7 +119,7 @@ export function EditorLangBar({
               type="button"
               disabled={translateBusy}
               onClick={onCopyZhToEn}
-              className="px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              className="px-2 py-1 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50"
               title="将中文标题与正文复制到英文"
             >
               中→英 复制

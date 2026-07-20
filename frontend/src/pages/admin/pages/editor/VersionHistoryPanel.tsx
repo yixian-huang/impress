@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { listUnifiedPageVersions } from "@/api/unifiedPages";
+import { AdminButton, AdminLoading } from "@/components/admin/ui";
 
-// ---------------------------------------------------------------------------
-// VersionHistoryPanel — slide-out panel listing versions
-// ---------------------------------------------------------------------------
 export function VersionHistoryPanel({
   pageId,
   onClose,
@@ -28,39 +26,52 @@ export function VersionHistoryPanel({
   }, [pageId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <div className="w-96 bg-white h-full shadow-xl flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h3 className="text-base font-semibold text-gray-900">版本历史</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[1px]">
+      <div
+        className="absolute inset-0"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="relative flex h-full w-full max-w-md flex-col border-l border-slate-200/80 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-base font-semibold tracking-tight text-slate-900">版本历史</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-lg leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label="关闭"
+          >
+            ×
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="text-center text-gray-500 py-8">加载中...</div>
+            <AdminLoading />
           ) : versions.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">暂无版本记录</div>
+            <div className="py-8 text-center text-sm text-slate-500">暂无版本记录</div>
           ) : (
             <div className="space-y-2">
               {versions.map((v: any) => (
                 <div
                   key={v.version ?? v.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 p-3 shadow-sm"
                 >
                   <div>
-                    <div className="text-sm font-medium text-gray-800">
+                    <div className="text-sm font-medium text-slate-800">
                       版本 {v.version ?? v.id}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {v.createdAt ? new Date(v.createdAt).toLocaleString() : ""}
                     </div>
                   </div>
                   {canRollback && (
-                    <button
+                    <AdminButton
+                      size="sm"
+                      variant="soft"
                       onClick={() => onRollback(v.version ?? v.id)}
-                      className="text-xs px-3 py-1 border border-blue-500 text-blue-600 rounded hover:bg-blue-50"
                     >
                       回滚
-                    </button>
+                    </AdminButton>
                   )}
                 </div>
               ))}
@@ -72,9 +83,6 @@ export function VersionHistoryPanel({
   );
 }
 
-// ---------------------------------------------------------------------------
-// ConflictDialog
-// ---------------------------------------------------------------------------
 export function ConflictDialog({
   currentVersion,
   onReload,
@@ -85,26 +93,20 @@ export function ConflictDialog({
   onDismiss: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
-        <h3 className="text-lg font-semibold text-red-700 mb-2">版本冲突</h3>
-        <p className="text-sm text-gray-600 mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
+        <h3 className="mb-2 text-lg font-semibold text-red-700">版本冲突</h3>
+        <p className="mb-4 text-sm text-slate-600">
           此页面已被他人编辑，当前服务端版本为 <strong>{currentVersion}</strong>。
           请重新加载后再编辑。
         </p>
         <div className="flex justify-end gap-2">
-          <button
-            onClick={onDismiss}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-          >
+          <AdminButton variant="secondary" size="sm" onClick={onDismiss}>
             关闭
-          </button>
-          <button
-            onClick={onReload}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
+          </AdminButton>
+          <AdminButton size="sm" onClick={onReload}>
             重新加载
-          </button>
+          </AdminButton>
         </div>
       </div>
     </div>

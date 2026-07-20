@@ -46,16 +46,16 @@ export default function ArticlePreviewModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black/40" role="dialog" aria-modal="true">
-      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-white border-b border-slate-200 shadow-sm">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold text-gray-900">预览</span>
+          <span className="text-sm font-semibold text-slate-900">预览</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
             {data.langLabel}
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
             {data.statusLabel}
           </span>
-          <span className="text-xs text-gray-400 truncate hidden sm:inline">
+          <span className="text-xs text-slate-400 truncate hidden sm:inline">
             基于当前编辑器内容（含未保存更改）
           </span>
         </div>
@@ -65,7 +65,7 @@ export default function ArticlePreviewModal({
               href={data.publicPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
             >
               打开线上页 ↗
             </a>
@@ -73,7 +73,7 @@ export default function ArticlePreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50"
           >
             关闭 (Esc)
           </button>
@@ -85,22 +85,22 @@ export default function ArticlePreviewModal({
           <ArticleTypographyRoot
             mode="reading"
             articleMetadata={data.metadata}
-            className="article-public-view bg-white rounded-xl shadow-sm border border-gray-100 px-6 sm:px-10 py-8"
+            className="article-public-view bg-white rounded-xl shadow-sm border border-slate-100 px-6 sm:px-10 py-8"
           >
             {data.coverImage ? (
               <img
                 src={data.coverImage}
                 alt=""
-                className="w-full max-h-72 object-cover rounded-lg mb-6 border border-gray-100"
+                className="w-full max-h-72 object-cover rounded-lg mb-6 border border-slate-100"
               />
             ) : null}
-            <h1 className="text-3xl font-bold text-gray-900 mb-3 leading-tight">
-              {data.title || <span className="text-gray-300 italic">（无标题）</span>}
+            <h1 className="text-3xl font-bold text-slate-900 mb-3 leading-tight">
+              {data.title || <span className="text-slate-300 italic">（无标题）</span>}
             </h1>
             {(data.author || data.statusLabel) && (
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-8 pb-4 border-b border-gray-100">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 mb-8 pb-4 border-b border-slate-100">
                 {data.author ? <span>{data.author}</span> : null}
-                <span className="text-gray-300">·</span>
+                <span className="text-slate-300">·</span>
                 <span>{data.statusLabel}</span>
               </div>
             )}
@@ -117,7 +117,7 @@ export default function ArticlePreviewModal({
                 }}
               />
             ) : (
-              <p className="text-gray-400 italic text-sm">正文为空</p>
+              <p className="text-slate-400 italic text-sm">正文为空</p>
             )}
           </ArticleTypographyRoot>
         </div>

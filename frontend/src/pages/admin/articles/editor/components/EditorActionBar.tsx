@@ -69,14 +69,14 @@ export function EditorActionBar({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2">
-      <button type="button" onClick={onBack} className="text-gray-500 hover:text-gray-700 text-sm flex-shrink-0">
+      <button type="button" onClick={onBack} className="text-slate-500 hover:text-slate-700 text-sm flex-shrink-0">
         &larr; 返回
       </button>
       <input
         type="text"
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}
-        className="flex-1 px-3 py-1.5 text-base font-semibold border border-transparent rounded-lg hover:border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors bg-transparent"
+        className="flex-1 px-3 py-1.5 text-base font-semibold border border-transparent rounded-lg hover:border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors bg-transparent"
         placeholder={titlePlaceholder}
       />
       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -91,7 +91,7 @@ export function EditorActionBar({
           type="button"
           onClick={onOpenTemplate}
           title="应用文章结构模板"
-          className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+          className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
         >
           模板
         </button>
@@ -99,11 +99,11 @@ export function EditorActionBar({
           type="button"
           onClick={onPreview}
           title="预览 (⌘P / Ctrl+P)"
-          className="px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+          className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
         >
           预览
         </button>
-        <span className="w-px h-6 bg-gray-200 mx-1" />
+        <span className="w-px h-6 bg-slate-200 mx-1" />
         <ScheduledPublicationPanel
           compact
           item={scheduledPublication}
@@ -117,13 +117,13 @@ export function EditorActionBar({
           onRefresh={onRefreshSchedule}
           title={articleStatus === "published" ? "定时更新" : "定时"}
         />
-        <span className="w-px h-6 bg-gray-200 mx-1" />
+        <span className="w-px h-6 bg-slate-200 mx-1" />
         <button
           type="button"
           onClick={onSave}
           disabled={saving}
           title="保存 (⌘S / Ctrl+S)"
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
         >
           {saving ? "保存中..." : "保存"}
         </button>

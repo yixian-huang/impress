@@ -23,15 +23,15 @@ export default function ArticleTypographySettings({ metadata, onChange }: Articl
   const typography = getTypography(metadata);
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3 space-y-3 bg-white">
+    <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-white">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-700">本篇正文字体（覆盖主题默认）</span>
-        <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+        <span className="text-xs font-medium text-slate-700">本篇正文字体（覆盖主题默认）</span>
+        <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
           <input
             type="checkbox"
             checked={typography.enabled === true}
             onChange={(e) => onChange(setTypography(metadata, { enabled: e.target.checked }))}
-            className="rounded border-gray-300"
+            className="rounded border-slate-200"
           />
           启用
         </label>
@@ -39,18 +39,18 @@ export default function ArticleTypographySettings({ metadata, onChange }: Articl
 
       {typography.enabled && (
         <div>
-          <label className="block text-xs text-gray-600 mb-1">正文字体</label>
+          <label className="block text-xs text-slate-600 mb-1">正文字体</label>
           <select
             value={typography.bodyFontRole ?? "serif"}
             onChange={(e) =>
               onChange(setTypography(metadata, { bodyFontRole: e.target.value as "serif" | "sans" }))
             }
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg"
           >
             <option value="serif">衬线</option>
             <option value="sans">无衬线</option>
           </select>
-          <p className="text-xs text-gray-400 mt-1">字体栈与字号在「主题 → 样式定制」中配置。</p>
+          <p className="text-xs text-slate-400 mt-1">字体栈与字号在「主题 → 样式定制」中配置。</p>
         </div>
       )}
     </div>

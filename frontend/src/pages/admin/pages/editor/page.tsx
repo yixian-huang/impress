@@ -28,6 +28,10 @@ import SectionPicker from "./SectionPicker";
 import SectionListItem from "./SectionList";
 import { VersionHistoryPanel, ConflictDialog } from "./VersionHistoryPanel";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  AdminButton,
+  AdminLoading,
+} from "@/components/admin/ui";
 import { useBootstrap } from "@/contexts/BootstrapContext";
 
 // ---------------------------------------------------------------------------
@@ -471,7 +475,7 @@ export default function PageEditorPage() {
     : null;
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>;
+    return <AdminLoading />;
   }
 
   return (
@@ -479,26 +483,23 @@ export default function PageEditorPage() {
       {/* -- top bar -- */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/admin/pages")}
-            className="text-sm text-gray-500 hover:text-gray-800"
-          >
-            &larr; 返回
-          </button>
-          <h2 className="text-xl font-bold text-gray-900">
+          <AdminButton variant="ghost" size="sm" onClick={() => navigate("/admin/pages")}>
+            ← 返回
+          </AdminButton>
+          <h2 className="text-xl font-semibold tracking-tight text-slate-900">
             {isNew ? "新建页面" : (zhTitle || slug || "编辑页面")}
           </h2>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             mode === "template"
-              ? "bg-purple-100 text-purple-700"
-              : "bg-blue-100 text-blue-700"
+              ? "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/15"
+              : "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/15"
           }`}>
             {mode === "template" ? "模板" : "自由组合"}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             status === "published"
-              ? "bg-green-100 text-green-700"
-              : "bg-yellow-100 text-yellow-700"
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/15"
+              : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/15"
           }`}>
             {status === "published" ? "已发布" : "草稿"}
           </span>
@@ -506,27 +507,25 @@ export default function PageEditorPage() {
 
         <div className="flex items-center gap-2">
           {/* mode toggle */}
-          <button
-            onClick={() => editorMode === "visual" ? switchToJson() : switchToVisual()}
-            className="px-3 py-1.5 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
+          <AdminButton
+            size="sm"
+            variant="secondary"
+            onClick={() => (editorMode === "visual" ? switchToJson() : switchToVisual())}
           >
             {editorMode === "visual" ? "JSON 模式" : "可视化模式"}
-          </button>
+          </AdminButton>
 
           {!isNew && (
-            <button
-              onClick={() => setShowHistory(true)}
-              className="px-3 py-1.5 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <AdminButton size="sm" variant="secondary" onClick={() => setShowHistory(true)}>
               版本历史
-            </button>
+            </AdminButton>
           )}
 
           {isNew && canCreate ? (
             <button
               onClick={handleCreate}
               disabled={saving || !slug.trim()}
-              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? "创建中..." : "创建"}
             </button>
@@ -536,7 +535,7 @@ export default function PageEditorPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex h-8 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
                 >
                   {saving ? "保存中..." : "保存草稿"}
                 </button>
@@ -545,7 +544,7 @@ export default function PageEditorPage() {
                 status === "published" ? (
                   <button
                     onClick={handleUnpublish}
-                    className="px-4 py-1.5 text-sm border border-orange-400 text-orange-600 rounded-md hover:bg-orange-50"
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-orange-300 px-3 text-xs font-medium text-orange-700 hover:bg-orange-50"
                   >
                     下线
                   </button>
@@ -553,7 +552,7 @@ export default function PageEditorPage() {
                   <button
                     onClick={handlePublish}
                     disabled={publishing}
-                    className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50"
+                    className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                   >
                     {publishing ? "发布中..." : "发布"}
                   </button>
@@ -566,13 +565,13 @@ export default function PageEditorPage() {
 
       {/* -- messages -- */}
       {error && (
-        <div className="mb-3 p-3 bg-red-50 text-red-700 rounded-md text-sm flex-shrink-0">
+        <div className="mb-3 p-3 bg-red-50 text-red-700 rounded-xl text-sm flex-shrink-0">
           {error}
           <button onClick={() => setError("")} className="ml-2 text-red-500">&times;</button>
         </div>
       )}
       {successMsg && (
-        <div className="mb-3 p-3 bg-green-50 text-green-700 rounded-md text-sm flex-shrink-0">
+        <div className="mb-3 p-3 bg-green-50 text-green-700 rounded-xl text-sm flex-shrink-0">
           {successMsg}
         </div>
       )}
@@ -597,9 +596,9 @@ export default function PageEditorPage() {
       <div className="bg-white rounded-lg shadow p-5 mb-4 flex-shrink-0">
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
-              <h3 className="text-sm font-semibold text-gray-700">页面信息</h3>
+              <h3 className="text-sm font-semibold text-slate-700">页面信息</h3>
               {!isNew && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   {status === "published"
                     ? "路径与导航信息独立于内容版本，保存后会立即更新线上页面。"
                     : "页面发布前不会出现在公开路由；页面信息与内容草稿分别保存。"}
@@ -610,7 +609,7 @@ export default function PageEditorPage() {
               <button
                 onClick={handleSaveMetadata}
                 disabled={metadataSaving || !metadataDirty || !slug.trim()}
-                className="px-3 py-1.5 text-xs border border-blue-300 text-blue-700 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                className="px-3 py-1.5 text-xs border border-blue-300 text-blue-700 rounded-xl hover:bg-blue-50 disabled:opacity-50"
               >
                 {metadataSaving ? "保存中..." : "保存页面信息"}
               </button>
@@ -618,9 +617,9 @@ export default function PageEditorPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="page-slug" className="block text-xs font-medium text-gray-600 mb-1">URL 路径 (slug)</label>
+              <label htmlFor="page-slug" className="block text-xs font-medium text-slate-600 mb-1">URL 路径 (slug)</label>
               <div className="flex items-center">
-                <span className="text-gray-400 text-sm mr-1">/</span>
+                <span className="text-slate-400 text-sm mr-1">/</span>
                 <input
                   id="page-slug"
                   type="text"
@@ -630,12 +629,12 @@ export default function PageEditorPage() {
                     setMetadataDirty(true);
                   }}
                   placeholder="about-us"
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
             </div>
             <div>
-              <label htmlFor="page-title-zh" className="block text-xs font-medium text-gray-600 mb-1">标题 (中文)</label>
+              <label htmlFor="page-title-zh" className="block text-xs font-medium text-slate-600 mb-1">标题 (中文)</label>
               <input
                 id="page-title-zh"
                 type="text"
@@ -644,11 +643,11 @@ export default function PageEditorPage() {
                   setZhTitle(e.target.value);
                   setMetadataDirty(true);
                 }}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
             <div>
-              <label htmlFor="page-title-en" className="block text-xs font-medium text-gray-600 mb-1">标题 (English)</label>
+              <label htmlFor="page-title-en" className="block text-xs font-medium text-slate-600 mb-1">标题 (English)</label>
               <input
                 id="page-title-en"
                 type="text"
@@ -657,26 +656,26 @@ export default function PageEditorPage() {
                   setEnTitle(e.target.value);
                   setMetadataDirty(true);
                 }}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
             <div>
-              <label htmlFor="page-mode" className="block text-xs font-medium text-gray-600 mb-1">页面模式</label>
+              <label htmlFor="page-mode" className="block text-xs font-medium text-slate-600 mb-1">页面模式</label>
               <select
                 id="page-mode"
                 value={mode}
                 onChange={(e) => setMode(e.target.value as "template" | "composable")}
                 disabled={!isNew}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="composable">自由组合 (Composable)</option>
                 <option value="template">模板 (Template)</option>
               </select>
             </div>
             <div>
-              <label htmlFor="page-sort-order" className="block text-xs font-medium text-gray-600 mb-1">排序</label>
+              <label htmlFor="page-sort-order" className="block text-xs font-medium text-slate-600 mb-1">排序</label>
               <input
                 id="page-sort-order"
                 type="number"
@@ -685,11 +684,11 @@ export default function PageEditorPage() {
                   setSortOrder(Number(e.target.value));
                   setMetadataDirty(true);
                 }}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
             <div className="flex items-end">
-              <label className="flex items-center gap-2 text-sm text-gray-700 pb-1">
+              <label className="flex items-center gap-2 text-sm text-slate-700 pb-1">
                 <input
                   type="checkbox"
                   checked={showInNav}
@@ -697,7 +696,7 @@ export default function PageEditorPage() {
                     setShowInNav(e.target.checked);
                     setMetadataDirty(true);
                   }}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-200"
                 />
                 显示在导航
               </label>
@@ -710,10 +709,10 @@ export default function PageEditorPage() {
         /* JSON mode */
         <div className="bg-white rounded-lg shadow p-5 flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-2">
-            <label htmlFor="page-sections-json" className="text-sm font-medium text-gray-700">
+            <label htmlFor="page-sections-json" className="text-sm font-medium text-slate-700">
               区块配置 (JSON 数组)
             </label>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-slate-400">
               可用类型: {sectionMetas.map((m) => m.type).join(", ")}
             </span>
           </div>
@@ -722,7 +721,7 @@ export default function PageEditorPage() {
             value={sectionJson}
             onChange={(e) => setSectionJson(e.target.value)}
             rows={20}
-            className="flex-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono resize-none"
+            className="w-full flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             spellCheck={false}
           />
         </div>
@@ -730,10 +729,10 @@ export default function PageEditorPage() {
         /* Visual mode — three-column layout */
         <div className="flex-1 flex min-h-0 bg-white rounded-lg shadow overflow-hidden">
           {/* Left sidebar: section list */}
-          <div className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col">
-            <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-600 uppercase">区块列表</span>
-              <span className="text-xs text-gray-400">{sections.length} 个</span>
+          <div className="w-64 flex-shrink-0 border-r border-slate-200/90 flex flex-col">
+            <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-600 uppercase">区块列表</span>
+              <span className="text-xs text-slate-400">{sections.length} 个</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {sections.map((section, i) => (
@@ -752,14 +751,14 @@ export default function PageEditorPage() {
                 />
               ))}
               {sections.length === 0 && (
-                <div className="text-xs text-gray-400 text-center py-4">暂无区块</div>
+                <div className="text-xs text-slate-400 text-center py-4">暂无区块</div>
               )}
             </div>
             {isComposable && (
-              <div className="p-3 border-t border-gray-200">
+              <div className="p-3 border-t border-slate-200">
                 <button
                   onClick={() => setShowPicker(true)}
-                  className="w-full flex items-center justify-center gap-1 px-3 py-2 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                  className="flex w-full items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-200 px-3 py-2 text-sm text-slate-500 transition-colors hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600"
                 >
                   <span className="text-lg leading-none">+</span> 添加区块
                 </button>
@@ -768,13 +767,13 @@ export default function PageEditorPage() {
           </div>
 
           {/* Center: preview */}
-          <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="flex-1 overflow-y-auto bg-slate-50">
             {sections.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-sm text-gray-400">
+              <div className="flex items-center justify-center h-full text-sm text-slate-400">
                 {isComposable ? "点击左侧「+ 添加区块」开始构建页面" : "暂无内容"}
               </div>
             ) : (
-              <div className="border-l border-r border-gray-100">
+              <div className="border-l border-r border-slate-100">
                 {sections.map((s, i) => (
                   <div
                     key={s.id}
@@ -793,9 +792,9 @@ export default function PageEditorPage() {
           </div>
 
           {/* Right sidebar: section data editor */}
-          <div className="w-80 flex-shrink-0 border-l border-gray-200 flex flex-col">
-            <div className="px-3 py-2 border-b border-gray-200">
-              <span className="text-xs font-semibold text-gray-600 uppercase">
+          <div className="w-80 flex-shrink-0 border-l border-slate-200 flex flex-col">
+            <div className="px-3 py-2 border-b border-slate-200">
+              <span className="text-xs font-semibold text-slate-600 uppercase">
                 {selectedSection ? (selectedMeta?.labelZh || selectedSection.type) : "属性编辑"}
               </span>
             </div>
@@ -807,7 +806,7 @@ export default function PageEditorPage() {
                   onSettingsChange={(settings) => updateSectionSettings(selectedIndex!, settings)}
                 />
               ) : (
-                <div className="text-xs text-gray-400 text-center py-8">
+                <div className="text-xs text-slate-400 text-center py-8">
                   选择左侧区块以编辑属性
                 </div>
               )}
@@ -818,7 +817,7 @@ export default function PageEditorPage() {
 
       {/* -- bottom version info -- */}
       {!isNew && (
-        <div className="flex items-center justify-between mt-3 text-xs text-gray-500 flex-shrink-0">
+        <div className="flex items-center justify-between mt-3 text-xs text-slate-500 flex-shrink-0">
           <div>
             草稿版本: <strong>{draftVersion}</strong>
             {publishedVersion > 0 && (

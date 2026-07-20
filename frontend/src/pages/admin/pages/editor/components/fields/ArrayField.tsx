@@ -75,7 +75,7 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
+      <label className="block text-xs font-medium text-slate-600 mb-1">
         {schema.label}
       </label>
       {items.map((item, index) => {
@@ -86,13 +86,13 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
             key={itemKey}
             draggable
             {...makeDragHandlers(index)}
-            className="border border-gray-200 rounded-lg p-3 mb-2 cursor-grab"
+            className="mb-2 cursor-grab rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-slate-700">
                 {schema.label} {index + 1}
                 {summary && (
-                  <span className="ml-2 text-gray-400 font-normal">
+                  <span className="ml-2 text-slate-400 font-normal">
                     {summary}
                   </span>
                 )}
@@ -101,7 +101,7 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
                 <button
                   type="button"
                   title="上移"
-                  className="px-1 text-gray-400 hover:text-gray-600 text-sm"
+                  className="px-1 text-slate-400 hover:text-slate-600 text-sm"
                   onClick={() => moveUp(index)}
                 >
                   ▲
@@ -109,7 +109,7 @@ export default function ArrayField({ schema, value, onChange }: FieldProps) {
                 <button
                   type="button"
                   title="下移"
-                  className="px-1 text-gray-400 hover:text-gray-600 text-sm"
+                  className="px-1 text-slate-400 hover:text-slate-600 text-sm"
                   onClick={() => moveDown(index)}
                 >
                   ▼

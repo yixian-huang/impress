@@ -1,20 +1,17 @@
+import { AdminField, AdminSelect } from "@/components/admin/ui";
 import type { FieldProps } from "./types";
 
 export default function SelectField({ schema, value, onChange }: FieldProps) {
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {schema.label}
-      </label>
-      <select
-        className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+    <AdminField label={schema.label}>
+      <AdminSelect
+        className="w-full rounded-lg py-1.5"
         value={value != null ? String(value) : ""}
         onChange={(e) => {
           const v = e.target.value;
           if (v === "") {
             onChange(undefined);
           } else {
-            // Per-option coercion: find the matching option and use its original typed value
             const selectedOpt = schema.options?.find((opt) => String(opt.value) === v);
             onChange(selectedOpt ? selectedOpt.value : v);
           }
@@ -26,7 +23,7 @@ export default function SelectField({ schema, value, onChange }: FieldProps) {
             {opt.label}
           </option>
         ))}
-      </select>
-    </div>
+      </AdminSelect>
+    </AdminField>
   );
 }

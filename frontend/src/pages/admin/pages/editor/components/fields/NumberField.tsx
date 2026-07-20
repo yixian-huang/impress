@@ -1,14 +1,12 @@
+import { AdminField, AdminInput } from "@/components/admin/ui";
 import type { FieldProps } from "./types";
 
 export default function NumberField({ schema, value, onChange }: FieldProps) {
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {schema.label}
-      </label>
-      <input
+    <AdminField label={schema.label}>
+      <AdminInput
         type="number"
-        className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+        className="rounded-lg py-1.5"
         value={value != null ? String(value) : ""}
         placeholder={schema.placeholder}
         onChange={(e) => {
@@ -16,6 +14,6 @@ export default function NumberField({ schema, value, onChange }: FieldProps) {
           onChange(v === "" ? undefined : Number(v));
         }}
       />
-    </div>
+    </AdminField>
   );
 }

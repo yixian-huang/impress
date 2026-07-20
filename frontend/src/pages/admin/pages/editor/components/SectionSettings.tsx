@@ -9,8 +9,8 @@ interface Props {
 
 export default function SectionSettingsForm({ settings, onChange }: Props) {
   return (
-    <details className="border-t border-gray-200 pt-3 mt-4">
-      <summary className="text-xs font-semibold text-gray-600 cursor-pointer select-none">
+    <details className="border-t border-slate-200 pt-3 mt-4">
+      <summary className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
         显示设置
       </summary>
       <div className="mt-3">

@@ -181,7 +181,7 @@ describe("ColorField", () => {
         onChange={vi.fn()}
       />
     );
-    expect(screen.getByDisplayValue("#ff0000")).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("#ff0000").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("颜色")).toBeInTheDocument();
   });
 
@@ -190,14 +190,14 @@ describe("ColorField", () => {
     render(
       <ColorField
         schema={{ key: "c", type: "color", label: "颜色" }}
-        value="#000"
+        value="#000000"
         onChange={onChange}
       />
     );
-    fireEvent.change(screen.getByDisplayValue("#000"), {
-      target: { value: "#fff" },
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "#ffffff" },
     });
-    expect(onChange).toHaveBeenCalledWith("#fff");
+    expect(onChange).toHaveBeenCalledWith("#ffffff");
   });
 });
 

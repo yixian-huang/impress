@@ -206,23 +206,23 @@ export default function MarkdownMode({
   }, []);
 
   return (
-    <div className="flex h-full min-h-0 gap-0 border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="flex h-full min-h-0 gap-0 border border-slate-200 rounded-lg overflow-hidden bg-white">
       <div
-        className={`min-w-0 min-h-0 flex flex-col ${showPreview ? "flex-1 border-r border-gray-200" : "flex-1"}`}
+        className={`min-w-0 min-h-0 flex flex-col ${showPreview ? "flex-1 border-r border-slate-200" : "flex-1"}`}
       >
-        <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <span>{label}</span>
-          <span className="text-[10px] text-gray-400 tabular-nums">L{cursorLine}</span>
+          <span className="text-[10px] text-slate-400 tabular-nums">L{cursorLine}</span>
         </div>
         <div ref={hostRef} className="flex-1 min-h-0 min-w-0 overflow-hidden" />
       </div>
 
       {showPreview && (
         <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-white">
-          <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <span>实时预览</span>
             {contentKey ? (
-              <span className="text-[10px] uppercase tracking-wide text-gray-400">{contentKey}</span>
+              <span className="text-[10px] uppercase tracking-wide text-slate-400">{contentKey}</span>
             ) : null}
           </div>
           <div

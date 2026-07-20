@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { futureDateTimeLocalValue } from "@/api/scheduledPublications";
+import { AdminButton, AdminField, AdminInput, AdminModal } from "@/components/admin/ui";
 
 interface SchedulePublishModalProps {
   open: boolean;
@@ -26,47 +27,59 @@ export default function SchedulePublishModal({
     }
   }, [currentSchedule, open]);
 
-  if (!open) return null;
+  const minDate = futureDateTimeLocalValue();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (date) onSchedule(date);
   };
 
-  const minDate = futureDateTimeLocalValue();
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-        <h3 className="text-lg font-semibold mb-4">{t("schedule.title", "Schedule Publish")}</h3>
-        <form onSubmit={handleSubmit}>
-          <label className="block text-sm text-gray-600 mb-2">
-            {t("schedule.datetime", "Publish Date & Time")}
-          </label>
-          <input
+    <AdminModal
+      open={open}
+      title={t("schedule.title", "Schedule Publish")}
+      onClose={onClose}
+      widthClass="max-w-sm"
+      footer={
+        <>
+          <AdminButton type="button" variant="secondary" size="sm" onClick={onClose} disabled={submitting}>
+            {t("common.cancel", "Cancel")}
+          </AdminButton>
+          {currentSchedule ? (
+            <AdminButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:bg-red-50"
+              onClick={() => onSchedule("")}
+              disabled={submitting}
+            >
+              {t("schedule.cancel_schedule", "Cancel Schedule")}
+            </AdminButton>
+          ) : null}
+          <AdminButton
+            type="submit"
+            form="schedule-publish-form"
+            size="sm"
+            disabled={submitting}
+          >
+            {submitting ? t("common.saving", "Saving...") : t("schedule.confirm", "Schedule")}
+          </AdminButton>
+        </>
+      }
+    >
+      <form id="schedule-publish-form" onSubmit={handleSubmit}>
+        <AdminField label={t("schedule.datetime", "Publish Date & Time")}>
+          <AdminInput
             type="datetime-local"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             min={minDate}
-            className="w-full border rounded px-3 py-2 mb-4"
             disabled={submitting}
             required
           />
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} disabled={submitting} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50">
-              {t("common.cancel", "Cancel")}
-            </button>
-            {currentSchedule && (
-              <button type="button" onClick={() => onSchedule("")} disabled={submitting} className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded disabled:opacity-50">
-                {t("schedule.cancel_schedule", "Cancel Schedule")}
-              </button>
-            )}
-            <button type="submit" disabled={submitting} className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-              {submitting ? t("common.saving", "Saving...") : t("schedule.confirm", "Schedule")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </AdminField>
+      </form>
+    </AdminModal>
   );
 }

@@ -174,7 +174,7 @@ export default function RichTextEditor({ value, onChange, preset = "full" }: Ric
   if (!editor) return null;
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden">
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
       {presetConfig.toolbar && (
         <EditorToolbarComponent editor={editor} modals={modals} config={presetConfig.toolbar} />
       )}

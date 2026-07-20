@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FieldProps } from "./types";
+import { AdminField, AdminFilterChip, AdminTextarea } from "@/components/admin/ui";
 
 function normalize(value: unknown): { zh: string; en: string } {
   if (typeof value === "string") return { zh: value, en: "" };
@@ -13,36 +14,28 @@ export default function BilingualTextareaField({ schema, value, onChange }: Fiel
   const normalized = normalize(value);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="block text-xs font-medium text-gray-600">
-          {schema.label}
-        </label>
-        <div className="flex gap-1 text-xs">
-          <button
-            type="button"
-            className={tab === "zh" ? "font-bold text-blue-600" : "text-gray-400"}
-            onClick={() => setTab("zh")}
-          >
-            zh
-          </button>
-          <span className="text-gray-300">|</span>
-          <button
-            type="button"
-            className={tab === "en" ? "font-bold text-blue-600" : "text-gray-400"}
-            onClick={() => setTab("en")}
-          >
-            en
-          </button>
-        </div>
-      </div>
-      <textarea
+    <AdminField
+      label={
+        <span className="flex w-full items-center justify-between gap-2">
+          <span>{schema.label}</span>
+          <span className="flex gap-1">
+            <AdminFilterChip active={tab === "zh"} onClick={() => setTab("zh")} className="px-2 py-0.5">
+              zh
+            </AdminFilterChip>
+            <AdminFilterChip active={tab === "en"} onClick={() => setTab("en")} className="px-2 py-0.5">
+              en
+            </AdminFilterChip>
+          </span>
+        </span>
+      }
+    >
+      <AdminTextarea
         rows={3}
-        className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+        className="rounded-lg py-1.5"
         value={normalized[tab]}
         placeholder={schema.placeholder}
         onChange={(e) => onChange({ ...normalized, [tab]: e.target.value })}
       />
-    </div>
+    </AdminField>
   );
 }

@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { FieldProps } from "./types";
 import ImagePickerModal from "@/components/admin/ImagePickerModal";
 import type { MediaItem } from "@/api/media";
+import { AdminButton, AdminField, AdminInput } from "@/components/admin/ui";
 
-// Extract URL from value which may be a plain string or a MediaRef object {url, alt}
 function extractUrl(value: unknown): string {
   if (typeof value === "string") return value;
   if (value && typeof value === "object" && "url" in value) {
@@ -17,33 +17,32 @@ export default function MediaField({ schema, value, onChange }: FieldProps) {
   const url = extractUrl(value);
 
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {schema.label}
-      </label>
+    <AdminField label={schema.label}>
       <div className="flex gap-2">
-        <input
+        <AdminInput
           type="text"
-          className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+          className="rounded-lg py-1.5"
           value={url}
           placeholder={schema.placeholder ?? "图片URL"}
           onChange={(e) => onChange(e.target.value)}
         />
-        <button
+        <AdminButton
           type="button"
-          className="shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+          size="sm"
+          variant="secondary"
+          className="shrink-0"
           onClick={() => setShowPicker(true)}
         >
           选择
-        </button>
+        </AdminButton>
       </div>
-      {url && (
+      {url ? (
         <img
           src={url}
           alt="preview"
-          className="mt-2 w-20 h-20 object-cover rounded border border-gray-200"
+          className="mt-2 h-20 w-20 rounded-xl border border-slate-200 object-cover"
         />
-      )}
+      ) : null}
       {showPicker && (
         <ImagePickerModal
           open={showPicker}
@@ -54,6 +53,6 @@ export default function MediaField({ schema, value, onChange }: FieldProps) {
           }}
         />
       )}
-    </div>
+    </AdminField>
   );
 }

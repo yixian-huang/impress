@@ -72,20 +72,20 @@ export function EditorWorkspace({
                 return (
                   <div
                     key={lang}
-                    className={`flex flex-col min-h-0 min-w-0 ${isActiveCol ? "bg-white" : "bg-gray-50/40"}`}
+                    className={`flex flex-col min-h-0 min-w-0 ${isActiveCol ? "bg-white" : "bg-slate-50/40"}`}
                     onMouseDown={() => onSelectLangKey(lang)}
                   >
-                    <div className="flex-shrink-0 px-3 py-2 border-b border-gray-100 space-y-1.5">
+                    <div className="flex-shrink-0 px-3 py-2 border-b border-slate-100 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span
-                          className={`text-xs font-semibold ${isActiveCol ? "text-blue-700" : "text-gray-500"}`}
+                          className={`text-xs font-semibold ${isActiveCol ? "text-blue-700" : "text-slate-500"}`}
                         >
                           {lang === "zh" ? "中文" : "English"}
                           {isActiveCol && (
                             <span className="ml-1.5 text-[10px] font-normal text-blue-500">编辑中</span>
                           )}
                         </span>
-                        <span className="text-[10px] text-gray-400 tabular-nums">
+                        <span className="text-[10px] text-slate-400 tabular-nums">
                           {wordStats[lang].words.toLocaleString()} 词 ·{" "}
                           {wordStats[lang].chars.toLocaleString()} 字
                         </span>
@@ -95,7 +95,7 @@ export function EditorWorkspace({
                         value={langTitleMap[lang]?.title || ""}
                         onChange={(e) => langTitleMap[lang]?.setTitle(e.target.value)}
                         onFocus={() => onSelectLangKey(lang)}
-                        className="w-full px-2 py-1 text-sm font-medium border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white"
+                        className="w-full px-2 py-1 text-sm font-medium border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white"
                         placeholder={langTitleMap[lang]?.placeholder || "标题"}
                       />
                     </div>
