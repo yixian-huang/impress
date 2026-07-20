@@ -74,20 +74,16 @@ func (h *Handler) Upload(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Validate MIME type
-	mimeType := header.Header.Get("Content-Type")
-	if mimeType == "" {
-		// Detect from file content
-		buf := make([]byte, 512)
-		n, _ := file.Read(buf)
-		mimeType = http.DetectContentType(buf[:n])
-		// Seek back to beginning
-		if seeker, ok := file.(io.ReadSeeker); ok {
-			seeker.Seek(0, io.SeekStart)
-		}
+	// Always sniff MIME from file bytes — never trust client Content-Type alone.
+	head := make([]byte, 512)
+	n, err := io.ReadFull(file, head)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		apierror.Message(c, http.StatusBadRequest, "读取文件失败")
+		return
 	}
-
-	if !strings.HasPrefix(mimeType, "image/") && !strings.HasPrefix(mimeType, "video/") && !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "font/") {
+	head = head[:n]
+	mimeType := SniffUploadMIME(head)
+	if !IsAllowedUploadMIME(mimeType) {
 		apierror.Message(c, http.StatusBadRequest, "仅支持上传图片、视频、音频或字体文件（woff2/woff）")
 		return
 	}
@@ -112,16 +108,13 @@ func (h *Handler) Upload(c *gin.Context) {
 	}
 	uniqueName := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), sanitizeFilename(strings.TrimSuffix(header.Filename, ext)), ext)
 
-	// Reset file reader position
-	if seeker, ok := file.(io.ReadSeeker); ok {
-		seeker.Seek(0, io.SeekStart)
-	}
-
-	data, err := io.ReadAll(file)
+	// Reassemble full body after head sniff.
+	rest, err := io.ReadAll(file)
 	if err != nil {
 		apierror.Message(c, http.StatusInternalServerError, "读取文件失败")
 		return
 	}
+	data := append(head, rest...)
 	written := int64(len(data))
 	storageKey, storageProvider, url, err := h.storageRuntime.Save(c.Request.Context(), uniqueName, bytes.NewReader(data), written)
 	if err != nil {
