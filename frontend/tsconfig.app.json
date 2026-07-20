@@ -32,7 +32,11 @@
     "noUncheckedSideEffectImports": false,
     "paths": {
       "@/*": ["./src/*"],
+      "@inkless/theme-host": ["./src/theme-host/index.ts"],
+      "@inkless/theme-host/*": ["./src/theme-host/*"],
+      "@inkless/theme-blog-first": ["../packages/theme-blog-first/src/index.ts"],
+      "@inkless/theme-blog-first/*": ["../packages/theme-blog-first/src/*"]
     }
   },
-  "include": ["src", "vite-env.d.ts"]
+  "include": ["src", "vite-env.d.ts", "../packages/theme-blog-first/src"]
 }

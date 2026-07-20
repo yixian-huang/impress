@@ -10,6 +10,7 @@
     "preview": "pnpm -C frontend preview",
     "lint": "pnpm -C frontend lint",
     "type-check": "pnpm -C frontend type-check",
+    "build:theme-blog-first": "pnpm -C packages/theme-blog-first build",
     "test": "pnpm -C frontend test:run",
     "test:run": "pnpm -C frontend test:run",
     "test:e2e": "node test/e2e/admin-navigation.mjs",

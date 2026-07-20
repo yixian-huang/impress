@@ -1,5 +1,4 @@
-import type { HeaderBrandMode } from "@/types/siteConfig";
-import type { BrandingView } from "@/hooks/useBranding";
+import type { BrandingView, HeaderBrandMode } from "@inkless/theme-host";
 
 /**
  * On theme home, keep header chrome quiet so AuthorIntro owns identity.

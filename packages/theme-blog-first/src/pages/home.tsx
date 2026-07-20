@@ -1,23 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { getPublicArticles } from "@/api/articles";
-import SeoHead from "@/components/SeoHead";
-import BlogPageShell from "@/components/blog/BlogPageShell";
-import AuthorIntro from "@/components/blog/AuthorIntro";
-import ArticleList from "@/components/blog/ArticleList";
-import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
-import { useSEODefaults } from "@/hooks/useSEODefaults";
-import { useLocaleMode } from "@/hooks/useLocaleMode";
-import { useIsReadingLayout } from "@/plugins/hooks";
-import { pickLocaleValue } from "@/lib/locale";
-import { SITE_CONFIG_GLOBAL_DEFAULT } from "@/types/siteConfig";
+import {
+  ArticleList,
+  AuthorIntro,
+  BlogPageShell,
+  getPublicArticles,
+  pickLocaleValue,
+  SeoHead,
+  SITE_CONFIG_GLOBAL_DEFAULT,
+  useGlobalConfig,
+  useIsReadingLayout,
+  useLocaleMode,
+  useSEODefaults,
+} from "@inkless/theme-host";
 
 const HOME_RECENT_COUNT = 6;
 
 /**
- * blog-first theme home page — lives under the theme package so host
- * pages/ no longer reverse-own theme presentation.
+ * blog-first theme home — presentation lives in this package so Inkless host
+ * only re-exports / registers it.
  */
 export default function BlogFirstHomePage() {
   const navigate = useNavigate();

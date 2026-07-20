@@ -15,7 +15,7 @@ Inkless follows the same split as Ghost and headless CMS products:
 Each built-in theme registers layout chrome in its plugin definition:
 
 - [`corporate-classic`](../../frontend/src/plugins/themes/corporate-classic/index.ts) — `CorporateHeader` / `CorporateFooter`, wide layout
-- [`blog-first`](../../frontend/src/plugins/themes/blog-first/index.ts) — `BlogHeader` / `BlogFooter`, narrow reading layout
+- [`blog-first`](../../packages/theme-blog-first/src/index.ts) — `BlogHeader` / `BlogFooter`, narrow reading layout (`@inkless/theme-blog-first`)
 - [`minimal-starter`](../../frontend/src/plugins/themes/minimal-starter/index.ts) — reference theme for third-party authors (dynamic home, shared `BaseSiteHeader`)
 
 `frontend/src/theme/layouts/PublicLayout.tsx` (also exported as `PublicLayout`) resolves:

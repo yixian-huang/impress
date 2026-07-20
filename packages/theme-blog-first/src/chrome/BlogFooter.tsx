@@ -1,8 +1,12 @@
-import AuthorSocialLinks from "@/components/blog/AuthorSocialLinks";
-import { useBranding } from "@/hooks/useBranding";
-import { useContentMaxWidth, useIsReadingLayout, useIsThemeHomePath } from "@/plugins/hooks";
-import type { FooterChromeProps } from "@/plugins/types";
-import { useHeaderSettings } from "@/theme/layouts/chrome/useHeaderSettings";
+import {
+  AuthorSocialLinks,
+  useBranding,
+  useContentMaxWidth,
+  useHeaderSettings,
+  useIsReadingLayout,
+  useIsThemeHomePath,
+  type FooterChromeProps,
+} from "@inkless/theme-host";
 
 export default function BlogFooter({ config }: FooterChromeProps) {
   const branding = useBranding();

@@ -1,8 +1,5 @@
 /**
- * Compatibility re-export.
- *
- * blog-first home presentation lives at
- * `@/plugins/themes/blog-first/pages/home`. Keep this path so any leftover
- * imports or docs still resolve; prefer importing the theme page directly.
+ * Host route compatibility shim.
+ * blog-first home presentation lives in `@inkless/theme-blog-first`.
  */
-export { default } from "@/plugins/themes/blog-first/pages/home";
+export { BlogFirstHomePage as default } from "@inkless/theme-blog-first";

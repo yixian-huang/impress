@@ -97,8 +97,12 @@ Install paths:
 
 1. **UX polish** — compact home hero; socials only in header.  
 2. **This contract doc** + freeze public hook list.  
-3. **Move home page into theme folder** — done: `plugins/themes/blog-first/pages/home.tsx` (host `pages/blog-home` is a thin re-export).  
-4. **Monorepo package** `packages/theme-blog-first`.  
+3. **Move home page into theme folder** — done (now under package).  
+4. **Monorepo package** `packages/theme-blog-first` — done.  
+   - Source: `packages/theme-blog-first/src`  
+   - Host facade: `frontend/src/theme-host` → import as `@inkless/theme-host`  
+   - Built-in entry: `frontend/src/plugins/themes/blog-first` re-exports the package  
+   - UMD: `pnpm -C packages/theme-blog-first build` → `dist/theme.umd.js`  
 5. **Separate GitHub repo** + pin in Inkless; document Release assets.
 
 ## 7. Non-goals

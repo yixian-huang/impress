@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveBlogHomeBrandMode } from "./resolveHomeBrand";
-import type { BrandingView } from "@/hooks/useBranding";
+import type { BrandingView } from "@inkless/theme-host";
 
 const base: BrandingView = {
   siteName: "黄逸仙",

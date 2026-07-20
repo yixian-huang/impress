@@ -1,12 +1,14 @@
-import { useBranding } from "@/hooks/useBranding";
-import { useContentMaxWidth, useIsReadingLayout, useIsThemeHomePath } from "@/plugins/hooks";
-import type { HeaderChromeProps } from "@/plugins/types";
 import {
   BaseSiteHeader,
   BrandMark,
   HeaderUtilities,
+  useBranding,
+  useContentMaxWidth,
   useHeaderSettings,
-} from "@/theme/layouts/chrome";
+  useIsReadingLayout,
+  useIsThemeHomePath,
+  type HeaderChromeProps,
+} from "@inkless/theme-host";
 import { resolveBlogHomeBrandMode } from "./resolveHomeBrand";
 
 export default function BlogHeader({ config }: HeaderChromeProps) {
