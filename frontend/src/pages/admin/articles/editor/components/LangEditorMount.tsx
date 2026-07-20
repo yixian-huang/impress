@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import { getEditorExtensions } from "@/components/admin/RichTextEditor";
+import { sanitizePastedHtml } from "../utils/sanitizePastedHtml";
 
 type InnerProps = {
   /** Seed / external body HTML */
@@ -36,7 +37,11 @@ function LangEditorMountInner({
     content: html,
     shouldRerenderOnTransaction: false,
     editable,
-    editorProps: { attributes: { class: "tiptap" } },
+    editorProps: {
+      attributes: { class: "tiptap" },
+      // Strip Word/Docs MSO styles, event handlers, and junk tags on paste
+      transformPastedHTML: (pasted) => sanitizePastedHtml(pasted),
+    },
     onUpdate: () => {
       onDirtyRef.current();
     },

@@ -9,6 +9,10 @@ import {
   buildModeSwitchConfirmMessage,
   detectModeSwitchLossFromBodies,
 } from "../utils/modeSwitchLoss";
+import {
+  readPreferredEditorMode,
+  writePreferredEditorMode,
+} from "../utils/editorPrefs";
 
 export type EditorMode = "richtext" | "markdown";
 export type ViewLayout = "focus" | "split";
@@ -26,7 +30,8 @@ export function useArticleEditors(opts: {
 }) {
   const { zhBody, enBody, setZhBody, setEnBody, touch } = opts;
 
-  const [editorMode, setEditorMode] = useState<EditorMode>("richtext");
+  // New articles start in the user's last-used mode; loaded articles reset to richtext
+  const [editorMode, setEditorMode] = useState<EditorMode>(() => readPreferredEditorMode());
   const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({
     zh: "",
     en: "",
@@ -130,6 +135,7 @@ export function useArticleEditors(opts: {
       setMarkdownApi(null);
     }
     setEditorMode(newMode);
+    writePreferredEditorMode(newMode);
     touch();
   }, [
     editorMode, markdownContent, zhEditor, enEditor,

@@ -1,5 +1,7 @@
 import MetadataEditor from "@/components/admin/MetadataEditor";
 import ArticleTypographySettings from "@/components/admin/articles/ArticleTypographySettings";
+import { CharCountMeter } from "./components/CharCountMeter";
+import { SEO_DESC_MAX, SEO_DESC_MIN, SEO_TITLE_MAX } from "./utils/publishChecklist";
 
 // ── SEO fields panel ──
 
@@ -31,19 +33,55 @@ export function SeoFieldsPanel({
   return (
     <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 space-y-3 max-h-80 overflow-y-auto">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="中文 SEO 标题" value={zhSeoTitle} onChange={setZhSeoTitle} placeholder="SEO 标题" />
-        <Field label="英文 SEO 标题" value={enSeoTitle} onChange={setEnSeoTitle} placeholder="SEO Title" />
+        <Field
+          label="中文 SEO 标题"
+          value={zhSeoTitle}
+          onChange={setZhSeoTitle}
+          placeholder="SEO 标题"
+          meter={{ length: zhSeoTitle.length, max: SEO_TITLE_MAX }}
+        />
+        <Field
+          label="英文 SEO 标题"
+          value={enSeoTitle}
+          onChange={setEnSeoTitle}
+          placeholder="SEO Title"
+          meter={{ length: enSeoTitle.length, max: SEO_TITLE_MAX }}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">中文 Meta 描述</label>
-          <textarea value={zhMetaDescription} onChange={(e) => setZhMetaDescription(e.target.value)} rows={2}
-            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg" placeholder="Meta 描述" />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-slate-600">中文 Meta 描述</label>
+            <CharCountMeter
+              length={zhMetaDescription.length}
+              max={SEO_DESC_MAX}
+              min={SEO_DESC_MIN}
+            />
+          </div>
+          <textarea
+            value={zhMetaDescription}
+            onChange={(e) => setZhMetaDescription(e.target.value)}
+            rows={2}
+            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg"
+            placeholder="Meta 描述"
+          />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">英文 Meta 描述</label>
-          <textarea value={enMetaDescription} onChange={(e) => setEnMetaDescription(e.target.value)} rows={2}
-            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg" placeholder="Meta Description" />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-slate-600">英文 Meta 描述</label>
+            <CharCountMeter
+              length={enMetaDescription.length}
+              max={SEO_DESC_MAX}
+              min={SEO_DESC_MIN}
+            />
+          </div>
+          <textarea
+            value={enMetaDescription}
+            onChange={(e) => setEnMetaDescription(e.target.value)}
+            rows={2}
+            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg"
+            placeholder="Meta Description"
+          />
         </div>
       </div>
       <Field label="OG Image URL" value={ogImage} onChange={setOgImage} placeholder="https://..." />
@@ -118,12 +156,34 @@ export function PopoverButton({ label, active, onClick }: { label: string; activ
   );
 }
 
-export function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  meter,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  meter?: { length: number; max: number; min?: number };
+}) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-xs font-medium text-slate-600">{label}</label>
+        {meter && (
+          <CharCountMeter length={meter.length} max={meter.max} min={meter.min} />
+        )}
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+      />
     </div>
   );
 }

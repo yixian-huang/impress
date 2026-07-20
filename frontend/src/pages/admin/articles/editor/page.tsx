@@ -42,6 +42,11 @@ import { EditorActionBar } from "./components/EditorActionBar";
 import { LangEditorMount } from "./components/LangEditorMount";
 import { LocalDraftBanner } from "./components/LocalDraftBanner";
 import { FindReplaceBar } from "./components/FindReplaceBar";
+import { PublishChecklistDialog } from "./components/PublishChecklistDialog";
+import {
+  evaluatePublishChecklist,
+  type ChecklistItem,
+} from "./utils/publishChecklist";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -93,6 +98,7 @@ export default function ArticleEditorPage() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  const [publishChecklist, setPublishChecklist] = useState<ChecklistItem[] | null>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
   useOutsideClick(langMenuRef, showLangMenu, () => setShowLangMenu(false));
@@ -277,11 +283,45 @@ export default function ArticleEditorPage() {
     else if (zenMode) setZenMode(false);
   }, [findOpen, zenMode]);
 
+  /** Run publish checklist; force=true skips warn-only dialog. */
+  const requestPublish = useCallback((opts?: { force?: boolean }) => {
+    if (!canPublish) return;
+    const bodies = editors.resolveBodies();
+    const items = evaluatePublishChecklist({
+      zhTitle: form.zhTitle,
+      enTitle: form.enTitle,
+      slug: form.slug,
+      coverImage: form.coverImage,
+      zhBody: bodies.zhBody,
+      enBody: bodies.enBody,
+      zhMetaDescription: form.zhMetaDescription,
+      enMetaDescription: form.enMetaDescription,
+      zhSeoTitle: form.zhSeoTitle,
+      enSeoTitle: form.enSeoTitle,
+      enabledLangs: editors.enabledLangs,
+      author: form.author,
+    });
+    if (items.length > 0 && !opts?.force) {
+      setPublishChecklist(items);
+      return;
+    }
+    // force only allowed when no blocks (dialog enforces this)
+    if (opts?.force && items.some((i) => i.severity === "block")) {
+      setPublishChecklist(items);
+      return;
+    }
+    setPublishChecklist(null);
+    void persistence.handleSave("publish");
+  }, [canPublish, editors, form, persistence]);
+
   useEditorShortcuts({
     canPublish,
     zenMode,
     findOpen,
-    onSave: (intent) => void persistence.handleSave(intent),
+    onSave: (intent) => {
+      if (intent === "publish") requestPublish();
+      else void persistence.handleSave(intent);
+    },
     onPreview: openPreview,
     onFind: openFind,
     onToggleZen: () => setZenMode((z) => !z),
@@ -441,7 +481,7 @@ export default function ArticleEditorPage() {
           onPreview={openPreview}
           onFind={openFind}
           onSave={() => void persistence.handleSave("draft")}
-          onPublish={() => void persistence.handleSave("publish")}
+          onPublish={() => requestPublish()}
           onSchedule={schedule.handleSchedulePublish}
           onCancelSchedule={schedule.handleCancelSchedule}
           onRetrySchedule={schedule.handleRetrySchedule}
@@ -667,6 +707,18 @@ export default function ArticleEditorPage() {
           }}
         />
       )}
+
+      <PublishChecklistDialog
+        open={!!publishChecklist && publishChecklist.length > 0}
+        items={publishChecklist || []}
+        busy={persistence.saving}
+        onCancel={() => setPublishChecklist(null)}
+        onForcePublish={
+          publishChecklist?.some((i) => i.severity === "block")
+            ? undefined
+            : () => requestPublish({ force: true })
+        }
+      />
     </div>
   );
 }
