@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { markdownToHtml } from "@/lib/markdown";
 import MarkdownHtmlPreview from "./MermaidPreview";
+import type { MarkdownSelectionApi } from "./MarkdownToolbar";
 
 interface MarkdownModeProps {
   value: string;
   onChange: (value: string) => void;
   onImageUpload?: (file: File) => Promise<string>;
+  /** Expose selection/wrap API for the external Markdown toolbar. */
+  onApiReady?: (api: MarkdownSelectionApi | null) => void;
 }
 
-export default function MarkdownMode({ value, onChange, onImageUpload }: MarkdownModeProps) {
-  // Debounce preview slightly for smoother typing with mermaid.
+export default function MarkdownMode({
+  value,
+  onChange,
+  onImageUpload,
+  onApiReady,
+}: MarkdownModeProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [debounced, setDebounced] = useState(value);
 
   useEffect(() => {
@@ -18,6 +26,37 @@ export default function MarkdownMode({ value, onChange, onImageUpload }: Markdow
   }, [value]);
 
   const previewHtml = useMemo(() => markdownToHtml(debounced), [debounced]);
+
+  // Keep latest value/onChange for the selection API without re-creating every keystroke
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    if (!onApiReady) return;
+    const api: MarkdownSelectionApi = {
+      getValue: () => valueRef.current,
+      setValue: (next, cursor) => {
+        onChangeRef.current(next);
+        // Restore selection after React re-render
+        requestAnimationFrame(() => {
+          const el = textareaRef.current;
+          if (!el || !cursor) return;
+          el.focus();
+          el.setSelectionRange(cursor.start, cursor.end);
+        });
+      },
+      getSelection: () => {
+        const el = textareaRef.current;
+        if (!el) return { start: 0, end: 0 };
+        return { start: el.selectionStart, end: el.selectionEnd };
+      },
+      focus: () => textareaRef.current?.focus(),
+    };
+    onApiReady(api);
+    return () => onApiReady(null);
+  }, [onApiReady]);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -46,35 +85,50 @@ export default function MarkdownMode({ value, onChange, onImageUpload }: Markdow
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const { selectionStart, selectionEnd } = e.currentTarget;
-    const selected = value.substring(selectionStart, selectionEnd);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const el = e.currentTarget;
+      const { selectionStart, selectionEnd } = el;
+      const selected = value.substring(selectionStart, selectionEnd);
 
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key === "b") {
-        e.preventDefault();
-        onChange(value.substring(0, selectionStart) + `**${selected || "bold"}**` + value.substring(selectionEnd));
-      } else if (e.key === "i") {
-        e.preventDefault();
-        onChange(value.substring(0, selectionStart) + `*${selected || "italic"}*` + value.substring(selectionEnd));
-      } else if (e.key === "k") {
-        e.preventDefault();
-        onChange(value.substring(0, selectionStart) + `[${selected || "text"}](url)` + value.substring(selectionEnd));
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "b") {
+          e.preventDefault();
+          onChange(
+            value.substring(0, selectionStart) +
+              `**${selected || "粗体"}**` +
+              value.substring(selectionEnd),
+          );
+        } else if (e.key === "i") {
+          e.preventDefault();
+          onChange(
+            value.substring(0, selectionStart) +
+              `*${selected || "斜体"}*` +
+              value.substring(selectionEnd),
+          );
+        } else if (e.key === "k") {
+          e.preventDefault();
+          onChange(
+            value.substring(0, selectionStart) +
+              `[${selected || "链接文字"}](url)` +
+              value.substring(selectionEnd),
+          );
+        }
       }
-    }
 
-    // Tab inserts 2 spaces
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const start = selectionStart;
-      const end = selectionEnd;
-      const next = value.substring(0, start) + "  " + value.substring(end);
-      onChange(next);
-      requestAnimationFrame(() => {
-        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 2;
-      });
-    }
-  };
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const start = selectionStart;
+        const end = selectionEnd;
+        const next = value.substring(0, start) + "  " + value.substring(end);
+        onChange(next);
+        requestAnimationFrame(() => {
+          el.selectionStart = el.selectionEnd = start + 2;
+        });
+      }
+    },
+    [onChange, value],
+  );
 
   return (
     <div className="flex h-full min-h-0 gap-0 border border-gray-200 rounded-lg overflow-hidden bg-white">
@@ -84,13 +138,14 @@ export default function MarkdownMode({ value, onChange, onImageUpload }: Markdow
           Markdown
         </div>
         <textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onDrop={handleDrop}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           className="flex-1 min-h-0 w-full font-mono text-sm p-4 resize-none focus:ring-0 focus:outline-none bg-white"
-          placeholder={"# 标题\n\n支持 **Markdown** 与 ```mermaid 图表``` 实时预览…"}
+          placeholder={"# 标题\n\n支持 **Markdown**、表格与 ```mermaid 图表```…"}
           spellCheck={false}
         />
       </div>

@@ -127,6 +127,20 @@ const SLASH_ITEMS: SlashCommandItem[] = [
     },
   },
   {
+    title: "Mermaid 图表",
+    description: "插入流程图 / 时序图",
+    icon: "◆",
+    keywords: ["mermaid", "diagram", "flowchart", "tubiao"],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .setMermaid({ source: "graph TD\n  A[开始] --> B[结束]" })
+        .run();
+    },
+  },
+  {
     title: "图片",
     description: "从附件库选择图片",
     icon: "🖼",

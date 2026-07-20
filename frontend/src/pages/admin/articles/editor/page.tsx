@@ -31,8 +31,9 @@ import TableBubbleMenu from "@/components/admin/editor/TableBubbleMenu";
 import EditorFloatingMenu from "@/components/admin/editor/EditorFloatingMenu";
 import EditorModeSwitcher from "@/components/admin/editor/EditorModeSwitcher";
 import MarkdownMode from "@/components/admin/editor/MarkdownMode";
-import TurndownService from "turndown";
-import { markdownToHtml } from "@/lib/markdown";
+import MarkdownToolbar from "@/components/admin/editor/MarkdownToolbar";
+import type { MarkdownSelectionApi } from "@/components/admin/editor/MarkdownToolbar";
+import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/contexts/AuthContext";
 import EditorSidebar from "./EditorSidebar";
@@ -102,6 +103,7 @@ export default function ArticleEditorPage() {
   // Editor mode (richtext / markdown)
   const [editorMode, setEditorMode] = useState<"richtext" | "markdown">("richtext");
   const [markdownContent, setMarkdownContent] = useState<Record<string, string>>({ zh: "", en: "" });
+  const [markdownApi, setMarkdownApi] = useState<MarkdownSelectionApi | null>(null);
   // Track whether current article has been loaded (avoid re-fetch wiping edits)
   const loadedIdRef = useRef<string | null>(null);
 
@@ -294,13 +296,22 @@ export default function ArticleEditorPage() {
     void loadArticleSchedule();
   }, [id, loadArticle, loadArticleSchedule]);
 
-  /** Resolve body HTML from the active editor mode. */
+  /**
+   * Resolve body HTML from the active editor mode.
+   * Markdown path: MD → HTML → TipTap setContent → getHTML so mermaid/tables
+   * land in the schema and survive later richtext reloads.
+   */
   const resolveBodies = useCallback(() => {
     if (editorMode === "markdown") {
-      return {
-        zhBody: markdownToHtml(markdownContent.zh ?? ""),
-        enBody: markdownToHtml(markdownContent.en ?? ""),
-      };
+      const zhHtml = markdownToHtml(markdownContent.zh ?? "");
+      const enHtml = markdownToHtml(markdownContent.en ?? "");
+      zhEditor?.commands.setContent(zhHtml, { emitUpdate: false });
+      enEditor?.commands.setContent(enHtml, { emitUpdate: false });
+      const normalizedZh = zhEditor?.getHTML() || zhHtml;
+      const normalizedEn = enEditor?.getHTML() || enHtml;
+      setZhBody(normalizedZh);
+      setEnBody(normalizedEn);
+      return { zhBody: normalizedZh, enBody: normalizedEn };
     }
     return {
       zhBody: zhEditor?.getHTML() || zhBody || "",
@@ -431,24 +442,29 @@ export default function ArticleEditorPage() {
   };
 
   const handleModeChange = (newMode: "richtext" | "markdown") => {
+    if (newMode === editorMode) return;
+
     if (newMode === "markdown" && editorMode === "richtext") {
-      const turndown = new TurndownService();
-      // Convert both language buffers so switching tabs in MD mode stays consistent
+      // Richtext HTML → Markdown (mermaid, tables, code fences preserved)
       const next: Record<string, string> = { ...markdownContent };
-      for (const lang of enabledLangs) {
+      for (const lang of ["zh", "en"]) {
         const ed = langEditors[lang]?.editor;
         const html = ed?.getHTML() ?? (lang === "zh" ? zhBody : enBody) ?? "";
-        next[lang] = turndown.turndown(html || "");
+        next[lang] = htmlToMarkdown(html || "");
       }
       setMarkdownContent(next);
     } else if (newMode === "richtext" && editorMode === "markdown") {
-      for (const lang of enabledLangs) {
+      // Markdown → HTML → TipTap schema (mermaid node + tables)
+      for (const lang of ["zh", "en"]) {
         const ed = langEditors[lang]?.editor;
         const html = markdownToHtml(markdownContent[lang] ?? "");
-        ed?.commands.setContent(html);
-        if (lang === "zh") setZhBody(html);
-        if (lang === "en") setEnBody(html);
+        ed?.commands.setContent(html, { emitUpdate: false });
+        // Re-read after schema normalization so state matches editor
+        const normalized = ed?.getHTML() || html;
+        if (lang === "zh") setZhBody(normalized);
+        if (lang === "en") setEnBody(normalized);
       }
+      setMarkdownApi(null);
     }
     setEditorMode(newMode);
   };
@@ -574,11 +590,15 @@ export default function ArticleEditorPage() {
           />
         )}
 
-        {/* Row 2: Editor Toolbar (for active language editor) + Mode Switcher */}
+        {/* Row 2: Editor Toolbar (richtext or markdown) + Mode Switcher */}
         <div className="flex items-center border-t border-gray-100">
           {editorMode === "richtext" && activeEntry?.editor ? (
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <EditorToolbar editor={activeEntry.editor} modals={activeEntry.modals} />
+            </div>
+          ) : editorMode === "markdown" ? (
+            <div className="flex-1 min-w-0 overflow-x-auto">
+              <MarkdownToolbar api={markdownApi} />
             </div>
           ) : (
             <div className="flex-1" />
@@ -685,6 +705,7 @@ export default function ArticleEditorPage() {
                 <MarkdownMode
                   value={markdownContent[activeLang] ?? ""}
                   onChange={(val) => setMarkdownContent((prev) => ({ ...prev, [activeLang]: val }))}
+                  onApiReady={setMarkdownApi}
                 />
               </div>
             ) : (

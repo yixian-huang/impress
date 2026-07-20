@@ -580,6 +580,48 @@
   background: #e0f2fe;
 }
 
+/* ─── Mermaid diagram node (richtext) ─── */
+.tiptap.ProseMirror .mermaid-node-view {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+.tiptap.ProseMirror .mermaid-node-view__badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6366f1;
+  background: #eef2ff;
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid #e0e7ff;
+}
+.tiptap.ProseMirror .mermaid-node-view__source {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #4b5563;
+  background: #fff;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: pre-wrap;
+  max-height: 8rem;
+  overflow: auto;
+}
+.tiptap.ProseMirror .mermaid-node-view__preview {
+  padding: 0.75rem;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  background: #fff;
+}
+.tiptap.ProseMirror .mermaid-node-view.ProseMirror-selectednode {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
 /* ─── Tippy theme reset for slash menu ─── */
 .tippy-box[data-theme~="slash"] {
   background: white;

@@ -12,3 +12,4 @@ export { BlockToolbar } from "./block-toolbar";
 export { SlashCommands } from "./slash-commands";
 export type { SlashCommandItem } from "./slash-commands";
 export { ImagePaste } from "./image-paste";
+export { Mermaid } from "./mermaid";

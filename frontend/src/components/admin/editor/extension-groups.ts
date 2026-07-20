@@ -38,6 +38,7 @@ import {
   BlockHandle,
   BlockToolbar,
   ImagePaste,
+  Mermaid,
 } from "@/components/admin/tiptap-extensions";
 import { uploadMedia } from "@/api/media";
 
@@ -77,11 +78,12 @@ export function formattingExtensions(): Extension[] {
   ];
 }
 
-/** Basic media: image, code block */
+/** Basic media: image, code block, mermaid diagrams */
 export function mediaExtensions(): Extension[] {
   return [
     Image.configure({ inline: false, allowBase64: false }) as Extension,
     CodeBlockLowlight.configure({ lowlight }) as Extension,
+    Mermaid as Extension,
   ];
 }
 
