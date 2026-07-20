@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import {
   BaseSiteHeader,
   BrandMark,
@@ -17,7 +18,9 @@ export default function BlogHeader({ config }: HeaderChromeProps) {
   const maxWidth = useContentMaxWidth();
   const isReading = useIsReadingLayout();
   const isThemeHome = useIsThemeHomePath();
+  const { pathname } = useLocation();
   const compactHome = isReading && isThemeHome;
+  const isAuthorPage = pathname === "/author" || pathname.startsWith("/author/");
   const resolvedBrandMode = resolveBlogHomeBrandMode(brandMode, branding, compactHome);
 
   return (
@@ -43,8 +46,8 @@ export default function BlogHeader({ config }: HeaderChromeProps) {
           logoClassName="h-6 w-auto opacity-90"
         />
       }
-      // Home: RSS only — socials live on /author so the top bar stays quiet.
-      utilities={<HeaderUtilities hideSocials={compactHome} />}
+      // Home + author: RSS only — socials live on /author body, not the top bar.
+      utilities={<HeaderUtilities hideSocials={compactHome || isAuthorPage} />}
     />
   );
 }
