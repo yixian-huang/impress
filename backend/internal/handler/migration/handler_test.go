@@ -75,6 +75,10 @@ func (r *handlerArticleRepoStub) ListPublished(context.Context, int, int, string
 	return nil, 0, nil
 }
 
+func (r *handlerArticleRepoStub) Count(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type handlerCategoryRepoStub struct{}
 
 func (r *handlerCategoryRepoStub) Create(_ context.Context, category *model.Category) error {
@@ -266,5 +270,9 @@ func waitHandlerPhase(t *testing.T, service *migrationPkg.Service, jobID, phase 
 	}
 	progress, _ := service.GetProgress(jobID)
 	t.Fatalf("job %s did not reach phase %s; last progress: %+v", jobID, phase, progress)
+	return nil
+}
+
+func (r *handlerArticleRepoStub) UpdateIfMatch(context.Context, *model.Article, time.Time) error {
 	return nil
 }

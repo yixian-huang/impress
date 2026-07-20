@@ -68,7 +68,7 @@ func userID(c *gin.Context) uint {
 func parseJobID(c *gin.Context) (uint, bool) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid schedule id"})
+		apierror.Message(c, http.StatusBadRequest, "invalid schedule id")
 		return 0, false
 	}
 	return uint(id), true
@@ -118,7 +118,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Schedule(c *gin.Context) {
 	var input scheduleInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	if !authorizeContentType(c, input.ResourceType) {
@@ -126,7 +126,7 @@ func (h *Handler) Schedule(c *gin.Context) {
 	}
 	middleware.SetAuditResource(c, contentResource(input.ResourceType, input.ResourceID))
 	if !input.ScheduledAt.After(time.Now()) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "scheduledAt must be in the future"})
+		apierror.Message(c, http.StatusBadRequest, "scheduledAt must be in the future")
 		return
 	}
 	job, err := h.schedulerSvc.Schedule(
@@ -155,17 +155,17 @@ func (h *Handler) Reschedule(c *gin.Context) {
 		return
 	}
 	if job.Status != model.ScheduledJobPending {
-		c.JSON(http.StatusConflict, gin.H{"error": "only pending schedules can be changed"})
+		apierror.Message(c, http.StatusConflict, "only pending schedules can be changed")
 		return
 	}
 	middleware.SetAuditResource(c, contentResource(job.ContentType, job.ContentID))
 	var input rescheduleInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	if !input.ScheduledAt.After(time.Now()) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "scheduledAt must be in the future"})
+		apierror.Message(c, http.StatusBadRequest, "scheduledAt must be in the future")
 		return
 	}
 	updated, err := h.schedulerSvc.Reschedule(
@@ -193,7 +193,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 		return
 	}
 	if job.Status != model.ScheduledJobPending {
-		c.JSON(http.StatusConflict, gin.H{"error": "only pending schedules can be cancelled"})
+		apierror.Message(c, http.StatusConflict, "only pending schedules can be cancelled")
 		return
 	}
 	middleware.SetAuditResource(c, contentResource(job.ContentType, job.ContentID))
@@ -215,7 +215,7 @@ func (h *Handler) Retry(c *gin.Context) {
 		return
 	}
 	if job.Status != model.ScheduledJobFailed {
-		c.JSON(http.StatusConflict, gin.H{"error": "only failed schedules can be retried"})
+		apierror.Message(c, http.StatusConflict, "only failed schedules can be retried")
 		return
 	}
 	middleware.SetAuditResource(c, contentResource(job.ContentType, job.ContentID))
@@ -281,12 +281,12 @@ func allowedContentTypes(
 	}
 	user, ok := c.Get("rbac_user")
 	if !ok {
-		c.JSON(http.StatusForbidden, gin.H{"error": "permission context is missing"})
+		apierror.Message(c, http.StatusForbidden, "permission context is missing")
 		return nil, false
 	}
 	rbacUser, ok := user.(*model.User)
 	if !ok {
-		c.JSON(http.StatusForbidden, gin.H{"error": "permission context is invalid"})
+		apierror.Message(c, http.StatusForbidden, "permission context is invalid")
 		return nil, false
 	}
 	types := make([]model.ScheduledContentType, 0, 2)
@@ -297,7 +297,7 @@ func allowedContentTypes(
 		types = append(types, model.ScheduledContentPage)
 	}
 	if len(types) == 0 {
-		c.JSON(http.StatusForbidden, gin.H{"error": "permission denied: publish permission required"})
+		apierror.Message(c, http.StatusForbidden, "permission denied: publish permission required")
 		return nil, false
 	}
 	return types, true
@@ -311,13 +311,13 @@ func authorizeContentType(c *gin.Context, contentType model.ScheduledContentType
 	case model.ScheduledContentPage:
 		resource = "pages"
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "resourceType must be article or page"})
+		apierror.Message(c, http.StatusBadRequest, "resourceType must be article or page")
 		return false
 	}
 	user, ok := c.Get("rbac_user")
 	rbacUser, valid := user.(*model.User)
 	if !ok || !valid || !rbacUser.HasRBACPermission(resource, "publish") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "permission denied: " + resource + ":publish"})
+		apierror.Message(c, http.StatusForbidden, "permission denied: " + resource + ":publish")
 		return false
 	}
 	return true

@@ -7,6 +7,8 @@ import (
 	"github.com/yixian-huang/inkless/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 )
 
 type Handler struct {
@@ -22,7 +24,7 @@ func (h *Handler) Export(c *gin.Context) {
 	name := c.DefaultQuery("name", "my-theme")
 	result, err := h.exportSvc.Export(c.Request.Context(), name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -32,11 +34,11 @@ func (h *Handler) Export(c *gin.Context) {
 func (h *Handler) Import(c *gin.Context) {
 	var themePackage map[string]interface{}
 	if err := c.ShouldBindJSON(&themePackage); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := h.exportSvc.Import(c.Request.Context(), themePackage); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "theme imported"})
@@ -46,7 +48,7 @@ func (h *Handler) Import(c *gin.Context) {
 func (h *Handler) List(c *gin.Context) {
 	themes, err := h.exportSvc.ListInstalledThemes(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, themes)
@@ -56,11 +58,11 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Apply(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		apierror.Message(c, http.StatusBadRequest, "invalid id")
 		return
 	}
 	if err := h.exportSvc.ApplyTheme(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "theme applied"})

@@ -37,6 +37,10 @@ func (m *mockArticleRepo) ListPublished(context.Context, int, int, string, strin
 	return m.items, int64(len(m.items)), nil
 }
 
+func (m *mockArticleRepo) Count(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type mockSiteCfgRepo struct {
 	published model.JSONMap
 }
@@ -105,3 +109,5 @@ func TestGetFeed_ReturnsXML(t *testing.T) {
 		t.Fatalf("unexpected body: %s", body)
 	}
 }
+
+func (m *mockArticleRepo) UpdateIfMatch(context.Context, *model.Article, time.Time) error { return nil }

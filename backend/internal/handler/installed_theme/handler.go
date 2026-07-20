@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -45,7 +47,7 @@ func (h *Handler) invalidateBootstrapCache() {
 func (h *Handler) PublicGetActive(c *gin.Context) {
 	theme, err := h.themeRepo.FindActive(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "没有激活的主题"}})
+		apierror.Message(c, http.StatusNotFound, "没有激活的主题")
 		return
 	}
 
@@ -69,7 +71,7 @@ func (h *Handler) PublicGetActive(c *gin.Context) {
 func (h *Handler) AdminList(c *gin.Context) {
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询主题失败")
 		return
 	}
 
@@ -89,14 +91,14 @@ func (h *Handler) AdminList(c *gin.Context) {
 func (h *Handler) AdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Use themeID lookup via list + filter since repo exposes FindByThemeID
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询主题失败")
 		return
 	}
 
@@ -107,7 +109,7 @@ func (h *Handler) AdminGetByID(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "主题不存在"}})
+	apierror.Message(c, http.StatusNotFound, "主题不存在")
 }
 
 // createInput is the JSON body for installing an external theme
@@ -138,16 +140,16 @@ type createInput struct {
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if input.ThemeID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "themeId 不能为空"}})
+		apierror.Message(c, http.StatusBadRequest, "themeId 不能为空")
 		return
 	}
 	if input.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "name 不能为空"}})
+		apierror.Message(c, http.StatusBadRequest, "name 不能为空")
 		return
 	}
 
@@ -170,7 +172,7 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	}
 
 	if err := h.themeRepo.Create(c.Request.Context(), theme); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -204,14 +206,14 @@ type updateInput struct {
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Find existing theme by iterating over all themes
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询主题失败")
 		return
 	}
 
@@ -223,13 +225,13 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		}
 	}
 	if existing == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "主题不存在"}})
+		apierror.Message(c, http.StatusNotFound, "主题不存在")
 		return
 	}
 
 	var input updateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -259,7 +261,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	}
 
 	if err := h.themeRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -283,14 +285,14 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Find existing theme to check constraints
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询主题失败")
 		return
 	}
 
@@ -302,24 +304,24 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 		}
 	}
 	if existing == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "主题不存在"}})
+		apierror.Message(c, http.StatusNotFound, "主题不存在")
 		return
 	}
 
 	// Cannot delete active theme
 	if existing.IsActive {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "不能删除当前激活的主题"}})
+		apierror.Message(c, http.StatusBadRequest, "不能删除当前激活的主题")
 		return
 	}
 
 	// Cannot delete built-in theme
 	if existing.Source == "built-in" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "不能删除内置主题"}})
+		apierror.Message(c, http.StatusBadRequest, "不能删除内置主题")
 		return
 	}
 
 	if err := h.themeRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "主题不存在"}})
+		apierror.Message(c, http.StatusNotFound, "主题不存在")
 		return
 	}
 
@@ -338,14 +340,14 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 func (h *Handler) AdminActivate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Find the theme to get its themeID
 	themes, err := h.themeRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询主题失败")
 		return
 	}
 
@@ -357,12 +359,12 @@ func (h *Handler) AdminActivate(c *gin.Context) {
 		}
 	}
 	if target == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "主题不存在"}})
+		apierror.Message(c, http.StatusNotFound, "主题不存在")
 		return
 	}
 
 	if err := h.themeRepo.SetActive(c.Request.Context(), target.ThemeID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "激活主题失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "激活主题失败")
 		return
 	}
 

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
@@ -30,7 +32,7 @@ func NewHandler(folderRepo repository.MediaFolderRepository, mediaRepo repositor
 func (h *Handler) ListTree(c *gin.Context) {
 	folders, err := h.folderRepo.ListAll(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取文件夹列表失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "获取文件夹列表失败")
 		return
 	}
 
@@ -49,7 +51,7 @@ type CreateRequest struct {
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -58,7 +60,7 @@ func (h *Handler) Create(c *gin.Context) {
 	if req.ParentID != nil {
 		parent, err := h.folderRepo.FindByID(c.Request.Context(), *req.ParentID)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "父文件夹不存在"}})
+			apierror.Message(c, http.StatusBadRequest, "父文件夹不存在")
 			return
 		}
 		path = parent.Path + "/" + req.Name
@@ -71,7 +73,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := h.folderRepo.Create(c.Request.Context(), folder); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -88,19 +90,19 @@ type RenameRequest struct {
 func (h *Handler) Rename(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	var req RenameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	folder, err := h.folderRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文件夹不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文件夹不存在")
 		return
 	}
 
@@ -116,7 +118,7 @@ func (h *Handler) Rename(c *gin.Context) {
 	}
 
 	if err := h.folderRepo.Update(c.Request.Context(), folder); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "更新文件夹失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "更新文件夹失败")
 		return
 	}
 
@@ -128,20 +130,20 @@ func (h *Handler) Rename(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	folder, err := h.folderRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文件夹不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文件夹不存在")
 		return
 	}
 
 	// Move child folders to parent
 	children, err := h.folderRepo.FindChildren(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取子文件夹失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "获取子文件夹失败")
 		return
 	}
 
@@ -156,14 +158,14 @@ func (h *Handler) Delete(c *gin.Context) {
 			child.Path = "/" + child.Name
 		}
 		if err := h.folderRepo.Update(c.Request.Context(), child); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": fmt.Sprintf("移动子文件夹失败: %v", err)}})
+			apierror.Message(c, http.StatusInternalServerError, fmt.Sprintf("移动子文件夹失败: %v", err))
 			return
 		}
 	}
 
 	// Delete the folder
 	if err := h.folderRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "删除文件夹失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "删除文件夹失败")
 		return
 	}
 
@@ -180,32 +182,32 @@ type MoveMediaRequest struct {
 func (h *Handler) MoveMedia(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	var req MoveMediaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	// Verify media exists
 	if _, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "媒体文件不存在"}})
+		apierror.Message(c, http.StatusNotFound, "媒体文件不存在")
 		return
 	}
 
 	// Verify target folder exists (if specified)
 	if req.FolderID != nil {
 		if _, err := h.folderRepo.FindByID(c.Request.Context(), *req.FolderID); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "目标文件夹不存在"}})
+			apierror.Message(c, http.StatusBadRequest, "目标文件夹不存在")
 			return
 		}
 	}
 
 	if err := h.folderRepo.UpdateMediaFolder(c.Request.Context(), uint(id), req.FolderID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "移动媒体文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "移动媒体文件失败")
 		return
 	}
 

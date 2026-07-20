@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -133,12 +135,12 @@ type updateInput struct {
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	var input updateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if input.Config == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "config is required"}})
+		apierror.Message(c, http.StatusBadRequest, "config is required")
 		return
 	}
 
@@ -154,7 +156,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 			PublishedVersion: 1,
 		}
 		if createErr := h.siteConfigRepo.Upsert(c.Request.Context(), sc); createErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
+			apierror.Message(c, http.StatusInternalServerError, "保存主题设置失败")
 			return
 		}
 		h.invalidateBootstrapCache()
@@ -168,7 +170,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 
 	// Optimistic locking: check draft version matches
 	if existing.DraftVersion != input.DraftVersion {
-		c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "版本冲突，请刷新后重试"}})
+		apierror.Message(c, http.StatusConflict, "版本冲突，请刷新后重试")
 		return
 	}
 
@@ -178,7 +180,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	existing.PublishedConfig = input.Config
 	existing.PublishedVersion = input.DraftVersion + 1
 	if err := h.siteConfigRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存主题设置失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "保存主题设置失败")
 		return
 	}
 

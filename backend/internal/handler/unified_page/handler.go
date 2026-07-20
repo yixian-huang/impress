@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
@@ -77,7 +79,7 @@ func parseID(c *gin.Context) (uint, bool) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		apierror.Message(c, http.StatusBadRequest, "invalid id")
 		return 0, false
 	}
 	return uint(id), true
@@ -168,7 +170,7 @@ func (h *Handler) PublicList(c *gin.Context) {
 
 	pages, err := h.pageRepo.ListPublished(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list pages"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to list pages")
 		return
 	}
 
@@ -214,11 +216,11 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 
 	page, err := h.pageRepo.FindBySlug(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	if page.Status != "published" || len(page.PublishedConfig) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	result := gin.H{
@@ -259,7 +261,7 @@ func (h *Handler) AdminList(c *gin.Context) {
 
 	pages, err := h.pageRepo.List(c.Request.Context(), status, mode, parentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list pages"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to list pages")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": pages})
@@ -273,7 +275,7 @@ func (h *Handler) AdminGetByID(c *gin.Context) {
 	}
 	page, err := h.pageRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	c.JSON(http.StatusOK, page)
@@ -303,21 +305,21 @@ type createInput struct {
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	input.Slug = normalizePublicPageSlug(input.Slug)
 	if err := validatePublicPageSlug(input.Slug); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	if existing, err := h.pageRepo.FindBySlug(c.Request.Context(), input.Slug); err == nil && existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "slug already exists"})
+		apierror.Message(c, http.StatusConflict, "slug already exists")
 		return
 	}
 	if err := h.validateParent(c.Request.Context(), 0, input.ParentID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -344,7 +346,7 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	}
 
 	if err := h.pageRepo.Create(c.Request.Context(), page); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create page: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to create page: " + err.Error())
 		return
 	}
 	if h.eventBus != nil {
@@ -389,22 +391,22 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 
 	var input updateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	input.Slug = normalizePublicPageSlug(input.Slug)
 	if err := validatePublicPageSlug(input.Slug); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	page, err := h.pageRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	if existing, findErr := h.pageRepo.FindBySlug(c.Request.Context(), input.Slug); findErr == nil && existing.ID != id {
-		c.JSON(http.StatusConflict, gin.H{"error": "slug already exists"})
+		apierror.Message(c, http.StatusConflict, "slug already exists")
 		return
 	}
 
@@ -433,13 +435,13 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		if string(input.ParentID) != "null" {
 			var parsedParentID uint
 			if err := json.Unmarshal(input.ParentID, &parsedParentID); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "parentId must be a page id or null"})
+				apierror.Message(c, http.StatusBadRequest, "parentId must be a page id or null")
 				return
 			}
 			parentID = &parsedParentID
 		}
 		if err := h.validateParent(c.Request.Context(), id, parentID); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			apierror.Message(c, http.StatusBadRequest, err.Error())
 			return
 		}
 		page.ParentID = parentID
@@ -464,7 +466,7 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 	}
 
 	if err := h.pageRepo.Update(c.Request.Context(), page); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to update page: " + err.Error())
 		return
 	}
 	h.invalidatePublicPageCaches(oldSlug, page.Slug)
@@ -492,7 +494,7 @@ func (h *Handler) AdminGetDraft(c *gin.Context) {
 	}
 	page, err := h.pageRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -516,13 +518,13 @@ func (h *Handler) AdminUpdateDraft(c *gin.Context) {
 	ifMatch := c.GetHeader("If-Match")
 	expectedVersion, err := strconv.Atoi(ifMatch)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "If-Match header must be a valid integer version"})
+		apierror.Message(c, http.StatusBadRequest, "If-Match header must be a valid integer version")
 		return
 	}
 
 	var input updateDraftInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -537,7 +539,7 @@ func (h *Handler) AdminUpdateDraft(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update draft: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to update draft: " + err.Error())
 		return
 	}
 	if h.eventBus != nil {
@@ -577,7 +579,7 @@ func (h *Handler) AdminPublish(c *gin.Context) {
 
 	var input publishInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -587,14 +589,14 @@ func (h *Handler) AdminPublish(c *gin.Context) {
 	}
 	if err := h.pageSvc.Publish(c.Request.Context(), id, input.ExpectedDraftVersion, userID); err != nil {
 		if errors.Is(err, service.ErrPageVersionConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": "draft version conflict"})
+			apierror.Message(c, http.StatusConflict, "draft version conflict")
 			return
 		}
 		if errors.Is(err, service.ErrUnifiedPageNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+			apierror.Message(c, http.StatusNotFound, "page not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to publish: " + err.Error())
 		return
 	}
 
@@ -623,10 +625,10 @@ func (h *Handler) AdminUnpublish(c *gin.Context) {
 	page, err := h.pageSvc.Unpublish(c.Request.Context(), id, getUserID(c))
 	if err != nil {
 		if errors.Is(err, service.ErrUnifiedPageNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+			apierror.Message(c, http.StatusNotFound, "page not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unpublish: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to unpublish: " + err.Error())
 		return
 	}
 	h.invalidatePublicPageCaches(page.Slug)
@@ -646,7 +648,7 @@ func (h *Handler) AdminRollback(c *gin.Context) {
 
 	var input rollbackInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -656,10 +658,10 @@ func (h *Handler) AdminRollback(c *gin.Context) {
 	}
 	if err := h.pageSvc.Rollback(c.Request.Context(), id, input.TargetVersion, userID); err != nil {
 		if errors.Is(err, service.ErrPageVersionRecNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+			apierror.Message(c, http.StatusNotFound, "version not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rollback: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to rollback: " + err.Error())
 		return
 	}
 
@@ -681,11 +683,11 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 
 	page, err := h.pageRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "page not found"})
+		apierror.Message(c, http.StatusNotFound, "page not found")
 		return
 	}
 	if err := h.pageRepo.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete page"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to delete page")
 		return
 	}
 
@@ -729,7 +731,7 @@ func (h *Handler) AdminListVersions(c *gin.Context) {
 
 	versions, total, err := h.versionRepo.ListByPageID(c.Request.Context(), id, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list versions"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to list versions")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -749,13 +751,13 @@ func (h *Handler) AdminGetVersionDetail(c *gin.Context) {
 
 	versionNum, err := strconv.Atoi(c.Param("version"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid version number"})
+		apierror.Message(c, http.StatusBadRequest, "invalid version number")
 		return
 	}
 
 	version, err := h.versionRepo.FindByPageIDAndVersion(c.Request.Context(), id, versionNum)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+		apierror.Message(c, http.StatusNotFound, "version not found")
 		return
 	}
 	c.JSON(http.StatusOK, version)

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
@@ -25,7 +27,7 @@ func parseID(c *gin.Context) (uint, bool) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		apierror.Message(c, http.StatusBadRequest, "invalid id")
 		return 0, false
 	}
 	return uint(id), true
@@ -36,7 +38,7 @@ func (h *Handler) List(c *gin.Context) {
 	category := c.Query("category")
 	templates, err := h.tmplRepo.List(c.Request.Context(), category)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list templates"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to list templates")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": templates})
@@ -57,7 +59,7 @@ type createInput struct {
 func (h *Handler) Create(c *gin.Context) {
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -73,7 +75,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := h.tmplRepo.Create(c.Request.Context(), tmpl); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create template: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to create template: " + err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, tmpl)
@@ -88,17 +90,17 @@ func (h *Handler) Update(c *gin.Context) {
 
 	existing, err := h.tmplRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		apierror.Message(c, http.StatusNotFound, "template not found")
 		return
 	}
 	if existing.Category == model.TemplateCategoryBuiltin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "builtin templates cannot be modified"})
+		apierror.Message(c, http.StatusForbidden, "builtin templates cannot be modified")
 		return
 	}
 
 	var input createInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -114,7 +116,7 @@ func (h *Handler) Update(c *gin.Context) {
 	existing.Thumbnail = input.Thumbnail
 
 	if err := h.tmplRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update template: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to update template: " + err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, existing)
@@ -129,16 +131,16 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	existing, err := h.tmplRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		apierror.Message(c, http.StatusNotFound, "template not found")
 		return
 	}
 	if existing.Category == model.TemplateCategoryBuiltin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "builtin templates cannot be deleted"})
+		apierror.Message(c, http.StatusForbidden, "builtin templates cannot be deleted")
 		return
 	}
 
 	if err := h.tmplRepo.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete template"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to delete template")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
@@ -153,7 +155,7 @@ func (h *Handler) Duplicate(c *gin.Context) {
 
 	existing, err := h.tmplRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		apierror.Message(c, http.StatusNotFound, "template not found")
 		return
 	}
 
@@ -169,7 +171,7 @@ func (h *Handler) Duplicate(c *gin.Context) {
 	}
 
 	if err := h.tmplRepo.Create(c.Request.Context(), dup); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to duplicate template: " + err.Error()})
+		apierror.Message(c, http.StatusInternalServerError, "failed to duplicate template: " + err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, dup)

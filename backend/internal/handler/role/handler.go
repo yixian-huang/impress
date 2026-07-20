@@ -9,19 +9,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
 // Handler handles RBAC role management HTTP requests
 type Handler struct {
-	roleRepo repository.RoleRepository
-	userRepo repository.UserRepository
+	roleRepo  repository.RoleRepository
+	userRepo  repository.UserRepository
+	rbacCache *cache.Cache
 }
 
 // NewHandler creates a new role handler
 func NewHandler(roleRepo repository.RoleRepository, userRepo repository.UserRepository) *Handler {
 	return &Handler{roleRepo: roleRepo, userRepo: userRepo}
+}
+
+// WithRBACCache enables permission-cache invalidation after assign/unassign.
+func (h *Handler) WithRBACCache(c *cache.Cache) *Handler {
+	h.rbacCache = c
+	return h
 }
 
 func decodeStrictJSON(c *gin.Context, target any) error {
@@ -96,7 +107,7 @@ func toRoleResponse(r *model.RBACRole, userCount int64) RoleResponse {
 func (h *Handler) List(c *gin.Context) {
 	roles, err := h.roleRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to list roles"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to list roles")
 		return
 	}
 
@@ -121,13 +132,13 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid ID"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 
 	role, err := h.roleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "Role not found"}})
+		apierror.Message(c, http.StatusNotFound, "Role not found")
 		return
 	}
 
@@ -156,11 +167,11 @@ type CreateRequest struct {
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateRequest
 	if err := decodeStrictJSON(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
 	if req.Name == "" || req.DisplayName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: name and displayName are required"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: name and displayName are required")
 		return
 	}
 
@@ -172,26 +183,26 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := role.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// Check name uniqueness
 	existing, _ := h.roleRepo.FindByName(c.Request.Context(), req.Name)
 	if existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "Role name already exists"}})
+		apierror.Message(c, http.StatusConflict, "Role name already exists")
 		return
 	}
 
 	if err := h.roleRepo.Create(c.Request.Context(), role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to create role"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to create role")
 		return
 	}
 
 	// Assign permissions if provided
 	if len(req.PermissionIDs) > 0 {
 		if err := h.roleRepo.SetPermissions(c.Request.Context(), role.ID, req.PermissionIDs); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to set permissions"}})
+			apierror.Message(c, http.StatusInternalServerError, "Failed to set permissions")
 			return
 		}
 	}
@@ -222,19 +233,19 @@ type UpdateRequest struct {
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid ID"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 
 	var req UpdateRequest
 	if err := decodeStrictJSON(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
 
 	role, err := h.roleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "Role not found"}})
+		apierror.Message(c, http.StatusNotFound, "Role not found")
 		return
 	}
 
@@ -247,7 +258,7 @@ func (h *Handler) Update(c *gin.Context) {
 			role.Description = *req.Description
 		}
 		if err := h.roleRepo.Update(c.Request.Context(), role); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to update role"}})
+			apierror.Message(c, http.StatusInternalServerError, "Failed to update role")
 			return
 		}
 	}
@@ -255,7 +266,7 @@ func (h *Handler) Update(c *gin.Context) {
 	// Update permissions (allowed for all roles, including system roles)
 	if req.PermissionIDs != nil {
 		if err := h.roleRepo.SetPermissions(c.Request.Context(), role.ID, req.PermissionIDs); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to update permissions"}})
+			apierror.Message(c, http.StatusInternalServerError, "Failed to update permissions")
 			return
 		}
 	}
@@ -278,35 +289,35 @@ func (h *Handler) Update(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid ID"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 
 	role, err := h.roleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "Role not found"}})
+		apierror.Message(c, http.StatusNotFound, "Role not found")
 		return
 	}
 
 	// Cannot delete system roles
 	if role.IsSystem {
-		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "Cannot delete system roles"}})
+		apierror.Message(c, http.StatusForbidden, "Cannot delete system roles")
 		return
 	}
 
 	// Cannot delete roles with assigned users
 	count, err := h.roleRepo.CountUsersWithRole(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to check role usage"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to check role usage")
 		return
 	}
 	if count > 0 {
-		c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "Cannot delete role with assigned users"}})
+		apierror.Message(c, http.StatusConflict, "Cannot delete role with assigned users")
 		return
 	}
 
 	if err := h.roleRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to delete role"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to delete role")
 		return
 	}
 
@@ -324,7 +335,7 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) ListPermissions(c *gin.Context) {
 	perms, err := h.roleRepo.ListPermissions(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to list permissions"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to list permissions")
 		return
 	}
 
@@ -361,32 +372,33 @@ type AssignRoleRequest struct {
 func (h *Handler) AssignRole(c *gin.Context) {
 	var req AssignRoleRequest
 	if err := decodeStrictJSON(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
 	if req.UserID == 0 || req.RoleID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: userId and roleId are required"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: userId and roleId are required")
 		return
 	}
 
 	// Verify user exists
 	_, err := h.userRepo.FindByID(c.Request.Context(), req.UserID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "User not found"}})
+		apierror.Message(c, http.StatusNotFound, "User not found")
 		return
 	}
 
 	// Verify role exists
 	_, err = h.roleRepo.FindByID(c.Request.Context(), req.RoleID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "Role not found"}})
+		apierror.Message(c, http.StatusNotFound, "Role not found")
 		return
 	}
 
 	if err := h.roleRepo.AssignRoleToUser(c.Request.Context(), req.UserID, req.RoleID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to assign role: " + err.Error()}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to assign role: "+err.Error())
 		return
 	}
+	middleware.InvalidateRBACCache(h.rbacCache, req.UserID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Role assigned successfully"})
 }
@@ -410,18 +422,19 @@ type UnassignRoleRequest struct {
 func (h *Handler) UnassignRole(c *gin.Context) {
 	var req UnassignRoleRequest
 	if err := decodeStrictJSON(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
 	if req.UserID == 0 || req.RoleID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid request: userId and roleId are required"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid request: userId and roleId are required")
 		return
 	}
 
 	if err := h.roleRepo.RemoveRoleFromUser(c.Request.Context(), req.UserID, req.RoleID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "Role assignment not found"}})
+		apierror.Message(c, http.StatusNotFound, "Role assignment not found")
 		return
 	}
+	middleware.InvalidateRBACCache(h.rbacCache, req.UserID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Role removed successfully"})
 }
@@ -438,13 +451,13 @@ func (h *Handler) UnassignRole(c *gin.Context) {
 func (h *Handler) GetUserRoles(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Invalid user ID"}})
+		apierror.Message(c, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
 	userRoles, err := h.roleRepo.GetUserRoles(c.Request.Context(), uint(userID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to get user roles"}})
+		apierror.Message(c, http.StatusInternalServerError, "Failed to get user roles")
 		return
 	}
 

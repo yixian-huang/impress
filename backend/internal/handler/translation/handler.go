@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/provider"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -69,7 +71,7 @@ func (h *Handler) handleTranslationError(c *gin.Context, err error) {
 		})
 		return
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+	apierror.Message(c, http.StatusInternalServerError, err.Error())
 }
 
 // --- Translation endpoints ---
@@ -86,14 +88,14 @@ type translateInput struct {
 func (h *Handler) Translate(c *gin.Context) {
 	var input translateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request: text, sourceLang, and targetLang are required"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request: text, sourceLang, and targetLang are required")
 		return
 	}
 
 	// Load glossary for the language pair
 	glossary, err := h.buildGlossaryMap(c, input.SourceLang, input.TargetLang)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to load glossary"}})
+		apierror.Message(c, http.StatusInternalServerError, "failed to load glossary")
 		return
 	}
 
@@ -123,12 +125,12 @@ type batchTranslateInput struct {
 func (h *Handler) BatchTranslate(c *gin.Context) {
 	var input batchTranslateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request: items array is required"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request: items array is required")
 		return
 	}
 
 	if len(input.Items) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "items array must not be empty"}})
+		apierror.Message(c, http.StatusBadRequest, "items array must not be empty")
 		return
 	}
 
@@ -136,7 +138,7 @@ func (h *Handler) BatchTranslate(c *gin.Context) {
 	for _, item := range input.Items {
 		glossary, err := h.buildGlossaryMap(c, item.SourceLang, item.TargetLang)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to load glossary"}})
+			apierror.Message(c, http.StatusInternalServerError, "failed to load glossary")
 			return
 		}
 		reqs = append(reqs, provider.TranslateRequest{
@@ -161,20 +163,20 @@ func (h *Handler) BatchTranslate(c *gin.Context) {
 func (h *Handler) TranslateArticle(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid article ID"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid article ID")
 		return
 	}
 
 	article, err := h.articleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "article not found"}})
+		apierror.Message(c, http.StatusNotFound, "article not found")
 		return
 	}
 
 	var input translateArticleInput
 	if c.Request.ContentLength != 0 {
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request data"}})
+			apierror.Message(c, http.StatusBadRequest, "invalid request data")
 			return
 		}
 	}
@@ -201,14 +203,14 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 		apply = false
 	}
 	if sourceLang == targetLang {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "sourceLang and targetLang must differ"}})
+		apierror.Message(c, http.StatusBadRequest, "sourceLang and targetLang must differ")
 		return
 	}
 
 	// Load glossary
 	glossary, err := h.buildGlossaryMap(c, sourceLang, targetLang)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to load glossary"}})
+		apierror.Message(c, http.StatusInternalServerError, "failed to load glossary")
 		return
 	}
 
@@ -237,7 +239,7 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 	}
 
 	if len(mappings) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "no source content to translate"}})
+		apierror.Message(c, http.StatusBadRequest, "no source content to translate")
 		return
 	}
 
@@ -300,7 +302,7 @@ func (h *Handler) TranslateArticle(c *gin.Context) {
 		}
 
 		if err := h.articleRepo.Update(c.Request.Context(), article); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to save translated article"}})
+			apierror.Message(c, http.StatusInternalServerError, "failed to save translated article")
 			return
 		}
 	}
@@ -352,7 +354,7 @@ func (h *Handler) GlossaryList(c *gin.Context) {
 
 	items, total, err := h.glossaryRepo.List(c.Request.Context(), offset, pageSize, sourceLang, targetLang)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "query failed"}})
+		apierror.Message(c, http.StatusInternalServerError, "query failed")
 		return
 	}
 
@@ -378,7 +380,7 @@ type glossaryInput struct {
 func (h *Handler) GlossaryCreate(c *gin.Context) {
 	var input glossaryInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request: sourceLang, targetLang, sourceTerm, and targetTerm are required"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request: sourceLang, targetLang, sourceTerm, and targetTerm are required")
 		return
 	}
 
@@ -391,7 +393,7 @@ func (h *Handler) GlossaryCreate(c *gin.Context) {
 	}
 
 	if err := h.glossaryRepo.Create(c.Request.Context(), glossary); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -403,19 +405,19 @@ func (h *Handler) GlossaryCreate(c *gin.Context) {
 func (h *Handler) GlossaryUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid ID"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid ID")
 		return
 	}
 
 	existing, err := h.glossaryRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "glossary term not found"}})
+		apierror.Message(c, http.StatusNotFound, "glossary term not found")
 		return
 	}
 
 	var input glossaryInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request data"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request data")
 		return
 	}
 
@@ -426,7 +428,7 @@ func (h *Handler) GlossaryUpdate(c *gin.Context) {
 	existing.Context = input.Context
 
 	if err := h.glossaryRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -438,12 +440,12 @@ func (h *Handler) GlossaryUpdate(c *gin.Context) {
 func (h *Handler) GlossaryDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid ID"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid ID")
 		return
 	}
 
 	if err := h.glossaryRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "glossary term not found"}})
+		apierror.Message(c, http.StatusNotFound, "glossary term not found")
 		return
 	}
 

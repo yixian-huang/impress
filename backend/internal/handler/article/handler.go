@@ -12,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/contentexcerpt"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
@@ -116,7 +118,7 @@ func (h *Handler) PublicList(c *gin.Context) {
 
 	items, total, err := h.articleRepo.ListPublished(c.Request.Context(), offset, pageSize, categorySlug, tagSlug)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询文章失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询文章失败")
 		return
 	}
 
@@ -176,18 +178,18 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	if article == nil {
 		found, err := h.articleRepo.FindBySlug(c.Request.Context(), slug)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+			apierror.Message(c, http.StatusNotFound, "文章不存在")
 			return
 		}
 
 		if found.Status != model.ArticleStatusPublished {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+			apierror.Message(c, http.StatusNotFound, "文章不存在")
 			return
 		}
 
 		// Only return publicly visible articles
 		if found.Visibility != "" && found.Visibility != "public" {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+			apierror.Message(c, http.StatusNotFound, "文章不存在")
 			return
 		}
 
@@ -296,7 +298,7 @@ func (h *Handler) AdminList(c *gin.Context) {
 
 	items, total, err := h.articleRepo.List(c.Request.Context(), offset, pageSize, status, nil, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询文章失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询文章失败")
 		return
 	}
 
@@ -321,13 +323,13 @@ func (h *Handler) AdminList(c *gin.Context) {
 func (h *Handler) AdminGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	article, err := h.articleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文章不存在")
 		return
 	}
 
@@ -379,7 +381,7 @@ type createUpdateInput struct {
 func (h *Handler) AdminCreate(c *gin.Context) {
 	var input createUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -448,7 +450,7 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	}
 
 	if err := h.articleRepo.Create(c.Request.Context(), article); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -501,20 +503,20 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 func (h *Handler) AdminUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	existing, err := h.articleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文章不存在")
 		return
 	}
 	previousStatus := existing.Status
 
 	var input createUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -591,17 +593,14 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 		if errors.Is(updateErr, repository.ErrArticleVersionConflict) {
 			// Re-read current row so the client can show server timestamp / reload.
 			current, _ := h.articleRepo.FindByID(c.Request.Context(), existing.ID)
-			payload := gin.H{
-				"message": "文章已被他人修改，请重新加载或强制覆盖",
-				"code":    "version_conflict",
-			}
+			details := map[string]any{"code": "version_conflict"}
 			if current != nil {
-				payload["currentUpdatedAt"] = current.UpdatedAt
+				details["currentUpdatedAt"] = current.UpdatedAt
 			}
-			c.JSON(http.StatusConflict, gin.H{"error": payload})
+			apierror.Write(c, apierror.Conflict("文章已被他人修改，请重新加载或强制覆盖").WithDetails(details))
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": updateErr.Error()}})
+		apierror.Message(c, http.StatusBadRequest, updateErr.Error())
 		return
 	}
 
@@ -663,12 +662,12 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 func (h *Handler) AdminDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	if err := h.articleRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文章不存在")
 		return
 	}
 
@@ -699,12 +698,12 @@ func (h *Handler) AdminDelete(c *gin.Context) {
 // AdminListVersions lists version history for an article.
 func (h *Handler) AdminListVersions(c *gin.Context) {
 	if h.versionRepo == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		apierror.Message(c, http.StatusNotImplemented, "版本历史未启用")
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -719,7 +718,7 @@ func (h *Handler) AdminListVersions(c *gin.Context) {
 
 	versions, total, err := h.versionRepo.ListByArticleID(c.Request.Context(), uint(id), offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询版本失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询版本失败")
 		return
 	}
 
@@ -752,22 +751,22 @@ func (h *Handler) AdminListVersions(c *gin.Context) {
 // AdminGetVersion returns a specific version snapshot.
 func (h *Handler) AdminGetVersion(c *gin.Context) {
 	if h.versionRepo == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		apierror.Message(c, http.StatusNotImplemented, "版本历史未启用")
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 	versionNum, err := strconv.Atoi(c.Param("version"))
 	if err != nil || versionNum < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的版本号"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的版本号")
 		return
 	}
 	v, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), uint(id), versionNum)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "版本不存在"}})
+		apierror.Message(c, http.StatusNotFound, "版本不存在")
 		return
 	}
 	c.JSON(http.StatusOK, v)
@@ -777,12 +776,12 @@ func (h *Handler) AdminGetVersion(c *gin.Context) {
 // Query: left=<version>&right=<version>  (defaults: previous vs latest)
 func (h *Handler) AdminCompareVersions(c *gin.Context) {
 	if h.versionRepo == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"message": "版本历史未启用"}})
+		apierror.Message(c, http.StatusNotImplemented, "版本历史未启用")
 		return
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 	articleID := uint(id)
@@ -794,7 +793,7 @@ func (h *Handler) AdminCompareVersions(c *gin.Context) {
 	if leftNum < 1 || rightNum < 1 {
 		latest, err := h.versionRepo.GetLatestVersion(c.Request.Context(), articleID)
 		if err != nil || latest < 1 {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "暂无版本记录"}})
+			apierror.Message(c, http.StatusNotFound, "暂无版本记录")
 			return
 		}
 		if rightNum < 1 {
@@ -810,12 +809,12 @@ func (h *Handler) AdminCompareVersions(c *gin.Context) {
 
 	left, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), articleID, leftNum)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": fmt.Sprintf("左版本 v%d 不存在", leftNum)}})
+		apierror.Message(c, http.StatusNotFound, fmt.Sprintf("左版本 v%d 不存在", leftNum))
 		return
 	}
 	right, err := h.versionRepo.FindByArticleIDAndVersion(c.Request.Context(), articleID, rightNum)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": fmt.Sprintf("右版本 v%d 不存在", rightNum)}})
+		apierror.Message(c, http.StatusNotFound, fmt.Sprintf("右版本 v%d 不存在", rightNum))
 		return
 	}
 
@@ -910,7 +909,7 @@ func snapshotString(snap model.JSONMap, key string) string {
 func (h *Handler) resolveCategoryIDs(c *gin.Context, categoryIDs []uint) ([]model.Category, error) {
 	categories, err := h.categoryRepo.FindByIDs(c.Request.Context(), categoryIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询分类失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询分类失败")
 		return nil, err
 	}
 	if len(categories) != len(categoryIDs) {
@@ -920,7 +919,7 @@ func (h *Handler) resolveCategoryIDs(c *gin.Context, categoryIDs []uint) ([]mode
 		}
 		for _, id := range categoryIDs {
 			if !found[id] {
-				c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "分类 ID " + strconv.FormatUint(uint64(id), 10) + " 不存在"}})
+				apierror.Message(c, http.StatusBadRequest, "分类 ID "+strconv.FormatUint(uint64(id), 10)+" 不存在")
 				return nil, fmt.Errorf("category %d not found", id)
 			}
 		}
@@ -932,7 +931,7 @@ func (h *Handler) resolveCategoryIDs(c *gin.Context, categoryIDs []uint) ([]mode
 func (h *Handler) resolveTagIDs(c *gin.Context, tagIDs []uint) ([]model.Tag, error) {
 	tags, err := h.tagRepo.FindByIDs(c.Request.Context(), tagIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询标签失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询标签失败")
 		return nil, err
 	}
 	if len(tags) != len(tagIDs) {
@@ -942,7 +941,7 @@ func (h *Handler) resolveTagIDs(c *gin.Context, tagIDs []uint) ([]model.Tag, err
 		}
 		for _, id := range tagIDs {
 			if !found[id] {
-				c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "标签 ID " + strconv.FormatUint(uint64(id), 10) + " 不存在"}})
+				apierror.Message(c, http.StatusBadRequest, "标签 ID "+strconv.FormatUint(uint64(id), 10)+" 不存在")
 				return nil, fmt.Errorf("tag %d not found", id)
 			}
 		}

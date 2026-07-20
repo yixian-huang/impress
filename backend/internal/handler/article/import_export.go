@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 )
 
@@ -26,13 +28,13 @@ import (
 func (h *Handler) AdminExportMarkdown(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	article, err := h.articleRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "文章不存在"}})
+		apierror.Message(c, http.StatusNotFound, "文章不存在")
 		return
 	}
 
@@ -71,13 +73,13 @@ func (h *Handler) AdminExportMarkdown(c *gin.Context) {
 func (h *Handler) AdminImportMarkdown(c *gin.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "multipart form required"}})
+		apierror.Message(c, http.StatusBadRequest, "multipart form required")
 		return
 	}
 
 	files := form.File["files"]
 	if len(files) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "no files provided"}})
+		apierror.Message(c, http.StatusBadRequest, "no files provided")
 		return
 	}
 

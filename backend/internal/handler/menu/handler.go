@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
@@ -33,7 +35,7 @@ func NewHandler(menuRepo repository.MenuRepository) *Handler {
 func (h *Handler) ListGroups(c *gin.Context) {
 	groups, err := h.menuRepo.ListGroups(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询菜单失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询菜单失败")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": groups})
@@ -53,12 +55,12 @@ func (h *Handler) ListGroups(c *gin.Context) {
 func (h *Handler) CreateGroup(c *gin.Context) {
 	var input model.MenuGroup
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if err := h.menuRepo.CreateGroup(c.Request.Context(), &input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -78,13 +80,13 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 func (h *Handler) GetGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	group, err := h.menuRepo.FindGroupByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单不存在")
 		return
 	}
 
@@ -106,19 +108,19 @@ func (h *Handler) GetGroup(c *gin.Context) {
 func (h *Handler) UpdateGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	existing, err := h.menuRepo.FindGroupByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单不存在")
 		return
 	}
 
 	var input model.MenuGroup
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -126,7 +128,7 @@ func (h *Handler) UpdateGroup(c *gin.Context) {
 	existing.Slug = input.Slug
 
 	if err := h.menuRepo.UpdateGroup(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -146,12 +148,12 @@ func (h *Handler) UpdateGroup(c *gin.Context) {
 func (h *Handler) DeleteGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	if err := h.menuRepo.DeleteGroup(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单不存在")
 		return
 	}
 
@@ -170,12 +172,12 @@ func (h *Handler) DeleteGroup(c *gin.Context) {
 func (h *Handler) SetPrimary(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	if err := h.menuRepo.SetPrimary(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -196,26 +198,26 @@ func (h *Handler) SetPrimary(c *gin.Context) {
 func (h *Handler) CreateItem(c *gin.Context) {
 	groupID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Verify group exists
 	if _, err := h.menuRepo.FindGroupByID(c.Request.Context(), uint(groupID)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单不存在")
 		return
 	}
 
 	var input model.MenuItem
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	input.GroupID = uint(groupID)
 
 	if err := h.menuRepo.CreateItem(c.Request.Context(), &input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -237,19 +239,19 @@ func (h *Handler) CreateItem(c *gin.Context) {
 func (h *Handler) UpdateItem(c *gin.Context) {
 	itemID, err := strconv.ParseUint(c.Param("itemId"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	existing, err := h.menuRepo.FindItemByID(c.Request.Context(), uint(itemID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单项不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单项不存在")
 		return
 	}
 
 	var input model.MenuItem
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -266,7 +268,7 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 	existing.SortOrder = input.SortOrder
 
 	if err := h.menuRepo.UpdateItem(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -286,12 +288,12 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 func (h *Handler) DeleteItem(c *gin.Context) {
 	itemID, err := strconv.ParseUint(c.Param("itemId"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	if err := h.menuRepo.DeleteItem(c.Request.Context(), uint(itemID)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "菜单项不存在"}})
+		apierror.Message(c, http.StatusNotFound, "菜单项不存在")
 		return
 	}
 
@@ -312,7 +314,7 @@ func (h *Handler) DeleteItem(c *gin.Context) {
 func (h *Handler) ReorderItems(c *gin.Context) {
 	groupID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
@@ -320,12 +322,12 @@ func (h *Handler) ReorderItems(c *gin.Context) {
 		ItemIDs []uint `json:"itemIds"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if err := h.menuRepo.ReorderItems(c.Request.Context(), uint(groupID), input.ItemIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "排序失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "排序失败")
 		return
 	}
 

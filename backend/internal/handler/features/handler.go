@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -54,11 +56,11 @@ type putDraftInput struct {
 func (h *Handler) adminPutDraft(c *gin.Context) {
 	var in putDraftInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid body"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid body")
 		return
 	}
 	if _, err := validateFeatures(in.DraftConfig); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	existing, ferr := h.repo.FindByKey(c.Request.Context(), model.SiteConfigKeyFeatures)
@@ -71,7 +73,7 @@ func (h *Handler) adminPutDraft(c *gin.Context) {
 			PublishedVersion: 0,
 		}
 		if err := h.repo.Upsert(c.Request.Context(), sc); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "create failed"}})
+			apierror.Message(c, http.StatusInternalServerError, "create failed")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"draftVersion": 1})
@@ -80,10 +82,10 @@ func (h *Handler) adminPutDraft(c *gin.Context) {
 	newVersion, err := h.repo.UpdateDraft(c.Request.Context(), model.SiteConfigKeyFeatures, in.ExpectedDraftVersion, in.DraftConfig)
 	if err != nil {
 		if strings.Contains(err.Error(), "version conflict") {
-			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "draft version conflict"}})
+			apierror.Message(c, http.StatusConflict, "draft version conflict")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "update failed"}})
+		apierror.Message(c, http.StatusInternalServerError, "update failed")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"draftVersion": newVersion})
@@ -92,16 +94,16 @@ func (h *Handler) adminPutDraft(c *gin.Context) {
 func (h *Handler) adminPublish(c *gin.Context) {
 	sc, err := h.repo.FindByKey(c.Request.Context(), model.SiteConfigKeyFeatures)
 	if err != nil || sc == nil || sc.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "no draft to publish"}})
+		apierror.Message(c, http.StatusNotFound, "no draft to publish")
 		return
 	}
 	if _, err := validateFeatures(sc.DraftConfig); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	newPub := sc.PublishedVersion + 1
 	if err := h.repo.UpdatePublished(c.Request.Context(), model.SiteConfigKeyFeatures, sc.DraftConfig, newPub); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "publish failed"}})
+		apierror.Message(c, http.StatusInternalServerError, "publish failed")
 		return
 	}
 	if h.cache != nil {

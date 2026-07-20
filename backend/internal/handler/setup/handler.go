@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	install "github.com/yixian-huang/inkless/backend/internal/setup"
 	"github.com/yixian-huang/inkless/backend/pkg/config"
 )
@@ -37,7 +39,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine, rateLimit gin.HandlerFunc) 
 func (h *Handler) GetStatus(c *gin.Context) {
 	status, err := h.svc.GetStatus(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
+		apierror.Message(c, http.StatusInternalServerError, "failed to read setup status")
 		return
 	}
 	c.JSON(http.StatusOK, status)
@@ -47,21 +49,21 @@ func (h *Handler) GetStatus(c *gin.Context) {
 func (h *Handler) TestDatabase(c *gin.Context) {
 	allowed, err := h.svc.AllowsEnvConfiguration(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
+		apierror.Message(c, http.StatusInternalServerError, "failed to read setup status")
 		return
 	}
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "database configuration is not required"}})
+		apierror.Message(c, http.StatusForbidden, "database configuration is not required")
 		return
 	}
 
 	var in config.DatabaseInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := install.TestDatabase(c.Request.Context(), in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
@@ -71,13 +73,13 @@ func (h *Handler) TestDatabase(c *gin.Context) {
 func (h *Handler) SaveEnv(c *gin.Context) {
 	allowed, err := h.svc.AllowsEnvConfiguration(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to read setup status"}})
+		apierror.Message(c, http.StatusInternalServerError, "failed to read setup status")
 		return
 	}
 
 	var in install.BootstrapInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if in.Port == 0 {
@@ -87,18 +89,20 @@ func (h *Handler) SaveEnv(c *gin.Context) {
 	result, err := install.SaveEnv(allowed, install.WorkingDirectory(), in)
 	if err != nil {
 		if errors.Is(err, install.ErrEnvAlreadyConfigured) {
-			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "environment file already exists", "code": "ENV_ALREADY_CONFIGURED"}})
+			apierror.Write(c, apierror.Conflict("environment file already exists").WithDetails(map[string]any{
+				"code": "ENV_ALREADY_CONFIGURED",
+			}))
 			return
 		}
 		if errors.Is(err, install.ErrEnvConfigNotAllowed) {
-			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "environment configuration is not required"}})
+			apierror.Message(c, http.StatusForbidden, "environment configuration is not required")
 			return
 		}
 		if errors.Is(err, install.ErrInvalidInput) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": strings.TrimPrefix(err.Error(), "invalid setup input: ")}})
+			apierror.Message(c, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "invalid setup input: "))
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -109,20 +113,22 @@ func (h *Handler) SaveEnv(c *gin.Context) {
 func (h *Handler) Complete(c *gin.Context) {
 	var in install.CompleteInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := h.svc.Complete(c.Request.Context(), in); err != nil {
 		if errors.Is(err, install.ErrAlreadyCompleted) {
-			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "setup already completed", "code": "SETUP_ALREADY_COMPLETED"}})
+			apierror.Write(c, apierror.Forbidden("setup already completed").WithDetails(map[string]any{
+				"code": "SETUP_ALREADY_COMPLETED",
+			}))
 			return
 		}
 		if errors.Is(err, install.ErrInvalidInput) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": strings.TrimPrefix(err.Error(), "invalid setup input: ")}})
+			apierror.Message(c, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "invalid setup input: "))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "setup failed"}})
+		apierror.Message(c, http.StatusInternalServerError, "setup failed")
 		return
 	}
 

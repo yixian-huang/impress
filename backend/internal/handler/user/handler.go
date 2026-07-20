@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -73,7 +75,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	users, total, err := h.userRepo.List(c.Request.Context(), offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询用户失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询用户失败")
 		return
 	}
 
@@ -102,13 +104,13 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	user, err := h.userRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "用户不存在"}})
+		apierror.Message(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
@@ -138,34 +140,34 @@ type CreateRequest struct {
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请求参数错误: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "请求参数错误: " + err.Error())
 		return
 	}
 
 	// Validate role
 	role := model.Role(req.Role)
 	if !role.IsValid() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "角色必须是 admin 或 editor"}})
+		apierror.Message(c, http.StatusBadRequest, "角色必须是 admin 或 editor")
 		return
 	}
 
 	// Validate permissions
 	if err := validatePermissions(req.Permissions); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// Check username uniqueness
 	existing, _ := h.userRepo.FindByUsername(c.Request.Context(), req.Username)
 	if existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "用户名已存在"}})
+		apierror.Message(c, http.StatusConflict, "用户名已存在")
 		return
 	}
 
 	// Hash password
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "密码加密失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "密码加密失败")
 		return
 	}
 
@@ -178,7 +180,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := h.userRepo.Create(c.Request.Context(), user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "创建用户失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "创建用户失败")
 		return
 	}
 
@@ -208,25 +210,25 @@ type UpdateRequest struct {
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请求参数错误: " + err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, "请求参数错误: " + err.Error())
 		return
 	}
 
 	user, err := h.userRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "用户不存在"}})
+		apierror.Message(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
 	// Cannot modify super admin's role via API
 	if user.IsSuperAdmin && req.Role != nil && model.Role(*req.Role) != user.Role {
-		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "不能修改超级管理员的角色"}})
+		apierror.Message(c, http.StatusForbidden, "不能修改超级管理员的角色")
 		return
 	}
 
@@ -234,7 +236,7 @@ func (h *Handler) Update(c *gin.Context) {
 		// Check uniqueness
 		existing, _ := h.userRepo.FindByUsername(c.Request.Context(), *req.Username)
 		if existing != nil && existing.ID != user.ID {
-			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": "用户名已存在"}})
+			apierror.Message(c, http.StatusConflict, "用户名已存在")
 			return
 		}
 		user.Username = *req.Username
@@ -242,12 +244,12 @@ func (h *Handler) Update(c *gin.Context) {
 
 	if req.Password != nil {
 		if len(*req.Password) < 6 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "密码长度不能少于6位"}})
+			apierror.Message(c, http.StatusBadRequest, "密码长度不能少于6位")
 			return
 		}
 		hashedPassword, err := auth.HashPassword(*req.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "密码加密失败"}})
+			apierror.Message(c, http.StatusInternalServerError, "密码加密失败")
 			return
 		}
 		user.PasswordHash = hashedPassword
@@ -256,7 +258,7 @@ func (h *Handler) Update(c *gin.Context) {
 	if req.Role != nil {
 		role := model.Role(*req.Role)
 		if !role.IsValid() {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "角色必须是 admin 或 editor"}})
+			apierror.Message(c, http.StatusBadRequest, "角色必须是 admin 或 editor")
 			return
 		}
 		user.Role = role
@@ -265,14 +267,14 @@ func (h *Handler) Update(c *gin.Context) {
 	// Update permissions (only for non-super-admin users)
 	if !user.IsSuperAdmin {
 		if err := validatePermissions(req.Permissions); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+			apierror.Message(c, http.StatusBadRequest, err.Error())
 			return
 		}
 		user.Permissions = req.Permissions
 	}
 
 	if err := h.userRepo.Update(c.Request.Context(), user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "更新用户失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "更新用户失败")
 		return
 	}
 
@@ -292,27 +294,27 @@ func (h *Handler) Update(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Get current user from context
 	userCtx := middleware.GetUserContext(c)
 	if userCtx == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"message": "未认证"}})
+		apierror.Message(c, http.StatusUnauthorized, "未认证")
 		return
 	}
 
 	// Cannot delete yourself
 	if userCtx.UserID == uint(id) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "不能删除自己的账号"}})
+		apierror.Message(c, http.StatusBadRequest, "不能删除自己的账号")
 		return
 	}
 
 	// Check if target user exists and is super admin
 	targetUser, err := h.userRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "用户不存在"}})
+		apierror.Message(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
@@ -320,17 +322,17 @@ func (h *Handler) Delete(c *gin.Context) {
 	if targetUser.IsSuperAdmin {
 		count, err := h.userRepo.CountSuperAdmins(c.Request.Context())
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询超管数量失败"}})
+			apierror.Message(c, http.StatusInternalServerError, "查询超管数量失败")
 			return
 		}
 		if count <= 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "不能删除最后一个超级管理员"}})
+			apierror.Message(c, http.StatusBadRequest, "不能删除最后一个超级管理员")
 			return
 		}
 	}
 
 	if err := h.userRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "删除用户失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "删除用户失败")
 		return
 	}
 

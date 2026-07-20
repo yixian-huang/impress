@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	pluginruntime "github.com/yixian-huang/inkless/backend/internal/plugin"
 	"github.com/yixian-huang/inkless/backend/internal/provider"
@@ -220,5 +222,5 @@ func writeLifecycleError(c *gin.Context, err error) {
 }
 
 func writeError(c *gin.Context, status int, message string) {
-	c.JSON(status, gin.H{"error": gin.H{"message": message}})
+	apierror.Message(c, status, message)
 }

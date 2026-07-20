@@ -12,13 +12,13 @@ import (
 
 	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
 	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
-	dashboardHandler "github.com/yixian-huang/inkless/backend/internal/handler/dashboard"
 	articleHandler "github.com/yixian-huang/inkless/backend/internal/handler/article"
 	auditlogHandler "github.com/yixian-huang/inkless/backend/internal/handler/auditlog"
 	authHandler "github.com/yixian-huang/inkless/backend/internal/handler/auth"
 	bootstrapHandler "github.com/yixian-huang/inkless/backend/internal/handler/bootstrap"
 	categoryHandler "github.com/yixian-huang/inkless/backend/internal/handler/category"
 	chunkedUploadHandler "github.com/yixian-huang/inkless/backend/internal/handler/chunked_upload"
+	dashboardHandler "github.com/yixian-huang/inkless/backend/internal/handler/dashboard"
 	emailSettingsHandler "github.com/yixian-huang/inkless/backend/internal/handler/email_settings"
 	featuresHandler "github.com/yixian-huang/inkless/backend/internal/handler/features"
 	feedHandler "github.com/yixian-huang/inkless/backend/internal/handler/feed"
@@ -298,9 +298,10 @@ func registerRoutes(router *gin.Engine, handlers *Handlers, deps *RouteDeps) {
 	}
 	adminGroup.Use(middleware.Auth(cfg.JWTSecret))
 	adminGroup.Use(middleware.AuditMutations(deps.AuditWriter))
-	// Legacy middleware kept for backward compatibility with existing JWT tokens.
-	// New RBAC permission checks are applied at the route-group level.
-	adminGroup.Use(middleware.RequireAdminOrEditor())
+	// Load RBAC user (roles + permissions) once per request. JWT already
+	// validates admin|editor; RequireAdminOrEditor is redundant and would
+	// block future custom JWT roles. Per-route require() only checks perms.
+	adminGroup.Use(middleware.LoadRBACUser(deps.UserRepo, deps.RBACCache))
 	require := func(resource, action string) gin.HandlerFunc {
 		return middleware.RequirePermission(resource, action, deps.UserRepo, deps.RBACCache)
 	}

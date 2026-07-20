@@ -220,7 +220,7 @@ func wireHandlers(
 	themeExportSvc := service.NewThemeExportService(r.pageTemplate, r.siteConfig)
 
 	handlers := &Handlers{
-		Auth:           authHandler.NewHandler(r.user, r.refreshToken, cfg),
+		Auth: authHandler.NewHandler(r.user, r.refreshToken, cfg),
 		Article: articleHandler.NewHandler(r.article, r.category, r.tag, searchService, bus, publicCache).
 			WithPageViews(r.pageView).
 			WithViewTracker(pageViewRecorder).
@@ -244,7 +244,7 @@ func wireHandlers(
 		User:           userHandler.NewHandler(r.user),
 		SEO:            seoHandler.NewHandler(database.DB),
 		Search:         searchhandler.NewHandler(searchService),
-		Role:           roleHandler.NewHandler(r.role, r.user),
+		Role:           roleHandler.NewHandler(r.role, r.user).WithRBACCache(rbacCache),
 		Marketplace:    marketplaceHandler.NewHandler(marketplaceSvc),
 		Plugin:         pluginHandler.NewHandler(pluginManager, registry, cfg.ExternalPlugins),
 		Wizard:         wizardHandler.NewHandler(wizardSvc),

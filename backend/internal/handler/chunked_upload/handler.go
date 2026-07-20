@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/service"
 )
 
@@ -24,13 +26,13 @@ func NewHandler(svc *service.ChunkedUploadService) *Handler {
 func (h *Handler) InitUpload(c *gin.Context) {
 	var req service.InitUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	upload, err := h.svc.InitUpload(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -47,7 +49,7 @@ func (h *Handler) InitUpload(c *gin.Context) {
 func (h *Handler) UploadChunk(c *gin.Context) {
 	uploadID := c.Param("uploadId")
 	if uploadID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "缺少 uploadId"}})
+		apierror.Message(c, http.StatusBadRequest, "缺少 uploadId")
 		return
 	}
 
@@ -57,19 +59,19 @@ func (h *Handler) UploadChunk(c *gin.Context) {
 	}
 	chunkIndex, err := strconv.Atoi(chunkIndexStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 chunkIndex"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 chunkIndex")
 		return
 	}
 
 	file, _, err := c.Request.FormFile("chunk")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "缺少 chunk 文件"}})
+		apierror.Message(c, http.StatusBadRequest, "缺少 chunk 文件")
 		return
 	}
 	defer file.Close()
 
 	if err := h.svc.UploadChunk(c.Request.Context(), uploadID, chunkIndex, file); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -84,13 +86,13 @@ func (h *Handler) UploadChunk(c *gin.Context) {
 func (h *Handler) CompleteUpload(c *gin.Context) {
 	uploadID := c.Param("uploadId")
 	if uploadID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "缺少 uploadId"}})
+		apierror.Message(c, http.StatusBadRequest, "缺少 uploadId")
 		return
 	}
 
 	media, err := h.svc.CompleteUpload(c.Request.Context(), uploadID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

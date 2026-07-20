@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
 
@@ -32,7 +34,7 @@ func NewHandler(search provider.SearchProvider) *Handler {
 func (h *Handler) PublicSearch(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "q parameter is required"})
+		apierror.Message(c, http.StatusBadRequest, "q parameter is required")
 		return
 	}
 	locale := c.DefaultQuery("locale", "zh")
@@ -48,7 +50,7 @@ func (h *Handler) PublicSearch(c *gin.Context) {
 
 	resp, err := h.search.Search(c.Request.Context(), query, locale, contentType, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "search failed"})
+		apierror.Message(c, http.StatusInternalServerError, "search failed")
 		return
 	}
 	c.JSON(http.StatusOK, resp)
@@ -74,7 +76,7 @@ func (h *Handler) PublicSuggest(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
 	suggestions, err := h.search.Suggest(c.Request.Context(), prefix, locale, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "suggest failed"})
+		apierror.Message(c, http.StatusInternalServerError, "suggest failed")
 		return
 	}
 	c.JSON(http.StatusOK, suggestions)
@@ -90,7 +92,7 @@ func (h *Handler) PublicSuggest(c *gin.Context) {
 // @Router       /admin/search/rebuild [post]
 func (h *Handler) AdminRebuildIndex(c *gin.Context) {
 	if err := h.search.RebuildIndex(c.Request.Context()); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "rebuild failed"})
+		apierror.Message(c, http.StatusInternalServerError, "rebuild failed")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "index rebuilt successfully"})

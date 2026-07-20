@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"github.com/yixian-huang/inkless/backend/internal/service"
@@ -48,7 +50,7 @@ func (h *Handler) AdminListItems(c *gin.Context) {
 
 	items, total, err := h.svc.SearchItems(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询市场列表失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询市场列表失败")
 		return
 	}
 
@@ -75,7 +77,7 @@ func (h *Handler) AdminGetItem(c *gin.Context) {
 
 	item, err := h.svc.GetItemDetails(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "市场项目不存在"}})
+		apierror.Message(c, http.StatusNotFound, "市场项目不存在")
 		return
 	}
 
@@ -99,10 +101,10 @@ func (h *Handler) AdminInstallItem(c *gin.Context) {
 	item, err := h.svc.InstallItem(c.Request.Context(), slug)
 	if err != nil {
 		if isNotFoundError(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "市场项目不存在"}})
+			apierror.Message(c, http.StatusNotFound, "市场项目不存在")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -130,10 +132,10 @@ func (h *Handler) AdminUpdateItem(c *gin.Context) {
 	item, err := h.svc.UpdateItem(c.Request.Context(), slug)
 	if err != nil {
 		if isNotFoundError(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "市场项目不存在"}})
+			apierror.Message(c, http.StatusNotFound, "市场项目不存在")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -155,7 +157,7 @@ func (h *Handler) AdminUpdateItem(c *gin.Context) {
 func (h *Handler) AdminListInstalled(c *gin.Context) {
 	items, err := h.svc.ListInstalled(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询已安装项目失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询已安装项目失败")
 		return
 	}
 
@@ -193,7 +195,7 @@ type registerItemInput struct {
 func (h *Handler) AdminRegisterItem(c *gin.Context) {
 	var input registerItemInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -214,7 +216,7 @@ func (h *Handler) AdminRegisterItem(c *gin.Context) {
 	}
 
 	if err := h.svc.RegisterItem(c.Request.Context(), item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -236,10 +238,10 @@ func (h *Handler) AdminUninstallItem(c *gin.Context) {
 
 	if err := h.svc.UninstallItem(c.Request.Context(), slug); err != nil {
 		if isNotFoundError(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "市场项目不存在"}})
+			apierror.Message(c, http.StatusNotFound, "市场项目不存在")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -271,12 +273,12 @@ func (h *Handler) AdminAddVersion(c *gin.Context) {
 
 	var input addVersionInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if input.Version == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "版本号不能为空"}})
+		apierror.Message(c, http.StatusBadRequest, "版本号不能为空")
 		return
 	}
 
@@ -289,10 +291,10 @@ func (h *Handler) AdminAddVersion(c *gin.Context) {
 
 	if err := h.svc.AddVersion(c.Request.Context(), slug, version); err != nil {
 		if isNotFoundError(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "市场项目不存在"}})
+			apierror.Message(c, http.StatusNotFound, "市场项目不存在")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

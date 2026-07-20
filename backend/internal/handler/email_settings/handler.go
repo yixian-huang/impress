@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"github.com/yixian-huang/inkless/backend/internal/service"
@@ -64,7 +66,7 @@ func (h *Handler) HandleGet(c *gin.Context) {
 func (h *Handler) HandleUpdate(c *gin.Context) {
 	var input model.JSONMap
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid request body"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -92,7 +94,7 @@ func (h *Handler) HandleUpdate(c *gin.Context) {
 			PublishedVersion: 1,
 		}
 		if createErr := h.siteConfigRepo.Upsert(ctx, sc); createErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to save email settings"}})
+			apierror.Message(c, http.StatusInternalServerError, "failed to save email settings")
 			return
 		}
 	} else {
@@ -103,7 +105,7 @@ func (h *Handler) HandleUpdate(c *gin.Context) {
 		existing.PublishedConfig = input
 		existing.PublishedVersion = newVersion
 		if err := h.siteConfigRepo.Update(ctx, existing); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "failed to save email settings"}})
+			apierror.Message(c, http.StatusInternalServerError, "failed to save email settings")
 			return
 		}
 	}
@@ -128,13 +130,13 @@ func (h *Handler) HandleTest(c *gin.Context) {
 		To string `json:"to" binding:"required,email"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "invalid email address"}})
+		apierror.Message(c, http.StatusBadRequest, "invalid email address")
 		return
 	}
 
 	cfg := h.emailService.LoadConfig(c.Request.Context())
 	if cfg == nil || !cfg.SMTP.IsConfigured() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "SMTP is not configured"}})
+		apierror.Message(c, http.StatusBadRequest, "SMTP is not configured")
 		return
 	}
 

@@ -14,6 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 	"github.com/yixian-huang/inkless/backend/internal/service"
 )
@@ -47,7 +49,7 @@ func NewHandlerWithRuntime(runtime *service.StorageRuntimeService) *Handler {
 func (h *Handler) GetConfig(c *gin.Context) {
 	config, err := h.runtime.GetConfig(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "获取存储配置失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "获取存储配置失败")
 		return
 	}
 
@@ -70,7 +72,7 @@ type UpdateConfigRequest struct {
 func (h *Handler) UpdateConfig(c *gin.Context) {
 	req, err := decodeUpdateConfigRequest(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -84,7 +86,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 		BasePath:  req.BasePath,
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

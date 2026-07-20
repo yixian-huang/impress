@@ -67,6 +67,10 @@ func (m *mockArticleRepo) ListPublished(context.Context, int, int, string, strin
 	return nil, 0, nil
 }
 
+func (m *mockArticleRepo) Count(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type mockTranslator struct{}
 
 func (m mockTranslator) Translate(_ context.Context, req provider.TranslateRequest) (*provider.TranslateResponse, error) {
@@ -251,3 +255,5 @@ func TestTranslateArticleAppliesWhenOverwriteTrue(t *testing.T) {
 	assert.Equal(t, "translated 中文标题", articleRepo.article.EnTitle)
 	assert.Contains(t, w.Body.String(), `"applied":true`)
 }
+
+func (m *mockArticleRepo) UpdateIfMatch(context.Context, *model.Article, time.Time) error { return nil }
