@@ -23,6 +23,9 @@ type Article struct {
 	EnTitle           string        `gorm:"size:500" json:"enTitle"`
 	ZhBody            string        `gorm:"type:text" json:"zhBody"`
 	EnBody            string        `gorm:"type:text" json:"enBody"`
+	// ZhExcerpt / EnExcerpt are plain-text list/feed previews filled at publish.
+	ZhExcerpt         string        `gorm:"size:500" json:"zhExcerpt,omitempty"`
+	EnExcerpt         string        `gorm:"size:500" json:"enExcerpt,omitempty"`
 	CoverImage        string        `gorm:"size:500" json:"coverImage"`
 	ZhSeoTitle        string        `gorm:"size:200" json:"zhSeoTitle"`
 	EnSeoTitle        string        `gorm:"size:200" json:"enSeoTitle"`

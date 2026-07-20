@@ -21,6 +21,10 @@ type Config struct {
 	PluginDir          string
 	PluginDataDir      string
 	ExternalPlugins    bool
+	// LegacyContentDocFallback merges content_documents into unified page
+	// public reads when true (default). Set LEGACY_CONTENT_DOC_FALLBACK=0
+	// after migration to skip the dual-track merge when unified has content.
+	LegacyContentDocFallback bool
 }
 
 const defaultSQLiteDSN = "file:./data/inkless.db?cache=shared&mode=rwc"

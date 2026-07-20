@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 	"gorm.io/gorm"
 )
 
@@ -80,14 +82,14 @@ func (h *Handler) AdminUpdateRobotsTxt(c *gin.Context) {
 		Content string `json:"content" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "content is required"})
+		apierror.Message(c, http.StatusBadRequest, "content is required")
 		return
 	}
 
 	setting := SiteSetting{Key: "robots_txt", Value: input.Content}
 	result := h.db.Where("`key` = ?", "robots_txt").Assign(SiteSetting{Value: input.Content}).FirstOrCreate(&setting)
 	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})
+		apierror.Message(c, http.StatusInternalServerError, "failed to save")
 		return
 	}
 	// Update if already existed

@@ -29,6 +29,8 @@ type Handler struct {
 	pageRepo    repository.UnifiedPageRepository
 	cache       *cache.Cache
 	viewTracker pageViewTracker
+	// legacyFallback merges content_documents when unified has gaps (default true).
+	legacyFallback bool
 }
 
 // NewHandler creates a new public content handler
@@ -39,10 +41,11 @@ func NewHandler(
 	cache *cache.Cache,
 ) *Handler {
 	return &Handler{
-		docRepo:  docRepo,
-		pvRepo:   pvRepo,
-		pageRepo: pageRepo,
-		cache:    cache,
+		docRepo:        docRepo,
+		pvRepo:         pvRepo,
+		pageRepo:       pageRepo,
+		cache:          cache,
+		legacyFallback: true,
 	}
 }
 
@@ -52,9 +55,16 @@ func (h *Handler) WithViewTracker(t pageViewTracker) *Handler {
 	return h
 }
 
+// WithLegacyContentDocFallback controls dual-track merge from content_documents.
+// When false, a complete unified page is returned without a second DB read.
+func (h *Handler) WithLegacyContentDocFallback(enabled bool) *Handler {
+	h.legacyFallback = enabled
+	return h
+}
+
 // GetPublicContent handles GET /public/content/{pageKey}?locale=zh|en
 // Returns published-only content with locale support.
-// Reads from unified_pages first (new system); falls back to content_documents (legacy).
+// Reads from unified_pages first; optionally merges content_documents (legacy).
 func (h *Handler) GetPublicContent(c *gin.Context) {
 	// Record metrics attempt and start timer
 	metrics.Global().RecordPublicGetAttempt()
@@ -66,7 +76,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 
 	if !pageKey.IsValid() {
 		metrics.Global().RecordPublicGetFailure()
-		c.JSON(400, apierror.BadRequest("invalid pageKey"))
+		apierror.Write(c, apierror.BadRequest("invalid pageKey"))
 		return
 	}
 
@@ -74,7 +84,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 	locale := c.DefaultQuery("locale", "zh")
 	if locale != "zh" && locale != "en" {
 		metrics.Global().RecordPublicGetFailure()
-		c.JSON(400, apierror.BadRequest("locale must be zh or en"))
+		apierror.Write(c, apierror.BadRequest("locale must be zh or en"))
 		return
 	}
 
@@ -101,20 +111,23 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 		}
 	}
 
-	// Also read from legacy content_documents to fill gaps (sections migration
-	// may have left non-hero props empty).
-	doc, docErr := h.docRepo.FindByPageKey(c.Request.Context(), pageKey)
-	if docErr == nil && len(doc.PublishedConfig) > 0 {
-		legacyConfig := model.JSONMap(doc.PublishedConfig)
-		if flatConfig == nil {
-			flatConfig = legacyConfig
-			version = doc.PublishedVersion
-		} else {
-			// Merge: fill empty keys in flatConfig from legacy
-			for k, v := range legacyConfig {
-				existing, exists := flatConfig[k]
-				if !exists || isEmptyValue(existing) {
-					flatConfig[k] = v
+	// Legacy content_documents: always when unified miss; optional merge when
+	// unified hit (LEGACY_CONTENT_DOC_FALLBACK, default on).
+	needLegacy := flatConfig == nil || h.legacyFallback
+	if needLegacy && h.docRepo != nil {
+		doc, docErr := h.docRepo.FindByPageKey(c.Request.Context(), pageKey)
+		if docErr == nil && len(doc.PublishedConfig) > 0 {
+			legacyConfig := model.JSONMap(doc.PublishedConfig)
+			if flatConfig == nil {
+				flatConfig = legacyConfig
+				version = doc.PublishedVersion
+			} else {
+				// Merge: fill empty keys in flatConfig from legacy
+				for k, v := range legacyConfig {
+					existing, exists := flatConfig[k]
+					if !exists || isEmptyValue(existing) {
+						flatConfig[k] = v
+					}
 				}
 			}
 		}
@@ -122,7 +135,7 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 
 	if flatConfig == nil {
 		metrics.Global().RecordPublicGetFailure()
-		c.JSON(404, apierror.NotFound("page not found"))
+		apierror.Write(c, apierror.NotFound("page not found"))
 		return
 	}
 

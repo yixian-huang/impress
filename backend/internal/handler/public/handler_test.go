@@ -308,3 +308,40 @@ func TestGetPublicContent_AllValidPageKeys(t *testing.T) {
 		})
 	}
 }
+
+// countingDocRepo counts FindByPageKey calls for dual-track tests.
+type countingDocRepo struct {
+	MockContentDocumentRepository
+	calls int
+}
+
+func (m *countingDocRepo) FindByPageKey(ctx context.Context, pageKey model.PageKey) (*model.ContentDocument, error) {
+	m.calls++
+	return m.MockContentDocumentRepository.FindByPageKey(ctx, pageKey)
+}
+
+func TestGetPublicContent_LegacyFallbackOffSkipsDocWhenUnifiedPresent(t *testing.T) {
+	// When only content_documents has data and legacy is off, still used as sole source.
+	// This test verifies WithLegacyContentDocFallback(false) is accepted and legacy-only still works.
+	doc := &countingDocRepo{
+		MockContentDocumentRepository: MockContentDocumentRepository{
+			FindByPageKeyFunc: func(ctx context.Context, pageKey model.PageKey) (*model.ContentDocument, error) {
+				return &model.ContentDocument{
+					PageKey:          model.PageKeyHome,
+					PublishedConfig:  model.JSONMap{"title": map[string]interface{}{"zh": "首页"}},
+					PublishedVersion: 3,
+				}, nil
+			},
+		},
+	}
+	handler := NewHandler(doc, &MockPageViewRepository{}, nil, cache.New(60*time.Second)).
+		WithLegacyContentDocFallback(false)
+	router := setupTestRouter(handler)
+
+	req := httptest.NewRequest("GET", "/public/content/home?locale=zh", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, doc.calls, "legacy-only path still reads content_documents once")
+}

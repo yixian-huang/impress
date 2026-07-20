@@ -20,6 +20,8 @@ import (
 
 	"github.com/chai2010/webp"
 	"github.com/gin-gonic/gin"
+
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 	xdraw "golang.org/x/image/draw"
 
 	"github.com/yixian-huang/inkless/backend/internal/model"
@@ -67,7 +69,7 @@ func NewHandlerWithStorage(mediaRepo repository.MediaRepository, uploadDir strin
 func (h *Handler) Upload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请选择要上传的文件"}})
+		apierror.Message(c, http.StatusBadRequest, "请选择要上传的文件")
 		return
 	}
 	defer file.Close()
@@ -86,7 +88,7 @@ func (h *Handler) Upload(c *gin.Context) {
 	}
 
 	if !strings.HasPrefix(mimeType, "image/") && !strings.HasPrefix(mimeType, "video/") && !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "font/") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "仅支持上传图片、视频、音频或字体文件（woff2/woff）"}})
+		apierror.Message(c, http.StatusBadRequest, "仅支持上传图片、视频、音频或字体文件（woff2/woff）")
 		return
 	}
 
@@ -117,13 +119,13 @@ func (h *Handler) Upload(c *gin.Context) {
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "读取文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "读取文件失败")
 		return
 	}
 	written := int64(len(data))
 	storageKey, storageProvider, url, err := h.storageRuntime.Save(c.Request.Context(), uniqueName, bytes.NewReader(data), written)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "保存文件失败")
 		return
 	}
 
@@ -152,7 +154,7 @@ func (h *Handler) Upload(c *gin.Context) {
 
 	if err := h.mediaRepo.Create(c.Request.Context(), media); err != nil {
 		_ = h.storageRuntime.Delete(c.Request.Context(), storageProvider, storageKey)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存记录失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "保存记录失败")
 		return
 	}
 
@@ -203,7 +205,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, total, err := h.mediaRepo.List(c.Request.Context(), offset, pageSize, mimePrefix)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
@@ -229,24 +231,24 @@ func (h *Handler) Delete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	// Find the media record
 	media, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "未找到该媒体文件"}})
+		apierror.Message(c, http.StatusNotFound, "未找到该媒体文件")
 		return
 	}
 
 	storageProvider, storageKey := storageLocation(media)
 	if err := h.storageRuntime.Delete(c.Request.Context(), storageProvider, storageKey); err != nil {
 		if errors.Is(err, service.ErrStorageProviderUnavailable) {
-			c.JSON(http.StatusConflict, gin.H{"error": gin.H{"message": err.Error()}})
+			apierror.Message(c, http.StatusConflict, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "删除文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "删除文件失败")
 		return
 	}
 	if storageProvider == "local" {
@@ -255,7 +257,7 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	// Delete database record
 	if err := h.mediaRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "删除记录失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "删除记录失败")
 		return
 	}
 
@@ -302,19 +304,19 @@ func (h *Handler) Recrop(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	media, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "未找到该媒体文件"}})
+		apierror.Message(c, http.StatusNotFound, "未找到该媒体文件")
 		return
 	}
 
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请选择要上传的文件"}})
+		apierror.Message(c, http.StatusBadRequest, "请选择要上传的文件")
 		return
 	}
 	defer file.Close()
@@ -322,7 +324,7 @@ func (h *Handler) Recrop(c *gin.Context) {
 	// Resolve physical file path from URL
 	parts := strings.Split(media.URL, "/uploads/")
 	if len(parts) != 2 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "无法解析文件路径"}})
+		apierror.Message(c, http.StatusInternalServerError, "无法解析文件路径")
 		return
 	}
 	destPath := filepath.Join(h.uploadDir, parts[1])
@@ -330,21 +332,21 @@ func (h *Handler) Recrop(c *gin.Context) {
 	absUpload, _ := filepath.Abs(h.uploadDir)
 	absFile, _ := filepath.Abs(destPath)
 	if !strings.HasPrefix(absFile, absUpload+string(filepath.Separator)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的文件路径"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的文件路径")
 		return
 	}
 
 	// Overwrite the physical file
 	out, err := os.Create(destPath)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "保存文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "保存文件失败")
 		return
 	}
 	defer out.Close()
 
 	written, err := io.Copy(out, file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "写入文件失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "写入文件失败")
 		return
 	}
 
@@ -366,7 +368,7 @@ func (h *Handler) Recrop(c *gin.Context) {
 	media.Height = height
 
 	if err := h.mediaRepo.Update(c.Request.Context(), media); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "更新记录失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "更新记录失败")
 		return
 	}
 
@@ -388,19 +390,19 @@ func (h *Handler) GetUsages(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	media, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "未找到该媒体文件"}})
+		apierror.Message(c, http.StatusNotFound, "未找到该媒体文件")
 		return
 	}
 
 	usages, err := h.mediaRepo.FindUsages(c.Request.Context(), media.URL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询引用失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询引用失败")
 		return
 	}
 
@@ -424,7 +426,7 @@ func (h *Handler) Rename(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
@@ -432,26 +434,26 @@ func (h *Handler) Rename(c *gin.Context) {
 		Filename string `json:"filename" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "请提供新的文件名"}})
+		apierror.Message(c, http.StatusBadRequest, "请提供新的文件名")
 		return
 	}
 
 	input.Filename = strings.TrimSpace(input.Filename)
 	if input.Filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "文件名不能为空"}})
+		apierror.Message(c, http.StatusBadRequest, "文件名不能为空")
 		return
 	}
 
 	media, err := h.mediaRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "未找到该媒体文件"}})
+		apierror.Message(c, http.StatusNotFound, "未找到该媒体文件")
 		return
 	}
 
 	media.Filename = input.Filename
 
 	if err := h.mediaRepo.Update(c.Request.Context(), media); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "更新记录失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "更新记录失败")
 		return
 	}
 

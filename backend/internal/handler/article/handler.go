@@ -423,6 +423,7 @@ func (h *Handler) AdminCreate(c *gin.Context) {
 	if status == model.ArticleStatusPublished {
 		now := time.Now()
 		article.PublishedAt = &now
+		contentexcerpt.FillStoredExcerpts(article)
 	}
 	if input.ScheduledAt != nil {
 		article.ScheduledAt = input.ScheduledAt
@@ -555,6 +556,9 @@ func (h *Handler) AdminUpdate(c *gin.Context) {
 			existing.PublishedAt = &now
 		}
 		existing.Status = newStatus
+	}
+	if existing.Status == model.ArticleStatusPublished {
+		contentexcerpt.FillStoredExcerpts(existing)
 	}
 
 	// Resolve categories: prefer CategoryIDs, fallback to CategoryID

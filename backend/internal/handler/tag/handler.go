@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/contentexcerpt"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -34,7 +36,7 @@ func NewHandler(tagRepo repository.TagRepository, articleRepo repository.Article
 func (h *Handler) List(c *gin.Context) {
 	items, err := h.tagRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询标签失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询标签失败")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
@@ -55,12 +57,12 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var input model.Tag
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
 	if err := h.tagRepo.Create(c.Request.Context(), &input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -84,19 +86,19 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	existing, err := h.tagRepo.FindByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "标签不存在"}})
+		apierror.Message(c, http.StatusNotFound, "标签不存在")
 		return
 	}
 
 	var input model.Tag
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的请求数据"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
@@ -108,7 +110,7 @@ func (h *Handler) Update(c *gin.Context) {
 	existing.Metadata = input.Metadata
 
 	if err := h.tagRepo.Update(c.Request.Context(), existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
+		apierror.Message(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -130,12 +132,12 @@ func (h *Handler) Update(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "无效的 ID"}})
+		apierror.Message(c, http.StatusBadRequest, "无效的 ID")
 		return
 	}
 
 	if err := h.tagRepo.Delete(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "标签不存在"}})
+		apierror.Message(c, http.StatusNotFound, "标签不存在")
 		return
 	}
 
@@ -153,7 +155,7 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) PublicList(c *gin.Context) {
 	items, err := h.tagRepo.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询标签失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询标签失败")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
@@ -176,7 +178,7 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 
 	tag, err := h.tagRepo.FindBySlug(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "标签不存在"}})
+		apierror.Message(c, http.StatusNotFound, "标签不存在")
 		return
 	}
 
@@ -192,7 +194,7 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 
 	articles, total, err := h.articleRepo.ListPublished(c.Request.Context(), offset, pageSize, "", slug)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询文章失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询文章失败")
 		return
 	}
 	contentexcerpt.ApplyListExcerpts(articles)

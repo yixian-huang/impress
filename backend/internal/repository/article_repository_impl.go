@@ -170,12 +170,13 @@ func (r *GormArticleRepository) List(ctx context.Context, offset, limit int, sta
 // Column names are snake_case as stored by GORM.
 const articleListSelectColumns = "id, slug, status, zh_title, en_title, cover_image, " +
 	"zh_seo_title, en_seo_title, zh_meta_description, en_meta_description, og_image, " +
+	"zh_excerpt, en_excerpt, " +
 	"category_id, author, auto_summary, allow_comments, pinned, visibility, " +
 	"scheduled_at, published_at, created_at, updated_at"
 
-// articlePublicListSelectColumns includes bodies so PublicList can build short
-// plain-text excerpts without a second query per row.
-const articlePublicListSelectColumns = articleListSelectColumns + ", zh_body, en_body"
+// articlePublicListSelectColumns uses stored excerpts instead of full HTML
+// bodies (filled at publish via contentexcerpt.FillStoredExcerpts).
+const articlePublicListSelectColumns = articleListSelectColumns
 
 // publishedScope returns a GORM scope that applies the published article filters
 func publishedScope(categorySlug, tagSlug string) func(db *gorm.DB) *gorm.DB {

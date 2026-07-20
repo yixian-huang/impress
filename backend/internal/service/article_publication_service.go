@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yixian-huang/inkless/backend/internal/contentexcerpt"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
@@ -285,6 +286,7 @@ func (s *ArticlePublicationService) Publish(
 	if err := s.applyPublishPayload(ctx, article, payload); err != nil {
 		return nil, err
 	}
+	contentexcerpt.FillStoredExcerpts(article)
 
 	article.Status = model.ArticleStatusPublished
 	article.PublishedAt = &publishedAt

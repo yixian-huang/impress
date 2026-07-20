@@ -50,3 +50,21 @@ func TestApplyListExcerpts(t *testing.T) {
 		t.Fatalf("en body: %q", items[0].EnBody)
 	}
 }
+
+func TestFillAndApplyStoredExcerpts(t *testing.T) {
+	a := &model.Article{
+		ZhBody:            "<p>发布时写入摘要字段的中文正文。</p>",
+		EnBody:            "<p>English body stored as excerpt at publish.</p>",
+		ZhMetaDescription: "",
+	}
+	FillStoredExcerpts(a)
+	if a.ZhExcerpt == "" || strings.Contains(a.ZhExcerpt, "<p>") {
+		t.Fatalf("zh excerpt: %q", a.ZhExcerpt)
+	}
+	// Simulate list row without bodies (only excerpts selected).
+	listRow := &model.Article{ZhExcerpt: a.ZhExcerpt, EnExcerpt: a.EnExcerpt}
+	ApplyListExcerpts([]*model.Article{listRow})
+	if listRow.ZhBody != a.ZhExcerpt {
+		t.Fatalf("list body should use stored excerpt, got %q", listRow.ZhBody)
+	}
+}

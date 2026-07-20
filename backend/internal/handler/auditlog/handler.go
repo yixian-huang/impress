@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
 
@@ -54,7 +56,7 @@ func (h *Handler) List(c *gin.Context) {
 	if fromStr := c.Query("from"); fromStr != "" {
 		t, err := parseAuditTime(fromStr, false)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "from 必须是 RFC3339 时间或 YYYY-MM-DD 日期"}})
+			apierror.Message(c, http.StatusBadRequest, "from 必须是 RFC3339 时间或 YYYY-MM-DD 日期")
 			return
 		}
 		from = &t
@@ -62,7 +64,7 @@ func (h *Handler) List(c *gin.Context) {
 	if toStr := c.Query("to"); toStr != "" {
 		t, err := parseAuditTime(toStr, true)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "to 必须是 RFC3339 时间或 YYYY-MM-DD 日期"}})
+			apierror.Message(c, http.StatusBadRequest, "to 必须是 RFC3339 时间或 YYYY-MM-DD 日期")
 			return
 		}
 		to = &t
@@ -70,7 +72,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, total, err := h.auditEventRepo.List(c.Request.Context(), offset, pageSize, action, actor, from, to)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "查询审计日志失败"}})
+		apierror.Message(c, http.StatusInternalServerError, "查询审计日志失败")
 		return
 	}
 

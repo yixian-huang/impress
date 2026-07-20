@@ -129,7 +129,22 @@ func loadBase() (*Config, error) {
 		"true",
 	)
 
+	// Default true for backward-compatible dual-track reads. Disable after
+	// content_documents → unified_pages migration is complete:
+	// LEGACY_CONTENT_DOC_FALLBACK=0|false|off
+	cfg.LegacyContentDocFallback = parseBoolDefaultTrue(os.Getenv("LEGACY_CONTENT_DOC_FALLBACK"))
+
 	return cfg, nil
+}
+
+// parseBoolDefaultTrue treats empty as true; 0/false/off/no as false.
+func parseBoolDefaultTrue(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "false", "off", "no":
+		return false
+	default:
+		return true
+	}
 }
 
 func ephemeralSecret() (string, error) {

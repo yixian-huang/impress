@@ -63,14 +63,60 @@ func truncateRunes(s string, maxRunes int) string {
 	return strings.TrimSpace(string(runes[:cut])) + "..."
 }
 
-// applyListExcerpts replaces full HTML bodies with short plain-text excerpts
+// FillStoredExcerpts writes plain-text previews onto the article for list/feed.
+// Call on create/update when status is published (and on scheduled publish).
+func FillStoredExcerpts(a *model.Article) {
+	if a == nil {
+		return
+	}
+	a.ZhExcerpt = plainExcerpt(a.ZhBody, a.ZhMetaDescription, publicListExcerptMaxRunes)
+	a.EnExcerpt = plainExcerpt(a.EnBody, a.EnMetaDescription, publicListExcerptMaxRunes)
+}
+
+// ApplyListExcerpts replaces full HTML bodies with short plain-text excerpts
 // so public list payloads stay small while home/archive can show previews.
+// Prefers stored ZhExcerpt/EnExcerpt when present (no body required on the row).
 func ApplyListExcerpts(items []*model.Article) {
 	for _, a := range items {
 		if a == nil {
 			continue
 		}
-		a.ZhBody = plainExcerpt(a.ZhBody, a.ZhMetaDescription, publicListExcerptMaxRunes)
-		a.EnBody = plainExcerpt(a.EnBody, a.EnMetaDescription, publicListExcerptMaxRunes)
+		if a.ZhExcerpt != "" {
+			a.ZhBody = a.ZhExcerpt
+		} else {
+			a.ZhBody = plainExcerpt(a.ZhBody, a.ZhMetaDescription, publicListExcerptMaxRunes)
+		}
+		if a.EnExcerpt != "" {
+			a.EnBody = a.EnExcerpt
+		} else {
+			a.EnBody = plainExcerpt(a.EnBody, a.EnMetaDescription, publicListExcerptMaxRunes)
+		}
 	}
+}
+
+// Description prefers stored excerpt, then meta, then a truncated body.
+func Description(a *model.Article, maxRunes int) string {
+	if a == nil {
+		return ""
+	}
+	if maxRunes <= 0 {
+		maxRunes = publicListExcerptMaxRunes
+	}
+	if a.ZhExcerpt != "" {
+		return truncateRunes(a.ZhExcerpt, maxRunes)
+	}
+	if a.EnExcerpt != "" {
+		return truncateRunes(a.EnExcerpt, maxRunes)
+	}
+	if a.ZhMetaDescription != "" {
+		return truncateRunes(a.ZhMetaDescription, maxRunes)
+	}
+	if a.EnMetaDescription != "" {
+		return truncateRunes(a.EnMetaDescription, maxRunes)
+	}
+	body := a.ZhBody
+	if body == "" {
+		body = a.EnBody
+	}
+	return plainExcerpt(body, "", maxRunes)
 }

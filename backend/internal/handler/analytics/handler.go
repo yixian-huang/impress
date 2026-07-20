@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
+
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
@@ -51,7 +53,7 @@ func (h *Handler) GetSummary(c *gin.Context) {
 	now := time.Now()
 	stats, err := h.pvRepo.GetSummary(c.Request.Context(), now)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "failed to fetch analytics"})
+		apierror.Message(c, 500, "failed to fetch analytics")
 		return
 	}
 

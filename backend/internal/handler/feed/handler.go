@@ -9,8 +9,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/internal/contentexcerpt"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 )
 
 // Handler serves RSS 2.0 feeds for published articles.
@@ -97,18 +99,13 @@ func stripHTML(s string) string {
 }
 
 func itemDescription(article *model.Article) string {
+	// Prefer stored plain-text excerpts (filled at publish); fall back to body.
+	if desc := contentexcerpt.Description(article, 500); desc != "" {
+		return desc
+	}
 	body := article.ZhBody
 	if body == "" {
 		body = article.EnBody
-	}
-	if article.AutoSummary || body == "" {
-		desc := article.ZhMetaDescription
-		if desc == "" {
-			desc = article.EnMetaDescription
-		}
-		if desc != "" {
-			return desc
-		}
 	}
 	text := stripHTML(body)
 	if len(text) > 500 {
@@ -134,7 +131,7 @@ func (h *Handler) GetFeed(c *gin.Context) {
 	limit := 50
 	articles, _, err := h.articleRepo.ListPublished(c.Request.Context(), 0, limit, "", "")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "feed generation failed"}})
+		apierror.Write(c, apierror.InternalServerError("feed generation failed"))
 		return
 	}
 
