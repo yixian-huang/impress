@@ -1,6 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AdminRouteFallback } from "@/components/admin/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
@@ -11,6 +10,7 @@ import {
 } from "@/pages/admin/adminRoutePrefetch";
 import { isAdminEditorPath } from "@/pages/admin/nav/adminNav";
 import { getAdminRoutePermission, hasAdminRoutePermission } from "@/router/adminAccess";
+import AdminKeepAliveOutlet from "./components/AdminKeepAliveOutlet";
 import AdminSidebar from "./components/AdminSidebar";
 import AdminTopbar from "./components/AdminTopbar";
 
@@ -109,9 +109,7 @@ export default function AdminLayout() {
               : "flex-1 p-4 sm:p-6"
           }
         >
-          <Suspense fallback={<AdminRouteFallback />}>
-            <Outlet />
-          </Suspense>
+          <AdminKeepAliveOutlet />
         </main>
       </div>
     </div>

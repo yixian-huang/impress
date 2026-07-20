@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAdminArticles, deleteArticle } from "@/api/articles";
 import type { Article } from "@/api/articles";
@@ -19,12 +19,17 @@ import {
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
 import { adminQueryKeys } from "@/lib/adminQueryKeys";
+import { prefetchAdminEditors } from "@/pages/admin/adminRoutePrefetch";
 
 const PAGE_SIZE = 15;
 
 export default function AdminArticlesPage() {
   useDocumentTitle("文章管理");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    prefetchAdminEditors();
+  }, []);
 
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -175,6 +180,8 @@ export default function AdminArticlesPage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/articles/edit/${article.id}`)}
+                      onMouseEnter={() => prefetchAdminEditors()}
+                      onFocus={() => prefetchAdminEditors()}
                       className="mr-3 text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       编辑

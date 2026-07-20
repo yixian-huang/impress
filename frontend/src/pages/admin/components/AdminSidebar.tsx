@@ -4,7 +4,7 @@ import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-re
 import { ProductLogo } from "@/components/product/ProductLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { BROWSER_STORAGE_KEYS } from "@/lib/browserStorage";
-import { prefetchAdminRoute } from "@/pages/admin/adminRoutePrefetch";
+import { prefetchAdminRouteWithEditors } from "@/pages/admin/adminRoutePrefetch";
 import {
   filterNavGroups,
   isGroupActive,
@@ -15,7 +15,7 @@ import {
 } from "@/pages/admin/nav/adminNav";
 
 function handlePrefetchPath(path: string) {
-  prefetchAdminRoute(path);
+  prefetchAdminRouteWithEditors(path);
 }
 
 interface AdminSidebarProps {

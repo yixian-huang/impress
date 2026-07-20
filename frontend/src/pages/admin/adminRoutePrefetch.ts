@@ -108,6 +108,25 @@ export function prefetchAdminCorePack(): void {
   });
 }
 
+/** Prefetch TipTap / page editor chunks (shared by new + edit routes). */
+export function prefetchAdminEditors(): void {
+  prefetchAdminRoute("/admin/articles/edit");
+  prefetchAdminRoute("/admin/pages/edit");
+}
+
+/** When user hovers content menus that lead to editors, warm editor packs too. */
+export function prefetchAdminRouteWithEditors(pathname: string): void {
+  prefetchAdminRoute(pathname);
+  if (
+    pathname === "/admin/articles" ||
+    pathname.startsWith("/admin/articles/") ||
+    pathname === "/admin/pages" ||
+    pathname.startsWith("/admin/pages/")
+  ) {
+    prefetchAdminEditors();
+  }
+}
+
 /** Idle-time warm of common secondary menus (non-blocking). */
 export function prefetchAdminSecondaryRoutes(): void {
   const secondary = [
@@ -124,10 +143,15 @@ export function prefetchAdminSecondaryRoutes(): void {
       prefetchAdminRoute(path);
     }
   };
+  const runEditors = () => {
+    prefetchAdminEditors();
+  };
   if (typeof window !== "undefined" && "requestIdleCallback" in window) {
     window.requestIdleCallback(() => run(), { timeout: 2500 });
+    window.requestIdleCallback(() => runEditors(), { timeout: 4500 });
   } else {
     setTimeout(run, 800);
+    setTimeout(runEditors, 1600);
   }
 }
 

@@ -35,4 +35,11 @@ describe("adminRoutePrefetch", () => {
     expect(adminRouteLoaders["/admin/settings"]).toBeTypeOf("function");
     expect(adminRouteLoaders["/admin/theme"]).toBeTypeOf("function");
   });
+
+  it("resolves editor loaders for new and edit paths", () => {
+    expect(resolveAdminLoaderPath("/admin/articles/new")).toBe("/admin/articles/new");
+    expect(resolveAdminLoaderPath("/admin/articles/edit/9")).toBe("/admin/articles/edit");
+    expect(resolveAdminLoaderPath("/admin/pages/new")).toBe("/admin/pages/new");
+    expect(resolveAdminLoaderPath("/admin/pages/edit/2")).toBe("/admin/pages/edit");
+  });
 });

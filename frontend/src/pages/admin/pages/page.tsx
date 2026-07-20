@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   listUnifiedPages,
@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
 import { adminQueryKeys } from "@/lib/adminQueryKeys";
+import { prefetchAdminEditors } from "@/pages/admin/adminRoutePrefetch";
 
 export default function AdminPagesPage() {
   useDocumentTitle("页面管理");
@@ -28,6 +29,10 @@ export default function AdminPagesPage() {
   const [modeFilter, setModeFilter] = useState("");
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    prefetchAdminEditors();
+  }, []);
   const { hasPermission } = useAuth();
   const canCreate = hasPermission("pages:create");
   const canUpdate = hasPermission("pages:update");
@@ -148,6 +153,8 @@ export default function AdminPagesPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/admin/pages/edit/${page.id}`)}
+                    onMouseEnter={() => prefetchAdminEditors()}
+                    onFocus={() => prefetchAdminEditors()}
                     className="text-sm font-medium text-blue-600 hover:text-blue-800"
                   >
                     {canUpdate ? "编辑" : "查看"}
