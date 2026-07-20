@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
+import { sanitizePublicHtml } from "@/utils/sanitizePublicHtml";
 
 interface ArticlePostBodyProps {
   html: string;
@@ -16,7 +17,8 @@ function loadMermaid() {
       const mermaid = mod.default;
       mermaid.initialize({
         startOnLoad: false,
-        securityLevel: "loose",
+        // Strict: no click handlers / HTML labels from untrusted diagram text.
+        securityLevel: "strict",
         theme: "neutral",
         fontFamily: "inherit",
       });
@@ -227,10 +229,11 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
   const localRef = useRef<HTMLElement | null>(null);
   const renderGen = useRef(0);
   const { t } = useTranslation("common");
+  const safeHtml = useMemo(() => sanitizePublicHtml(html), [html]);
 
   useLayoutEffect(() => {
     const el = contentRef?.current ?? localRef.current;
-    if (!el || !html) return;
+    if (!el || !safeHtml) return;
 
     const gen = ++renderGen.current;
     let cancelled = false;
@@ -274,7 +277,7 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
       cancelAnimationFrame(raf);
       stopObserve?.();
     };
-  }, [html, contentRef, t]);
+  }, [safeHtml, contentRef, t]);
 
   return (
     <article
@@ -285,7 +288,7 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
         }
       }}
       className="tiptap ProseMirror max-w-none article-public-view"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
       onClick={onClick}
     />
   );
