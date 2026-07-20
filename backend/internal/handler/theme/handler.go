@@ -22,9 +22,7 @@ func NewHandler(siteConfigRepo repository.SiteConfigRepository, c *cache.Cache) 
 }
 
 func (h *Handler) invalidateBootstrapCache() {
-	if h.cache != nil {
-		h.cache.DeletePrefix("bootstrap:")
-	}
+	cache.InvalidateThemeOrSiteConfig(h.cache)
 }
 
 // defaultThemeConfig returns the default theme token values

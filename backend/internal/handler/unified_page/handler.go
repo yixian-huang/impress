@@ -110,13 +110,12 @@ func (h *Handler) invalidatePublicPageCaches(slugs ...string) {
 	if h.cache == nil {
 		return
 	}
-	h.cache.DeletePrefix("bootstrap:")
-	h.cache.DeletePrefix("pages:list:")
+	if len(slugs) == 0 {
+		cache.InvalidatePagePublic(h.cache, "")
+		return
+	}
 	for _, slug := range slugs {
-		if slug != "" {
-			h.cache.DeletePrefix("page:" + slug + ":")
-			h.cache.DeletePrefix("content:" + slug + ":")
-		}
+		cache.InvalidatePagePublic(h.cache, slug)
 	}
 }
 

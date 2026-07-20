@@ -92,10 +92,6 @@ func (h *Handler) adminPublish(c *gin.Context) {
 		return
 	}
 	// Invalidate bootstrap + public content caches for "global".
-	if h.cache != nil {
-		h.cache.DeletePrefix("bootstrap:")
-		h.cache.Delete("content:global:zh")
-		h.cache.Delete("content:global:en")
-	}
+	cache.InvalidateThemeOrSiteConfig(h.cache)
 	c.JSON(http.StatusOK, gin.H{"publishedVersion": newPub})
 }

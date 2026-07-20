@@ -7,8 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
+
+const dashboardSummaryCacheKey = cache.PrefixDashboard + "summary"
+const dashboardSummaryTTL = 20 * time.Second
 
 // Handler serves aggregated admin dashboard stats in one round-trip.
 type Handler struct {
@@ -16,6 +20,7 @@ type Handler struct {
 	pageRepo    repository.UnifiedPageRepository
 	mediaRepo   repository.MediaRepository
 	pvRepo      repository.PageViewRepository
+	cache       *cache.Cache
 }
 
 // NewHandler creates a dashboard handler.
@@ -33,6 +38,12 @@ func NewHandler(
 	}
 }
 
+// WithCache enables short-TTL caching for dashboard summary.
+func (h *Handler) WithCache(c *cache.Cache) *Handler {
+	h.cache = c
+	return h
+}
+
 // Summary handles GET /admin/dashboard/summary
 // @Summary      Admin dashboard summary
 // @Description  Returns today visits, pages/articles/media counts for the dashboard
@@ -43,6 +54,15 @@ func NewHandler(
 // @Failure      401 {object} object{error=string}
 // @Router       /admin/dashboard/summary [get]
 func (h *Handler) Summary(c *gin.Context) {
+	if h.cache != nil {
+		if cached, ok := h.cache.Get(dashboardSummaryCacheKey); ok {
+			c.Header("X-Cache", "HIT")
+			c.Header("Cache-Control", "private, max-age=15")
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+	}
+
 	ctx := c.Request.Context()
 	now := time.Now()
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -133,12 +153,18 @@ func (h *Handler) Summary(c *gin.Context) {
 
 	wg.Wait()
 
-	c.Header("Cache-Control", "private, max-age=15")
-	c.JSON(http.StatusOK, gin.H{
+	payload := gin.H{
 		"todayVisits":   todayVisits,
 		"pagesCount":    pagesCount,
 		"articlesCount": articlesCount,
 		"mediaCount":    mediaCount,
 		"errors":        errs,
-	})
+	}
+	if h.cache != nil {
+		h.cache.SetWithTTL(dashboardSummaryCacheKey, payload, dashboardSummaryTTL)
+	}
+
+	c.Header("X-Cache", "MISS")
+	c.Header("Cache-Control", "private, max-age=15")
+	c.JSON(http.StatusOK, payload)
 }

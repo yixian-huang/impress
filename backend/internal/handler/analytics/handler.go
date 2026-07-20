@@ -3,19 +3,30 @@ package analytics
 import (
 	"time"
 
-	"github.com/yixian-huang/inkless/backend/internal/repository"
-
 	"github.com/gin-gonic/gin"
+
+	"github.com/yixian-huang/inkless/backend/internal/cache"
+	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
+
+const analyticsSummaryCacheKey = cache.PrefixAnalytics + "summary"
+const analyticsSummaryTTL = 45 * time.Second
 
 // Handler handles analytics-related HTTP requests
 type Handler struct {
 	pvRepo repository.PageViewRepository
+	cache  *cache.Cache
 }
 
 // NewHandler creates a new analytics handler
 func NewHandler(pvRepo repository.PageViewRepository) *Handler {
 	return &Handler{pvRepo: pvRepo}
+}
+
+// WithCache enables short-TTL caching for expensive summary queries.
+func (h *Handler) WithCache(c *cache.Cache) *Handler {
+	h.cache = c
+	return h
 }
 
 // GetSummary handles GET /admin/analytics/summary
@@ -28,6 +39,15 @@ func NewHandler(pvRepo repository.PageViewRepository) *Handler {
 // @Failure      500 {object} object{error=string}
 // @Router       /admin/analytics/summary [get]
 func (h *Handler) GetSummary(c *gin.Context) {
+	if h.cache != nil {
+		if cached, ok := h.cache.Get(analyticsSummaryCacheKey); ok {
+			c.Header("X-Cache", "HIT")
+			c.Header("Cache-Control", "private, max-age=30")
+			c.JSON(200, cached)
+			return
+		}
+	}
+
 	now := time.Now()
 	stats, err := h.pvRepo.GetSummary(c.Request.Context(), now)
 	if err != nil {
@@ -44,7 +64,7 @@ func (h *Handler) GetSummary(c *gin.Context) {
 		totalUV += s.UniqueVisitors
 	}
 
-	c.JSON(200, gin.H{
+	payload := gin.H{
 		"pages": stats,
 		"totals": gin.H{
 			"today":          totalToday,
@@ -52,5 +72,13 @@ func (h *Handler) GetSummary(c *gin.Context) {
 			"last30d":        totalLast30d,
 			"uniqueVisitors": totalUV,
 		},
-	})
+	}
+
+	if h.cache != nil {
+		h.cache.SetWithTTL(analyticsSummaryCacheKey, payload, analyticsSummaryTTL)
+	}
+
+	c.Header("X-Cache", "MISS")
+	c.Header("Cache-Control", "private, max-age=30")
+	c.JSON(200, payload)
 }

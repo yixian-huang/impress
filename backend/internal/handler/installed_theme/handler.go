@@ -29,9 +29,7 @@ func NewHandler(
 }
 
 func (h *Handler) invalidateBootstrapCache() {
-	if h.cache != nil {
-		h.cache.DeletePrefix("bootstrap:")
-	}
+	cache.InvalidateThemeOrSiteConfig(h.cache)
 }
 
 // --- Public endpoints ---

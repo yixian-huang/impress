@@ -47,8 +47,17 @@ func (c *Cache) Get(key string) (interface{}, bool) {
 
 // Set stores a value with the default TTL.
 func (c *Cache) Set(key string, value interface{}) {
+	c.SetWithTTL(key, value, c.ttl)
+}
+
+// SetWithTTL stores a value with a custom TTL (clamped to at least 1s when positive).
+// A zero or negative ttl uses the cache default.
+func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
+	if ttl <= 0 {
+		ttl = c.ttl
+	}
 	c.mu.Lock()
-	c.entries[key] = &entry{value: value, expiresAt: time.Now().Add(c.ttl)}
+	c.entries[key] = &entry{value: value, expiresAt: time.Now().Add(ttl)}
 	c.mu.Unlock()
 }
 
@@ -70,11 +79,32 @@ func (c *Cache) DeletePrefix(prefix string) {
 	c.mu.Unlock()
 }
 
+// DeleteWhere removes keys for which pred returns true.
+func (c *Cache) DeleteWhere(pred func(key string) bool) {
+	if pred == nil {
+		return
+	}
+	c.mu.Lock()
+	for k := range c.entries {
+		if pred(k) {
+			delete(c.entries, k)
+		}
+	}
+	c.mu.Unlock()
+}
+
 // Flush removes all entries.
 func (c *Cache) Flush() {
 	c.mu.Lock()
 	c.entries = make(map[string]*entry)
 	c.mu.Unlock()
+}
+
+// Len returns the number of entries (including not-yet-purged expired ones).
+func (c *Cache) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.entries)
 }
 
 // cleanup runs every 2 minutes to remove expired entries.

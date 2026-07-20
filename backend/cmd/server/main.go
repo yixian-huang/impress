@@ -436,28 +436,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Cache invalidation on content changes
-	bus.Subscribe(eventbus.ContentCreated, eventbus.AsyncHandler(func(e eventbus.Event) {
-		publicCache.DeletePrefix("articles:")
-		publicCache.DeletePrefix("article:")
-		publicCache.Flush() // bootstrap includes article data indirectly
-	}))
-	bus.Subscribe(eventbus.ContentUpdated, eventbus.AsyncHandler(func(e eventbus.Event) {
-		publicCache.Flush() // simplest: flush all on any content change
-	}))
-	bus.Subscribe(eventbus.ContentDeleted, eventbus.AsyncHandler(func(e eventbus.Event) {
-		publicCache.Flush()
-	}))
-	bus.Subscribe(eventbus.ContentPublished, eventbus.AsyncHandler(func(e eventbus.Event) {
-		publicCache.Flush()
-	}))
+	// Fine-grained public cache invalidation on content lifecycle events.
+	// Avoid Flush() so admin short-TTL keys (analytics/dashboard) survive publishes.
+	invalidateFromEvent := func(e eventbus.Event) {
+		contentType, slug := "", ""
+		if p, ok := e.Payload.(eventbus.ContentEventPayload); ok {
+			contentType, slug = p.ContentType, p.Slug
+		} else if p, ok := e.Payload.(*eventbus.ContentEventPayload); ok && p != nil {
+			contentType, slug = p.ContentType, p.Slug
+		}
+		cache.InvalidatePublicFromContentEvent(publicCache, contentType, slug)
+	}
+	for _, evt := range []string{
+		eventbus.ContentCreated,
+		eventbus.ContentUpdated,
+		eventbus.ContentDeleted,
+		eventbus.ContentPublished,
+		eventbus.ContentUnpublished,
+		eventbus.ContentRolledBack,
+	} {
+		bus.Subscribe(evt, eventbus.AsyncHandler(invalidateFromEvent))
+	}
 
 	// Initialize handlers
 	authHandlerInst := authHandler.NewHandler(userRepo, refreshTokenRepo, cfg)
 	publicHandlerInst := publicHandler.NewHandler(contentDocRepo, pageViewRepo, unifiedPageRepo, publicCache)
 	mediaHandlerInst := mediaHandler.NewHandlerWithStorage(mediaRepo, cfg.UploadDir, "", storageRuntime)
-	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo)
-	dashboardHandlerInst := dashboardHandler.NewHandler(articleRepo, unifiedPageRepo, mediaRepo, pageViewRepo)
+	analyticsHandlerInst := analyticsHandler.NewHandler(pageViewRepo).WithCache(publicCache)
+	dashboardHandlerInst := dashboardHandler.NewHandler(articleRepo, unifiedPageRepo, mediaRepo, pageViewRepo).WithCache(publicCache)
 	categoryHandlerInst := categoryHandler.NewHandler(categoryRepo, articleRepo)
 	tagHandlerInst := tagHandler.NewHandler(tagRepo, articleRepo)
 	menuHandlerInst := menuHandler.NewHandler(menuRepo)
