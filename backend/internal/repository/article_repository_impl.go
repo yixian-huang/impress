@@ -174,9 +174,11 @@ const articleListSelectColumns = "id, slug, status, zh_title, en_title, cover_im
 	"category_id, author, auto_summary, allow_comments, pinned, visibility, " +
 	"scheduled_at, published_at, created_at, updated_at"
 
-// articlePublicListSelectColumns uses stored excerpts instead of full HTML
-// bodies (filled at publish via contentexcerpt.FillStoredExcerpts).
-const articlePublicListSelectColumns = articleListSelectColumns
+// articlePublicListSelectColumns prefers stored zh_excerpt/en_excerpt (filled at
+// publish via contentexcerpt.FillStoredExcerpts) but still loads zh_body/en_body
+// so ApplyListExcerpts can build previews for rows published before excerpt
+// columns existed (empty excerpt otherwise → blank home/archive cards).
+const articlePublicListSelectColumns = articleListSelectColumns + ", zh_body, en_body"
 
 // publishedScope returns a GORM scope that applies the published article filters
 func publishedScope(categorySlug, tagSlug string) func(db *gorm.DB) *gorm.DB {
