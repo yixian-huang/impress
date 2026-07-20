@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yixian-huang/inkless/backend/internal/handlerutil"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/repository"
 )
@@ -119,18 +120,17 @@ func (h *Handler) PublicCreate(c *gin.Context) {
 func (h *Handler) PublicList(c *gin.Context) {
 	contentType := c.Query("contentType")
 	contentID, _ := strconv.ParseUint(c.Query("contentId"), 10, 32)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	p := handlerutil.ParsePagination(c, 20, handlerutil.DefaultMaxPageSize)
 	if contentType == "" || contentID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "contentType and contentId required"})
 		return
 	}
-	comments, total, err := h.repo.ListByContent(c.Request.Context(), contentType, uint(contentID), CommentStatusApproved, page, pageSize)
+	comments, total, err := h.repo.ListByContent(c.Request.Context(), contentType, uint(contentID), CommentStatusApproved, p.Page, p.PageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list comments"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": page, "pageSize": pageSize})
+	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": p.Page, "pageSize": p.PageSize})
 }
 
 // AdminList returns all comments with optional status filter.
@@ -146,17 +146,13 @@ func (h *Handler) PublicList(c *gin.Context) {
 // @Router       /admin/comments [get]
 func (h *Handler) AdminList(c *gin.Context) {
 	status := c.DefaultQuery("status", "")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	comments, total, err := h.repo.ListAll(c.Request.Context(), status, page, pageSize)
+	p := handlerutil.ParsePagination(c, 20, handlerutil.DefaultMaxPageSize)
+	comments, total, err := h.repo.ListAll(c.Request.Context(), status, p.Page, p.PageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list comments"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": page, "pageSize": pageSize})
+	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": total, "page": p.Page, "pageSize": p.PageSize})
 }
 
 // AdminUpdateStatus updates a comment's status.
