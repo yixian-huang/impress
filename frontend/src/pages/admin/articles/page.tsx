@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAdminArticles, deleteArticle } from "@/api/articles";
 import type { Article } from "@/api/articles";
@@ -17,56 +17,47 @@ import {
   AdminTh,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
+
+const PAGE_SIZE = 15;
 
 export default function AdminArticlesPage() {
   useDocumentTitle("文章管理");
   const navigate = useNavigate();
 
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [deleting, setDeleting] = useState<number | null>(null);
-  const pageSize = 15;
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadArticles = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getAdminArticles(page, pageSize, statusFilter || undefined);
-      setArticles(data.items || []);
-      setTotal(data.total);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "加载文章失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter]);
+  const { data, error, loading, isFetching, refetch } = useAdminQuery(
+    [...adminQueryKeys.articles, page, PAGE_SIZE, statusFilter],
+    () => getAdminArticles(page, PAGE_SIZE, statusFilter || undefined),
+  );
 
-  useEffect(() => {
-    loadArticles();
-  }, [loadArticles]);
+  const articles = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const displayError = actionError ?? (error ? error.message : null);
 
   const handleDelete = async (article: Article) => {
     const title = article.zhTitle || article.enTitle || "未命名";
     if (!confirm(`确定删除「${title}」吗？`)) return;
 
     setDeleting(article.id);
-    setError(null);
+    setActionError(null);
     try {
       await deleteArticle(article.id);
-      setArticles((prev) => prev.filter((a) => a.id !== article.id));
-      setTotal((prev) => prev - 1);
+      invalidateAdminQueryPrefix(adminQueryKeys.articles);
+      invalidateAdminQueryPrefix(adminQueryKeys.dashboardStats);
+      await refetch({ force: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setActionError(err instanceof Error ? err.message : "删除失败");
     } finally {
       setDeleting(null);
     }
   };
-
-  const totalPages = Math.ceil(total / pageSize);
 
   const statusLabel = (status: string) => {
     switch (status) {
@@ -83,13 +74,25 @@ export default function AdminArticlesPage() {
     <div>
       <AdminPageHeader
         title="文章管理"
-        description={`共 ${total} 篇文章`}
+        description={
+          loading
+            ? "加载中…"
+            : `共 ${total} 篇文章${isFetching ? " · 刷新中" : ""}`
+        }
         actions={
           <>
-            <AdminButton variant="secondary" size="sm" onClick={() => navigate("/admin/articles/categories")}>
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate("/admin/articles/categories")}
+            >
               分类
             </AdminButton>
-            <AdminButton variant="secondary" size="sm" onClick={() => navigate("/admin/articles/tags")}>
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate("/admin/articles/tags")}
+            >
               标签
             </AdminButton>
             <AdminButton size="sm" onClick={() => navigate("/admin/articles/new")}>
@@ -99,7 +102,9 @@ export default function AdminArticlesPage() {
         }
       />
 
-      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {displayError && (
+        <AdminErrorBanner message={displayError} onDismiss={() => setActionError(null)} />
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-sm text-slate-500">状态：</span>

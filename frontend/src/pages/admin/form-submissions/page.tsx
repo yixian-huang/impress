@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useCallback, Fragment } from "react";
 import {
   getFormSubmissions,
   getSubmissionCounts,
@@ -6,7 +6,7 @@ import {
   bulkUpdateStatus,
   deleteFormSubmission,
 } from "@/api/formSubmissions";
-import type { FormSubmission, FormSubmissionListResponse } from "@/api/formSubmissions";
+import type { FormSubmission } from "@/api/formSubmissions";
 import {
   AdminButton,
   AdminErrorBanner,
@@ -14,6 +14,8 @@ import {
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 type StatusFilter = "" | "unread" | "read" | "archived";
 
@@ -34,49 +36,36 @@ const PAGE_SIZE = 20;
 
 export default function AdminFormSubmissionsPage() {
   useDocumentTitle("表单提交");
-  const [data, setData] = useState<FormSubmissionListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const fetchCounts = useCallback(async () => {
-    try {
+  const { data, error, loading, refetch } = useAdminQuery(
+    [...adminQueryKeys.formSubmissions, "list", page, PAGE_SIZE, statusFilter],
+    () => getFormSubmissions(page, PAGE_SIZE, undefined, statusFilter || undefined),
+  );
+
+  const { data: countsData, refetch: refetchCounts } = useAdminQuery(
+    [...adminQueryKeys.formSubmissions, "counts"],
+    async () => {
       const result = await getSubmissionCounts();
-      setCounts(result.counts);
-    } catch {
-      // silently ignore count errors
-    }
-  }, []);
+      return result.counts as Record<string, number>;
+    },
+    { staleTime: 15_000 },
+  );
+  const counts = countsData ?? {};
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await getFormSubmissions(
-        page,
-        PAGE_SIZE,
-        undefined,
-        statusFilter || undefined
-      );
-      setData(result);
-    } catch {
-      setError("获取表单提交列表失败，请稍后重试");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter]);
+    setActionError(null);
+    invalidateAdminQueryPrefix(adminQueryKeys.formSubmissions);
+    await Promise.all([refetch({ force: true }), refetchCounts({ force: true })]);
+  }, [refetch, refetchCounts]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    fetchCounts();
-  }, [fetchCounts]);
+  const fetchCounts = useCallback(async () => {
+    await refetchCounts({ force: true });
+  }, [refetchCounts]);
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0;
 
@@ -114,7 +103,7 @@ export default function AdminFormSubmissionsPage() {
       await fetchData();
       await fetchCounts();
     } catch {
-      setError("更新状态失败");
+      setActionError("更新状态失败");
     }
   };
 
@@ -126,7 +115,7 @@ export default function AdminFormSubmissionsPage() {
       await fetchData();
       await fetchCounts();
     } catch {
-      setError("批量更新状态失败");
+      setActionError("批量更新状态失败");
     }
   };
 
@@ -137,7 +126,7 @@ export default function AdminFormSubmissionsPage() {
       await fetchData();
       await fetchCounts();
     } catch {
-      setError("删除失败");
+      setActionError("删除失败");
     }
   };
 
@@ -221,7 +210,12 @@ export default function AdminFormSubmissionsPage() {
         </div>
       )}
 
-      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {(actionError || error) && (
+        <AdminErrorBanner
+          message={actionError || error?.message || "获取表单提交列表失败，请稍后重试"}
+          onDismiss={() => setActionError(null)}
+        />
+      )}
 
       {loading && !data ? (
         <AdminLoading />

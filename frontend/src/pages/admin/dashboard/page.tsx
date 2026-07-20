@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   BarChart3,
@@ -21,6 +20,8 @@ import {
   AdminStatCard,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 import { ADMIN_PAGES_PATH } from "@/router/adminAccess";
 
 interface QuickAction {
@@ -30,66 +31,73 @@ interface QuickAction {
   color: string;
 }
 
-export default function AdminDashboardPage() {
-  useDocumentTitle("仪表盘");
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+type DashboardStats = {
+  todayVisits: number;
+  pagesCount: number;
+  articlesCount: number;
+  mediaCount: number;
+  errors: Record<string, boolean>;
+};
+
+async function fetchDashboardStats(): Promise<DashboardStats> {
+  const results = await Promise.allSettled([
+    getAnalyticsSummary(),
+    listUnifiedPages(),
+    getAdminArticles(1, 1),
+    listMedia(1, 1),
+  ]);
+
+  const stats: DashboardStats = {
     todayVisits: 0,
     pagesCount: 0,
     articlesCount: 0,
     mediaCount: 0,
-  });
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+    errors: {},
+  };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const results = await Promise.allSettled([
-        getAnalyticsSummary(),
-        listUnifiedPages(),
-        getAdminArticles(1, 1),
-        listMedia(1, 1),
-      ]);
+  if (results[0].status === "fulfilled") {
+    stats.todayVisits = results[0].value.totals.today;
+  } else {
+    stats.errors.todayVisits = true;
+  }
 
-      const newStats = {
-        todayVisits: 0,
-        pagesCount: 0,
-        articlesCount: 0,
-        mediaCount: 0,
-      };
-      const newErrors: Record<string, boolean> = {};
+  if (results[1].status === "fulfilled") {
+    stats.pagesCount = Array.isArray(results[1].value) ? results[1].value.length : 0;
+  } else {
+    stats.errors.pagesCount = true;
+  }
 
-      if (results[0].status === "fulfilled") {
-        newStats.todayVisits = results[0].value.totals.today;
-      } else {
-        newErrors.todayVisits = true;
-      }
+  if (results[2].status === "fulfilled") {
+    stats.articlesCount = results[2].value.total;
+  } else {
+    stats.errors.articlesCount = true;
+  }
 
-      if (results[1].status === "fulfilled") {
-        newStats.pagesCount = Array.isArray(results[1].value) ? results[1].value.length : 0;
-      } else {
-        newErrors.pagesCount = true;
-      }
+  if (results[3].status === "fulfilled") {
+    stats.mediaCount = results[3].value.total;
+  } else {
+    stats.errors.mediaCount = true;
+  }
 
-      if (results[2].status === "fulfilled") {
-        newStats.articlesCount = results[2].value.total;
-      } else {
-        newErrors.articlesCount = true;
-      }
+  return stats;
+}
 
-      if (results[3].status === "fulfilled") {
-        newStats.mediaCount = results[3].value.total;
-      } else {
-        newErrors.mediaCount = true;
-      }
+export default function AdminDashboardPage() {
+  useDocumentTitle("仪表盘");
+  const { data, loading } = useAdminQuery(
+    adminQueryKeys.dashboardStats,
+    fetchDashboardStats,
+    { staleTime: 20_000 },
+  );
 
-      setStats(newStats);
-      setErrors(newErrors);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, []);
+  const stats = data ?? {
+    todayVisits: 0,
+    pagesCount: 0,
+    articlesCount: 0,
+    mediaCount: 0,
+    errors: {},
+  };
+  const errors = stats.errors;
 
   const quickActions: QuickAction[] = [
     {
@@ -132,10 +140,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <AdminPageHeader
-        title="仪表盘"
-        description="站点运行概览与常用操作"
-      />
+      <AdminPageHeader title="仪表盘" description="站点运行概览与常用操作" />
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AdminStatCard

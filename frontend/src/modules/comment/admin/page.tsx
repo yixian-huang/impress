@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, Fragment } from "react";
 import {
   AdminButton,
   AdminErrorBanner,
@@ -6,6 +6,8 @@ import {
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 import AdminCommentReplyPanel from "./AdminCommentReplyPanel";
 import {
   adminCommentAuthorName,
@@ -36,31 +38,23 @@ const PAGE_SIZE = 20;
 
 export default function AdminCommentsPage() {
   useDocumentTitle("评论管理");
-  const [data, setData] = useState<Awaited<ReturnType<typeof getAdminComments>> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
   const [replyTarget, setReplyTarget] = useState<AdminComment | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await getAdminComments(page, PAGE_SIZE, statusFilter || undefined);
-      setData(result);
-    } catch {
-      setError("获取评论列表失败，请稍后重试");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter]);
+  const { data, error, loading, isFetching, refetch } = useAdminQuery(
+    [...adminQueryKeys.comments, page, PAGE_SIZE, statusFilter],
+    () => getAdminComments(page, PAGE_SIZE, statusFilter || undefined),
+  );
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const fetchData = async () => {
+    setActionError(null);
+    invalidateAdminQueryPrefix(adminQueryKeys.comments);
+    await refetch({ force: true });
+  };
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0;
 
@@ -97,7 +91,7 @@ export default function AdminCommentsPage() {
       await approveComment(id);
       await fetchData();
     } catch {
-      setError("操作失败，请稍后重试");
+      setActionError("操作失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -109,7 +103,7 @@ export default function AdminCommentsPage() {
       await rejectComment(id);
       await fetchData();
     } catch {
-      setError("操作失败，请稍后重试");
+      setActionError("操作失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -127,7 +121,7 @@ export default function AdminCommentsPage() {
       });
       await fetchData();
     } catch {
-      setError("删除失败，请稍后重试");
+      setActionError("删除失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -141,7 +135,7 @@ export default function AdminCommentsPage() {
       setSelectedIds(new Set());
       await fetchData();
     } catch {
-      setError("批量操作失败，请稍后重试");
+      setActionError("批量操作失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -155,7 +149,7 @@ export default function AdminCommentsPage() {
       setSelectedIds(new Set());
       await fetchData();
     } catch {
-      setError("批量操作失败，请稍后重试");
+      setActionError("批量操作失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -170,7 +164,7 @@ export default function AdminCommentsPage() {
       setSelectedIds(new Set());
       await fetchData();
     } catch {
-      setError("批量删除失败，请稍后重试");
+      setActionError("批量删除失败，请稍后重试");
     } finally {
       setActionLoading(false);
     }
@@ -191,8 +185,8 @@ export default function AdminCommentsPage() {
         title="评论管理"
         description="审核与回复访客评论"
         actions={
-          <AdminButton size="sm" onClick={fetchData} disabled={loading}>
-            {loading ? "加载中…" : "刷新"}
+          <AdminButton size="sm" onClick={fetchData} disabled={isFetching}>
+            {isFetching ? "加载中…" : "刷新"}
           </AdminButton>
         }
       />
@@ -247,7 +241,12 @@ export default function AdminCommentsPage() {
         </div>
       )}
 
-      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {(actionError || error) && (
+        <AdminErrorBanner
+          message={actionError || error?.message || "获取评论列表失败，请稍后重试"}
+          onDismiss={() => setActionError(null)}
+        />
+      )}
 
       {loading && !data ? (
         <AdminLoading />

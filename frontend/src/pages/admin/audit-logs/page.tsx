@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { getAuditLogs, type AuditEvent, type AuditLogListResponse, type AuditLogFilters } from "@/api/auditLogs";
+import { useState } from "react";
+import { getAuditLogs, type AuditEvent, type AuditLogFilters } from "@/api/auditLogs";
 import {
   AdminButton,
   AdminErrorBanner,
@@ -7,6 +7,8 @@ import {
   AdminPageHeader,
 } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 const ACTION_OPTIONS = [
   { value: "", label: "全部操作" },
@@ -57,29 +59,16 @@ function formatDetailsSummary(details: string): string {
 
 export default function AdminAuditLogsPage() {
   useDocumentTitle("审计日志");
-  const [data, setData] = useState<AuditLogListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<AuditLogFilters>({});
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await getAuditLogs(page, PAGE_SIZE, filters);
-      setData(result);
-    } catch {
-      setError("获取审计日志失败，请稍后重试");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filters]);
+  const { data, error, loading, isFetching, refetch } = useAdminQuery(
+    [...adminQueryKeys.auditLogs, page, PAGE_SIZE, filters.action ?? "", filters.actor ?? "", filters.from ?? "", filters.to ?? ""],
+    () => getAuditLogs(page, PAGE_SIZE, filters),
+    { staleTime: 15_000 },
+  );
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
+  const fetchData = () => refetch({ force: true });
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0;
 
   const handleFilterChange = (key: keyof AuditLogFilters, value: string) => {
@@ -101,8 +90,8 @@ export default function AdminAuditLogsPage() {
         title="审计日志"
         description="追踪后台关键操作记录"
         actions={
-          <AdminButton size="sm" onClick={fetchData} disabled={loading}>
-            {loading ? "加载中…" : "刷新"}
+          <AdminButton size="sm" onClick={fetchData} disabled={isFetching}>
+            {isFetching ? "加载中…" : "刷新"}
           </AdminButton>
         }
       />
@@ -144,7 +133,9 @@ export default function AdminAuditLogsPage() {
         />
       </div>
 
-      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {error && (
+        <AdminErrorBanner message={error.message || "获取审计日志失败，请稍后重试"} />
+      )}
 
       {loading && !data ? (
         <AdminLoading />

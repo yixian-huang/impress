@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   listUnifiedPages,
@@ -19,11 +19,11 @@ import {
 } from "@/components/admin/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 export default function AdminPagesPage() {
   useDocumentTitle("页面管理");
-  const [pages, setPages] = useState<UnifiedPageItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [modeFilter, setModeFilter] = useState("");
 
@@ -33,30 +33,26 @@ export default function AdminPagesPage() {
   const canUpdate = hasPermission("pages:update");
   const canDelete = hasPermission("pages:delete");
 
-  const fetchPages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await listUnifiedPages(
+  const { data, loading, isFetching, refetch } = useAdminQuery(
+    [...adminQueryKeys.pages, statusFilter, modeFilter],
+    async () => {
+      const list = await listUnifiedPages(
         statusFilter || undefined,
         modeFilter || undefined,
       );
-      setPages(data ?? []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, modeFilter]);
+      return list ?? [];
+    },
+  );
 
-  useEffect(() => {
-    fetchPages();
-  }, [fetchPages]);
+  const pages: UnifiedPageItem[] = data ?? [];
 
   const handleDelete = async (id: number) => {
     if (!confirm("确定删除此页面？此操作不可撤销。")) return;
     try {
       await deleteUnifiedPage(id);
-      fetchPages();
+      invalidateAdminQueryPrefix(adminQueryKeys.pages);
+      invalidateAdminQueryPrefix(adminQueryKeys.dashboardStats);
+      await refetch({ force: true });
     } catch {
       // ignore
     }
@@ -66,7 +62,11 @@ export default function AdminPagesPage() {
     <div>
       <AdminPageHeader
         title="页面管理"
-        description="管理可视化页面与区块组合"
+        description={
+          loading
+            ? "管理可视化页面与区块组合"
+            : `管理可视化页面与区块组合${isFetching ? " · 刷新中" : ""}`
+        }
         actions={
           <>
             <select

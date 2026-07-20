@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   listRoles,
   createRole,
@@ -12,6 +12,8 @@ import {
 } from "@/api/roles";
 import { AdminButton, AdminErrorBanner, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 interface RoleFormData {
   name: string;
@@ -29,10 +31,6 @@ const emptyForm: RoleFormData = {
 
 export default function AdminRolesPage() {
   useDocumentTitle("角色管理");
-  const [roles, setRoles] = useState<RoleDTO[]>([]);
-  const [permissions, setPermissions] = useState<PermissionDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleDTO | null>(null);
@@ -43,26 +41,23 @@ export default function AdminRolesPage() {
   const [deleteTarget, setDeleteTarget] = useState<RoleDTO | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [rolesData, permsData] = await Promise.all([
-        listRoles(),
-        listPermissions(),
-      ]);
-      setRoles(rolesData.items);
-      setPermissions(permsData.items);
-    } catch {
-      setError("加载数据失败");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data, error, loading, refetch } = useAdminQuery(
+    adminQueryKeys.roles,
+    async () => {
+      const [rolesData, permsData] = await Promise.all([listRoles(), listPermissions()]);
+      return {
+        roles: rolesData.items as RoleDTO[],
+        permissions: permsData.items as PermissionDTO[],
+      };
+    },
+  );
+  const roles = data?.roles ?? [];
+  const permissions = data?.permissions ?? [];
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const fetchData = async () => {
+    invalidateAdminQueryPrefix(adminQueryKeys.roles);
+    await refetch({ force: true });
+  };
 
   const openCreate = () => {
     setEditingRole(null);
@@ -181,7 +176,7 @@ export default function AdminRolesPage() {
         }
       />
 
-      {error && <AdminErrorBanner message={error} />}
+      {error && <AdminErrorBanner message={error.message || "加载数据失败"} />}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   listUsers,
   createUser,
@@ -10,6 +10,8 @@ import {
 } from "@/api/users";
 import { AdminButton, AdminErrorBanner, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 const ALL_PERMISSIONS = [
   { key: "dashboard", label: "仪表盘" },
@@ -42,11 +44,7 @@ const emptyForm: UserFormData = {
 
 export default function AdminUsersPage() {
   useDocumentTitle("用户管理");
-  const [users, setUsers] = useState<UserDTO[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   // Dialog state
   const [showDialog, setShowDialog] = useState(false);
@@ -61,23 +59,17 @@ export default function AdminUsersPage() {
 
   const pageSize = 20;
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await listUsers(page, pageSize);
-      setUsers(data.items);
-      setTotal(data.total);
-    } catch {
-      setError("加载用户列表失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [page]);
+  const { data, error, loading, refetch } = useAdminQuery(
+    [...adminQueryKeys.users, page, pageSize],
+    () => listUsers(page, pageSize),
+  );
+  const users = data?.items ?? [];
+  const total = data?.total ?? 0;
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  const fetchUsers = async () => {
+    invalidateAdminQueryPrefix(adminQueryKeys.users);
+    await refetch({ force: true });
+  };
 
   const openCreate = () => {
     setEditingUser(null);
@@ -191,7 +183,7 @@ export default function AdminUsersPage() {
         }
       />
 
-      {error && <AdminErrorBanner message={error} />}
+      {error && <AdminErrorBanner message={error.message || "加载用户列表失败"} />}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

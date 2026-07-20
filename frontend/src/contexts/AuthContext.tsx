@@ -9,6 +9,7 @@ import {
   setStoredAccessToken,
   setStoredRefreshToken,
 } from "@/lib/browserStorage";
+import { clearAdminQueryCache } from "@/lib/adminQuery";
 import { hasGrantedPermission } from "@/lib/permissions";
 
 interface User {
@@ -57,6 +58,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     removeStoredAccessToken();
     removeStoredRefreshToken();
     setUser(null);
+    // Avoid leaking previous-session list data into the next login.
+    clearAdminQueryCache();
   }, []);
 
   const refreshTokenInternal = useCallback(async () => {

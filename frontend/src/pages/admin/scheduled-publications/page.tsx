@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   cancelScheduledPublication,
   listScheduledPublications,
@@ -16,6 +16,8 @@ import {
 } from "@/components/admin/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { invalidateAdminQueryPrefix, useAdminQuery } from "@/lib/adminQuery";
+import { adminQueryKeys } from "@/lib/adminQueryKeys";
 
 const statusOptions: Array<{ value: ScheduledPublicationStatus | ""; label: string }> = [
   { value: "pending", label: "等待发布" },
@@ -62,17 +64,27 @@ export default function AdminScheduledPublicationsPage() {
   const canPublishPages = hasPermission("pages:publish");
   const canPublishArticles = hasPermission("articles:publish");
 
-  const [items, setItems] = useState<ScheduledPublication[]>([]);
   const [statusFilter, setStatusFilter] = useState<ScheduledPublicationStatus | "">("pending");
   const [resourceFilter, setResourceFilter] = useState<ScheduledPublicationResourceType | "">("");
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const pageSize = 20;
 
+  const { data, error, loading, refetch } = useAdminQuery(
+    [...adminQueryKeys.scheduled, page, pageSize, statusFilter, resourceFilter],
+    () =>
+      listScheduledPublications({
+        page,
+        pageSize,
+        status: statusFilter,
+        resourceType: resourceFilter,
+      }),
+  );
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const displayError = actionError || (error ? error.message : "");
 
   const canManageResource = useCallback(
     (resourceType: ScheduledPublicationResourceType) =>
@@ -81,27 +93,10 @@ export default function AdminScheduledPublicationsPage() {
   );
 
   const loadQueue = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await listScheduledPublications({
-        page,
-        pageSize,
-        status: statusFilter,
-        resourceType: resourceFilter,
-      });
-      setItems(data.items ?? []);
-      setTotal(data.total ?? 0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "加载定时发布队列失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, resourceFilter, statusFilter]);
-
-  useEffect(() => {
-    loadQueue();
-  }, [loadQueue]);
+    setActionError("");
+    invalidateAdminQueryPrefix(adminQueryKeys.scheduled);
+    await refetch({ force: true });
+  }, [refetch]);
 
   const summaryText = useMemo(() => {
     const statusLabel = statusOptions.find((option) => option.value === statusFilter)?.label ?? "全部";
@@ -112,12 +107,12 @@ export default function AdminScheduledPublicationsPage() {
   const handleCancel = async (item: ScheduledPublication) => {
     if (!canManageResource(item.resourceType)) return;
     setBusyId(item.id);
-    setError("");
+    setActionError("");
     try {
       await cancelScheduledPublication(item.id);
       await loadQueue();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "取消定时发布失败");
+      setActionError(err instanceof Error ? err.message : "取消定时发布失败");
     } finally {
       setBusyId(null);
     }
@@ -126,12 +121,12 @@ export default function AdminScheduledPublicationsPage() {
   const handleRetry = async (item: ScheduledPublication) => {
     if (!canManageResource(item.resourceType)) return;
     setBusyId(item.id);
-    setError("");
+    setActionError("");
     try {
       await retryScheduledPublication(item.id);
       await loadQueue();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "重试定时发布失败");
+      setActionError(err instanceof Error ? err.message : "重试定时发布失败");
     } finally {
       setBusyId(null);
     }
@@ -183,7 +178,9 @@ export default function AdminScheduledPublicationsPage() {
         </div>
       </div>
 
-      {error && <AdminErrorBanner message={error} onDismiss={() => setError("")} />}
+      {displayError && (
+        <AdminErrorBanner message={displayError} onDismiss={() => setActionError("")} />
+      )}
 
       {loading ? (
         <AdminLoading />
