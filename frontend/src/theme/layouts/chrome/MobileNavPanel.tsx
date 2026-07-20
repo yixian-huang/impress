@@ -1,12 +1,45 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { SiteNavItem } from "./useSiteNavigation";
+import { isExternalNavPath, type SiteNavItem } from "./useSiteNavigation";
 
 interface MobileNavPanelProps {
   items: SiteNavItem[];
   open: boolean;
   onNavigate: () => void;
   variant?: "corporate" | "blog";
+}
+
+function MobileNavLink({
+  item,
+  className,
+  onNavigate,
+  children,
+}: {
+  item: SiteNavItem;
+  className: string;
+  onNavigate: () => void;
+  children: ReactNode;
+}) {
+  const href = item.path || "/";
+  const external = isExternalNavPath(href) || item.target === "_blank";
+  if (external) {
+    return (
+      <a
+        href={href}
+        target={item.target === "_self" ? undefined : item.target || "_blank"}
+        rel={item.target === "_self" ? undefined : "noopener noreferrer"}
+        className={className}
+        onClick={onNavigate}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={href} className={className} onClick={onNavigate}>
+      {children}
+    </Link>
+  );
 }
 
 function CorporateMobileItem({ item, depth = 0, onNavigate }: {
@@ -17,13 +50,14 @@ function CorporateMobileItem({ item, depth = 0, onNavigate }: {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
-  const isActive = item.path ? location.pathname === item.path : false;
+  const isActive =
+    !isExternalNavPath(item.path) && item.path ? location.pathname === item.path : false;
 
   return (
     <div>
       <div className="flex items-center" style={{ paddingLeft: depth * 20 }}>
-        <Link
-          to={item.path || "/"}
+        <MobileNavLink
+          item={item}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
             isActive
               ? "text-blue-600"
@@ -31,10 +65,10 @@ function CorporateMobileItem({ item, depth = 0, onNavigate }: {
                 ? "text-gray-800 hover:text-blue-600"
                 : "text-gray-500 hover:text-blue-600"
           }`}
-          onClick={onNavigate}
+          onNavigate={onNavigate}
         >
           {item.label}
-        </Link>
+        </MobileNavLink>
         {hasChildren && (
           <button
             type="button"
@@ -65,18 +99,19 @@ function CorporateMobileItem({ item, depth = 0, onNavigate }: {
 
 function BlogMobileItem({ item, onNavigate }: { item: SiteNavItem; onNavigate: () => void }) {
   const location = useLocation();
-  const isActive = item.path ? location.pathname === item.path : false;
+  const isActive =
+    !isExternalNavPath(item.path) && item.path ? location.pathname === item.path : false;
 
   return (
-    <Link
-      to={item.path || "/"}
+    <MobileNavLink
+      item={item}
       className={`block py-2.5 text-sm font-medium transition-colors ${
         isActive ? "text-primary" : "text-on-surface hover:text-primary"
       }`}
-      onClick={onNavigate}
+      onNavigate={onNavigate}
     >
       {item.label}
-    </Link>
+    </MobileNavLink>
   );
 }
 

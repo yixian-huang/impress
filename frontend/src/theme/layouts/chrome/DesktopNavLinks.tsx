@@ -1,12 +1,42 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { SiteNavItem } from "./useSiteNavigation";
+import { isExternalNavPath, type SiteNavItem } from "./useSiteNavigation";
 
 interface DesktopNavLinksProps {
   items: SiteNavItem[];
   /** Corporate hero scroll: light text when not scrolled */
   variant?: "corporate" | "blog";
   scrolled?: boolean;
+}
+
+function NavLink({
+  item,
+  className,
+  children,
+}: {
+  item: SiteNavItem;
+  className: string;
+  children: ReactNode;
+}) {
+  const href = item.path || "/";
+  const external = isExternalNavPath(href) || item.target === "_blank";
+  if (external) {
+    return (
+      <a
+        href={href}
+        target={item.target === "_self" ? undefined : item.target || "_blank"}
+        rel={item.target === "_self" ? undefined : "noopener noreferrer"}
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={href} className={className}>
+      {children}
+    </Link>
+  );
 }
 
 function CorporateNavItem({ item, scrolled, depth = 0 }: {
@@ -33,7 +63,8 @@ function CorporateNavItem({ item, scrolled, depth = 0 }: {
   }, [open]);
 
   const hasChildren = item.children && item.children.length > 0;
-  const isActive = item.path ? location.pathname === item.path : false;
+  const isActive =
+    !isExternalNavPath(item.path) && item.path ? location.pathname === item.path : false;
   const isRoot = depth === 0;
 
   const rootClass = `text-sm font-medium whitespace-nowrap cursor-pointer transition-colors duration-200 ${
@@ -48,9 +79,9 @@ function CorporateNavItem({ item, scrolled, depth = 0 }: {
 
   if (!hasChildren) {
     return (
-      <Link to={item.path || "/"} className={linkClass}>
+      <NavLink item={item} className={linkClass}>
         {item.label}
-      </Link>
+      </NavLink>
     );
   }
 
@@ -70,10 +101,10 @@ function CorporateNavItem({ item, scrolled, depth = 0 }: {
 
   return (
     <div className="relative" onMouseEnter={enter} onMouseLeave={leave}>
-      <Link to={item.path || "/"} className={`${linkClass} inline-flex items-center`}>
+      <NavLink item={item} className={`${linkClass} inline-flex items-center`}>
         {item.label}
         {chevron}
-      </Link>
+      </NavLink>
       <div
         ref={dropdownRef}
         className={`absolute z-50 transition-all duration-200 ${positionClass} ${open ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-1 pointer-events-none"}`}
@@ -90,17 +121,18 @@ function CorporateNavItem({ item, scrolled, depth = 0 }: {
 
 function BlogNavItem({ item }: { item: SiteNavItem }) {
   const location = useLocation();
-  const isActive = item.path ? location.pathname === item.path : false;
+  const isActive =
+    !isExternalNavPath(item.path) && item.path ? location.pathname === item.path : false;
 
   return (
-    <Link
-      to={item.path || "/"}
+    <NavLink
+      item={item}
       className={`text-sm font-medium whitespace-nowrap transition-colors ${
         isActive ? "text-primary" : "text-on-surface-muted hover:text-primary"
       }`}
     >
       {item.label}
-    </Link>
+    </NavLink>
   );
 }
 

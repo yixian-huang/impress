@@ -7,7 +7,14 @@ import type { NavItem } from "@/theme/layouts/types";
 export interface SiteNavItem {
   label?: string;
   path?: string;
+  /** Menu link target (_self / _blank / …). */
+  target?: "_self" | "_parent" | "_blank" | "_top";
   children?: SiteNavItem[];
+}
+
+/** True when path is an absolute external URL (not an in-app route). */
+export function isExternalNavPath(path?: string): boolean {
+  return !!path && /^(https?:|mailto:|tel:)/i.test(path);
 }
 
 function filterByFeatures(
@@ -20,13 +27,17 @@ function filterByFeatures(
       ? filterByFeatures(item.children, features)
       : undefined;
     const path = item.path || "/";
-    const featureKey = routeFeatureMap[path];
-    if (featureKey && !isFeatureEnabled(features, featureKey)) {
-      continue;
+    // External URLs are never gated by in-app feature flags.
+    if (!isExternalNavPath(path)) {
+      const featureKey = routeFeatureMap[path];
+      if (featureKey && !isFeatureEnabled(features, featureKey)) {
+        continue;
+      }
     }
     result.push({
       label: item.label,
       path: item.path,
+      target: item.target,
       children: children?.length ? children : undefined,
     });
   }
@@ -43,6 +54,7 @@ export function selectSiteNavigation(
     return menuNavItems.map((item) => ({
       label: item.label,
       path: item.path,
+      target: item.target,
       children: item.children,
     }));
   }
@@ -50,6 +62,7 @@ export function selectSiteNavigation(
     return headerNavItems.map((item) => ({
       label: item.label,
       path: item.path,
+      target: item.target,
     }));
   }
   if (configNavigation?.length) {

@@ -21,4 +21,12 @@ describe("selectSiteNavigation", () => {
       { label: "Legacy", path: "/legacy" },
     ]);
   });
+
+  it("preserves external menu targets on primary menu items", () => {
+    const withTarget = [
+      { label: "Docs", path: "https://example.com/docs", target: "_blank" as const },
+      { label: "Home", path: "/", target: "_self" as const },
+    ];
+    expect(selectSiteNavigation(withTarget, unifiedPages, themeLayout, legacy)).toEqual(withTarget);
+  });
 });

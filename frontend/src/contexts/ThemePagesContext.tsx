@@ -13,6 +13,8 @@ interface NavItem {
   label: string;
   path: string;
   sortOrder: number;
+  /** Menu link target (_self / _blank / …). Omitted for automatic page nav. */
+  target?: "_self" | "_parent" | "_blank" | "_top";
   children?: NavItem[];
 }
 
@@ -62,7 +64,13 @@ function menuItemToNavItem(item: MenuItem, locale: string): NavItem | null {
   const children = item.children
     ?.map((c) => menuItemToNavItem(c, locale))
     .filter((c): c is NavItem => c !== null);
-  return { label, path, sortOrder: item.sortOrder, children: children?.length ? children : undefined };
+  return {
+    label,
+    path,
+    sortOrder: item.sortOrder,
+    target: item.target,
+    children: children?.length ? children : undefined,
+  };
 }
 
 export function ThemePagesProvider({ children }: { children: ReactNode }) {
