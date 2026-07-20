@@ -593,6 +593,7 @@ export default function ArticleEditorPage() {
         items={uploadTray.items}
         onDismiss={uploadTray.dismiss}
         onRetry={uploadTray.retry}
+        canRetry={uploadTray.canRetry}
       />
 
       <ShortcutHelpModal

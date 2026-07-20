@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
   emitMediaUpload,
   subscribeMediaUpload,
@@ -12,117 +12,141 @@ export type UploadTrayItem = {
   percent: number;
   status: "uploading" | "success" | "error";
   message?: string;
-  retry?: () => void;
 };
 
 const SUCCESS_DISMISS_MS = 2200;
+const MAX_ITEMS = 8;
+
+type TrayState = UploadTrayItem[];
+
+type TrayAction =
+  | { type: "upsert"; item: UploadTrayItem }
+  | { type: "patch"; id: string; patch: Partial<UploadTrayItem> }
+  | { type: "remove"; id: string };
+
+function trayReducer(state: TrayState, action: TrayAction): TrayState {
+  switch (action.type) {
+    case "upsert": {
+      const rest = state.filter((i) => i.id !== action.item.id);
+      return [action.item, ...rest].slice(0, MAX_ITEMS);
+    }
+    case "patch":
+      return state.map((i) => (i.id === action.id ? { ...i, ...action.patch } : i));
+    case "remove":
+      return state.filter((i) => i.id !== action.id);
+    default:
+      return state;
+  }
+}
 
 /**
  * Subscribe to media upload bus and keep a small tray of active/failed jobs.
+ * Retry callbacks live in a ref map so React state stays serializable/plain.
  */
 export function useMediaUploadTray() {
-  const [items, setItems] = useState<UploadTrayItem[]>([]);
+  const [items, dispatch] = useReducer(trayReducer, []);
+  const retryFns = useRef(new Map<string, () => void>());
+  const dismissTimers = useRef(new Map<string, number>());
+
+  const clearTimer = useCallback((id: string) => {
+    const t = dismissTimers.current.get(id);
+    if (t != null) {
+      window.clearTimeout(t);
+      dismissTimers.current.delete(id);
+    }
+  }, []);
 
   useEffect(() => {
-    const timers = new Map<string, number>();
-
     const onEvent = (event: MediaUploadEvent) => {
       if (event.type === "start") {
-        setItems((prev) => {
-          const rest = prev.filter((i) => i.id !== event.id);
-          return [
-            {
-              id: event.id,
-              name: event.name,
-              size: event.size,
-              percent: 0,
-              status: "uploading" as const,
-            },
-            ...rest,
-          ].slice(0, 8);
+        clearTimer(event.id);
+        retryFns.current.delete(event.id);
+        dispatch({
+          type: "upsert",
+          item: {
+            id: event.id,
+            name: event.name,
+            size: event.size,
+            percent: 0,
+            status: "uploading",
+          },
         });
         return;
       }
+
       if (event.type === "progress") {
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === event.id ? { ...i, percent: event.percent, status: "uploading" } : i,
-          ),
-        );
-        return;
-      }
-      if (event.type === "success") {
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === event.id
-              ? { ...i, percent: 100, status: "success", message: undefined, retry: undefined }
-              : i,
-          ),
-        );
-        const t = window.setTimeout(() => {
-          setItems((prev) => prev.filter((i) => i.id !== event.id));
-          timers.delete(event.id);
-        }, SUCCESS_DISMISS_MS);
-        timers.set(event.id, t);
-        return;
-      }
-      if (event.type === "error") {
-        setItems((prev) => {
-          const existing = prev.find((i) => i.id === event.id);
-          if (existing) {
-            return prev.map((i) =>
-              i.id === event.id
-                ? {
-                    ...i,
-                    status: "error" as const,
-                    message: event.message,
-                    retry: event.retry,
-                  }
-                : i,
-            );
-          }
-          return [
-            {
-              id: event.id,
-              name: "图片",
-              size: 0,
-              percent: 0,
-              status: "error" as const,
-              message: event.message,
-              retry: event.retry,
-            },
-            ...prev,
-          ].slice(0, 8);
+        dispatch({
+          type: "patch",
+          id: event.id,
+          patch: { percent: event.percent, status: "uploading" },
         });
         return;
       }
+
+      if (event.type === "success") {
+        retryFns.current.delete(event.id);
+        dispatch({
+          type: "patch",
+          id: event.id,
+          patch: { percent: 100, status: "success", message: undefined },
+        });
+        clearTimer(event.id);
+        const t = window.setTimeout(() => {
+          dispatch({ type: "remove", id: event.id });
+          dismissTimers.current.delete(event.id);
+        }, SUCCESS_DISMISS_MS);
+        dismissTimers.current.set(event.id, t);
+        return;
+      }
+
+      if (event.type === "error") {
+        clearTimer(event.id);
+        if (event.retry) retryFns.current.set(event.id, event.retry);
+        else retryFns.current.delete(event.id);
+        dispatch({
+          type: "upsert",
+          item: {
+            id: event.id,
+            name: event.name || "图片",
+            size: 0,
+            percent: 0,
+            status: "error",
+            message: event.message,
+          },
+        });
+        return;
+      }
+
       if (event.type === "dismiss") {
-        setItems((prev) => prev.filter((i) => i.id !== event.id));
+        clearTimer(event.id);
+        retryFns.current.delete(event.id);
+        dispatch({ type: "remove", id: event.id });
       }
     };
 
-    const unsub = subscribeMediaUpload(onEvent);
+    return subscribeMediaUpload(onEvent);
+  }, [clearTimer]);
+
+  useEffect(() => {
+    const timers = dismissTimers.current;
+    const retries = retryFns.current;
     return () => {
-      unsub();
       timers.forEach((t) => window.clearTimeout(t));
       timers.clear();
+      retries.clear();
     };
   }, []);
 
   const dismiss = useCallback((id: string) => {
     emitMediaUpload({ type: "dismiss", id });
-    setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
   const retry = useCallback((id: string) => {
-    setItems((prev) => {
-      const item = prev.find((i) => i.id === id);
-      if (item?.retry) {
-        item.retry();
-      }
-      return prev;
-    });
+    const fn = retryFns.current.get(id);
+    fn?.();
   }, []);
 
-  return { items, dismiss, retry };
+  const canRetry = useCallback((id: string) => retryFns.current.has(id), []);
+
+  return { items, dismiss, retry, canRetry };
 }

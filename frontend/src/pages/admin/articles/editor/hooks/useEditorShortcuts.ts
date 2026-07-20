@@ -2,6 +2,13 @@ import { useEffect } from "react";
 
 type SaveIntent = "draft" | "publish" | "autosave";
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return target.isContentEditable;
+}
+
 /**
  * Global editor shortcuts:
  * - ⌘/Ctrl+S save, ⌘⇧S publish, ⌘/Ctrl+P preview
@@ -35,26 +42,35 @@ export function useEditorShortcuts(opts: {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      const overlayOpen = zenMode || findOpen || shortcutHelpOpen;
 
-      if (e.key === "Escape" && overlayOpen) {
-        if (shortcutHelpOpen || zenMode || (findOpen && !(e.target instanceof HTMLInputElement))) {
+      // Esc: close help → find → zen (handled by onExitOverlay order in page)
+      if (e.key === "Escape" && (shortcutHelpOpen || findOpen || zenMode)) {
+        // Always allow Esc to leave help/zen; for find, skip when typing in inputs
+        // outside the find bar so native clear still works in title fields.
+        if (shortcutHelpOpen || zenMode) {
+          e.preventDefault();
+          onExitOverlay();
+          return;
+        }
+        if (findOpen && !isEditableTarget(e.target)) {
           e.preventDefault();
           onExitOverlay();
         }
         return;
       }
 
-      if (!mod) return;
+      if (!mod || e.altKey) return;
 
-      // ⌘/ — help (slash key; some layouts use e.key === "/" with shift on non-US)
-      if (e.key === "/" || e.code === "Slash") {
+      // Prefer physical Slash key so layouts that need Shift for "/" still work
+      if (e.code === "Slash" || e.key === "/") {
         e.preventDefault();
         onToggleShortcutHelp();
         return;
       }
 
-      if (e.key === "s" || e.key === "S") {
+      const key = e.key.toLowerCase();
+
+      if (key === "s") {
         e.preventDefault();
         if (e.shiftKey) {
           if (canPublish) onSave("publish");
@@ -63,21 +79,22 @@ export function useEditorShortcuts(opts: {
         }
         return;
       }
-      if (e.key === "p" || e.key === "P") {
+      if (key === "p" && !e.shiftKey) {
         e.preventDefault();
         onPreview();
         return;
       }
-      if (e.key === "f" || e.key === "F") {
+      if (key === "f" && !e.shiftKey) {
         e.preventDefault();
         onFind();
         return;
       }
-      if (e.key === "\\" || e.code === "Backslash") {
+      if (e.code === "Backslash" || e.key === "\\") {
         e.preventDefault();
         onToggleZen();
       }
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [

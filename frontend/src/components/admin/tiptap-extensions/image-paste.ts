@@ -1,22 +1,22 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import { uploadAndInsertImage } from "@/lib/mediaUploadTracked";
+import {
+  DEFAULT_IMAGE_MAX_BYTES,
+  uploadAndInsertImage,
+} from "@/lib/mediaUploadTracked";
 
 export interface ImagePasteOptions {
   /** Max file size in bytes (default: 20MB) */
   maxSize?: number;
 }
 
-/**
- * Convert a base64 data URL to a File object.
- */
 function dataUrlToFile(dataUrl: string, filename: string): File | null {
   try {
     const [header, base64] = dataUrl.split(",");
     if (!header || !base64) return null;
-    const mimeMatch = header.match(/data:([^;]+)/);
+    const mimeMatch = header.match(/data:image\/([\w+.-]+)/i);
     if (!mimeMatch) return null;
-    const mime = mimeMatch[1];
+    const mime = `image/${mimeMatch[1]}`;
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -37,19 +37,19 @@ export const ImagePaste = Extension.create<ImagePasteOptions>({
 
   addOptions() {
     return {
-      maxSize: 20 * 1024 * 1024,
+      maxSize: DEFAULT_IMAGE_MAX_BYTES,
     };
   },
 
   addProseMirrorPlugins() {
-    const maxSize = this.options.maxSize || 20 * 1024 * 1024;
+    const maxSize = this.options.maxSize ?? DEFAULT_IMAGE_MAX_BYTES;
     const editor = this.editor;
 
     const doUpload = (file: File) => {
       uploadAndInsertImage(
         file,
         (url, filename) => {
-          if (!url) return;
+          if (!url || editor.isDestroyed) return;
           editor.chain().focus().setImage({ src: url, alt: filename }).run();
         },
         { maxSize },
@@ -64,36 +64,30 @@ export const ImagePaste = Extension.create<ImagePasteOptions>({
             const clipboardData = event.clipboardData;
             if (!clipboardData) return false;
 
-            const items = Array.from(clipboardData.items || []);
-            const imageItems = items.filter((i) => i.type.startsWith("image/"));
+            const imageFiles = Array.from(clipboardData.items || [])
+              .filter((i) => i.type.startsWith("image/"))
+              .map((i) => i.getAsFile())
+              .filter((f): f is File => !!f);
 
-            if (imageItems.length > 0) {
+            if (imageFiles.length > 0) {
               event.preventDefault();
-              for (const imageItem of imageItems) {
-                const file = imageItem.getAsFile();
-                if (file) doUpload(file);
-              }
+              imageFiles.forEach(doUpload);
               return true;
             }
 
+            // Large base64 images in HTML freeze ProseMirror — upload instead
             const html = clipboardData.getData("text/html");
             if (html && /src=["']data:image\/[^"']{1000,}["']/i.test(html)) {
               event.preventDefault();
-              const base64Regex = /src=["'](data:image\/[^"']+)["']/gi;
-              const matches = [...html.matchAll(base64Regex)];
-
+              const matches = [
+                ...html.matchAll(/src=["'](data:image\/[^"']+)["']/gi),
+              ];
               for (const match of matches.slice(0, 5)) {
                 const dataUrl = match[1];
-                const ext = dataUrl.match(/data:image\/(\w+)/)?.[1] || "png";
+                const ext = dataUrl.match(/data:image\/([\w+.-]+)/i)?.[1] || "png";
                 const file = dataUrlToFile(dataUrl, `pasted-image.${ext}`);
                 if (file) doUpload(file);
               }
-
-              const text = clipboardData.getData("text/plain");
-              if (text && matches.length === 0) {
-                editor.chain().focus().insertContent(text).run();
-              }
-
               return true;
             }
 
@@ -101,14 +95,12 @@ export const ImagePaste = Extension.create<ImagePasteOptions>({
           },
 
           handleDrop(_view, event) {
-            const files = Array.from(event.dataTransfer?.files || []);
-            const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+            const imageFiles = Array.from(event.dataTransfer?.files || []).filter((f) =>
+              f.type.startsWith("image/"),
+            );
             if (imageFiles.length === 0) return false;
-
             event.preventDefault();
-            for (const imageFile of imageFiles) {
-              doUpload(imageFile);
-            }
+            imageFiles.forEach(doUpload);
             return true;
           },
         },

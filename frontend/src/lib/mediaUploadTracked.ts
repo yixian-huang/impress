@@ -1,5 +1,7 @@
 import { uploadMedia } from "@/api/media";
 
+export const DEFAULT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+
 export type MediaUploadEvent =
   | { type: "start"; id: string; name: string; size: number }
   | { type: "progress"; id: string; percent: number }
@@ -7,6 +9,7 @@ export type MediaUploadEvent =
   | {
       type: "error";
       id: string;
+      name: string;
       message: string;
       /** Re-run the full upload + insert pipeline */
       retry?: () => void;
@@ -25,45 +28,65 @@ export function subscribeMediaUpload(listener: Listener): () => void {
 }
 
 export function emitMediaUpload(event: MediaUploadEvent): void {
-  listeners.forEach((l) => {
+  for (const listener of listeners) {
     try {
-      l(event);
+      listener(event);
     } catch {
       /* ignore subscriber errors */
     }
-  });
+  }
 }
 
 function makeUploadId(): string {
-  return `up-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `up-${crypto.randomUUID()}`;
+  }
+  return `up-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
+
+/** Pull a readable message from axios / Error / unknown. */
+export function formatUploadError(err: unknown, fallback = "上传失败"): string {
+  if (!err) return fallback;
+  if (typeof err === "string" && err.trim()) return err;
+  const ax = err as {
+    response?: { data?: { error?: { message?: string }; message?: string } };
+    message?: string;
+  };
+  const fromApi =
+    ax?.response?.data?.error?.message
+    || ax?.response?.data?.message;
+  if (typeof fromApi === "string" && fromApi.trim()) return fromApi;
+  if (err instanceof Error && err.message.trim()) return err.message;
+  return fallback;
+}
+
+export type UploadMediaTrackedOptions = {
+  filename?: string;
+  /** Called after a successful upload (e.g. insert into editor) */
+  onInserted?: (result: { url: string; filename: string }) => void;
+  maxSize?: number;
+};
 
 /**
  * Upload a media file with progress events.
- * On failure, emits `error` with an optional retry that re-invokes the same work.
+ * On failure, emits `error` with an optional retry that re-invokes the same work
+ * (same tray id, so the UI updates in place).
  */
 export async function uploadMediaTracked(
   file: File,
-  opts?: {
-    filename?: string;
-    /** Called after a successful upload (e.g. insert into editor) */
-    onInserted?: (result: { url: string; filename: string }) => void;
-    maxSize?: number;
-  },
+  opts?: UploadMediaTrackedOptions,
 ): Promise<{ url: string; filename: string }> {
   const id = makeUploadId();
-  const name = opts?.filename || (file instanceof File ? file.name : "image") || "image";
-  const maxSize = opts?.maxSize ?? 20 * 1024 * 1024;
+  const name =
+    (opts?.filename || (file instanceof File ? file.name : "") || "image").trim() || "image";
+  const maxSize = opts?.maxSize ?? DEFAULT_IMAGE_MAX_BYTES;
 
   if (file.size > maxSize) {
     const mb = (file.size / 1024 / 1024).toFixed(1);
-    const maxMb = (maxSize / 1024 / 1024).toFixed(0);
-    emitMediaUpload({
-      type: "error",
-      id,
-      message: `「${name}」过大（${mb}MB），上限 ${maxMb}MB`,
-    });
-    throw new Error(`Image too large: ${mb}MB`);
+    const maxMb = Math.round(maxSize / 1024 / 1024);
+    const message = `「${name}」过大（${mb}MB），上限 ${maxMb}MB`;
+    emitMediaUpload({ type: "error", id, name, message });
+    throw new Error(message);
   }
 
   const run = async (): Promise<{ url: string; filename: string }> => {
@@ -77,16 +100,17 @@ export async function uploadMediaTracked(
       emitMediaUpload({ type: "success", id });
       return result;
     } catch (err) {
-      const message =
-        err instanceof Error && err.message
-          ? `「${name}」上传失败：${err.message}`
-          : `「${name}」上传失败`;
+      const detail = formatUploadError(err);
+      const message = `「${name}」上传失败：${detail}`;
       emitMediaUpload({
         type: "error",
         id,
+        name,
         message,
         retry: () => {
-          void run();
+          void run().catch(() => {
+            /* error re-emitted */
+          });
         },
       });
       throw err;
@@ -96,16 +120,20 @@ export async function uploadMediaTracked(
   return run();
 }
 
-/** Convenience for TipTap ImagePaste / Markdown insert pipelines. */
+/** Fire-and-forget upload that inserts on success (paste / drop pipelines). */
 export function uploadAndInsertImage(
   file: File,
   insert: (url: string, filename: string) => void,
-  opts?: { maxSize?: number },
+  opts?: { maxSize?: number; filename?: string },
 ): void {
   void uploadMediaTracked(file, {
     maxSize: opts?.maxSize,
-    onInserted: ({ url, filename }) => insert(url, filename),
+    filename: opts?.filename,
+    onInserted: ({ url, filename }) => {
+      if (!url) return;
+      insert(url, filename);
+    },
   }).catch(() => {
-    /* error already emitted */
+    /* error already emitted on the bus */
   });
 }

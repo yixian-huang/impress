@@ -135,8 +135,8 @@ export function interactionExtensions(features: EditorFeatures): Extension[] {
   if (features.blockHandles) exts.push(BlockHandle as Extension);
   if (features.blockToolbar) exts.push(BlockToolbar as Extension);
   if (features.imagePaste) {
-    // Progress + retry via mediaUploadTracked bus (article editor tray)
-    exts.push(ImagePaste.configure({ maxSize: 20 * 1024 * 1024 }) as Extension);
+    // Progress + retry via mediaUploadTracked bus (MediaUploadTray)
+    exts.push(ImagePaste as Extension);
   }
   return exts;
 }

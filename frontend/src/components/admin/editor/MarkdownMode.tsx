@@ -10,21 +10,41 @@ import {
   PREVIEW_TYPOGRAPHY_CLASS,
   syncScrollRatio,
 } from "./markdownCmSetup";
+import { uploadAndInsertImage } from "@/lib/mediaUploadTracked";
 
 interface MarkdownModeProps {
   value: string;
   onChange: (value: string) => void;
-  onImageUpload?: (file: File) => Promise<string>;
   onApiReady?: (api: MarkdownSelectionApi | null) => void;
   contentKey?: string;
   showPreview?: boolean;
   label?: string;
 }
 
+function insertMarkdownAtCursor(view: EditorView, markdown: string) {
+  const pos = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: pos, insert: markdown },
+    selection: { anchor: pos + markdown.length },
+  });
+}
+
+function collectImageFilesFromDataTransfer(dt: DataTransfer | null): File[] {
+  if (!dt) return [];
+  return Array.from(dt.files || []).filter((f) => f.type.startsWith("image/"));
+}
+
+function collectImageFilesFromClipboard(cd: DataTransfer | null): File[] {
+  if (!cd) return [];
+  return Array.from(cd.items || [])
+    .filter((i) => i.type.startsWith("image/"))
+    .map((i) => i.getAsFile())
+    .filter((f): f is File => !!f);
+}
+
 export default function MarkdownMode({
   value,
   onChange,
-  onImageUpload,
   onApiReady,
   contentKey,
   showPreview = true,
@@ -36,8 +56,6 @@ export default function MarkdownMode({
   const syncingRef = useRef<"editor" | "preview" | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const onImageUploadRef = useRef(onImageUpload);
-  onImageUploadRef.current = onImageUpload;
   const valueRef = useRef(value);
   valueRef.current = value;
   const applyingExternalRef = useRef(false);
@@ -75,78 +93,27 @@ export default function MarkdownMode({
         }),
         EditorView.domEventHandlers({
           drop: (event, view) => {
-            // Prefer prop callback; fall back to tracked media upload
-            const files = Array.from(event.dataTransfer?.files || []).filter((f) =>
-              f.type.startsWith("image/"),
-            );
+            const files = collectImageFilesFromDataTransfer(event.dataTransfer);
             if (files.length === 0) return false;
             event.preventDefault();
-            void (async () => {
-              const { uploadAndInsertImage } = await import("@/lib/mediaUploadTracked");
-              for (const file of files) {
-                const upload = onImageUploadRef.current;
-                if (upload) {
-                  try {
-                    const url = await upload(file);
-                    const insert = `\n![${file.name}](${url})\n`;
-                    const pos = view.state.selection.main.head;
-                    view.dispatch({
-                      changes: { from: pos, insert },
-                      selection: { anchor: pos + insert.length },
-                    });
-                  } catch {
-                    /* prop handles errors */
-                  }
-                } else {
-                  uploadAndInsertImage(file, (url, filename) => {
-                    const insert = `\n![${filename}](${url})\n`;
-                    const pos = view.state.selection.main.head;
-                    view.dispatch({
-                      changes: { from: pos, insert },
-                      selection: { anchor: pos + insert.length },
-                    });
-                  });
-                }
-              }
-            })();
+            for (const file of files) {
+              uploadAndInsertImage(file, (url, filename) => {
+                if (viewRef.current !== view) return;
+                insertMarkdownAtCursor(view, `\n![${filename}](${url})\n`);
+              });
+            }
             return true;
           },
           paste: (event, view) => {
-            const images = Array.from(event.clipboardData?.items || []).filter((i) =>
-              i.type.startsWith("image/"),
-            );
-            if (images.length === 0) return false;
+            const files = collectImageFilesFromClipboard(event.clipboardData);
+            if (files.length === 0) return false;
             event.preventDefault();
-            void (async () => {
-              const { uploadAndInsertImage } = await import("@/lib/mediaUploadTracked");
-              for (const item of images) {
-                const file = item.getAsFile();
-                if (!file) continue;
-                const upload = onImageUploadRef.current;
-                if (upload) {
-                  try {
-                    const url = await upload(file);
-                    const md = `![image](${url})`;
-                    const pos = view.state.selection.main.head;
-                    view.dispatch({
-                      changes: { from: pos, insert: md },
-                      selection: { anchor: pos + md.length },
-                    });
-                  } catch {
-                    /* prop handles errors */
-                  }
-                } else {
-                  uploadAndInsertImage(file, (url, filename) => {
-                    const md = `![${filename}](${url})`;
-                    const pos = view.state.selection.main.head;
-                    view.dispatch({
-                      changes: { from: pos, insert: md },
-                      selection: { anchor: pos + md.length },
-                    });
-                  });
-                }
-              }
-            })();
+            for (const file of files) {
+              uploadAndInsertImage(file, (url, filename) => {
+                if (viewRef.current !== view) return;
+                insertMarkdownAtCursor(view, `![${filename}](${url})`);
+              });
+            }
             return true;
           },
         }),
