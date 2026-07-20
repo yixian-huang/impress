@@ -6,19 +6,23 @@ function TocList({
   headings,
   activeId,
   onSelect,
+  compact = false,
 }: {
   headings: TocHeading[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  compact?: boolean;
 }) {
   return (
-    <ul className="space-y-1.5">
+    <ul className={compact ? "space-y-1" : "space-y-1.5"}>
       {headings.map((h) => (
-        <li key={h.id} className={h.level === 3 ? "pl-3" : ""}>
+        <li key={h.id} className={h.level === 3 ? "pl-2.5" : ""}>
           <button
             type="button"
             onClick={() => onSelect(h.id)}
-            className={`text-left text-sm leading-snug transition-colors w-full ${
+            className={`text-left leading-snug transition-colors w-full rounded-sm ${
+              compact ? "text-xs py-0.5" : "text-sm"
+            } ${
               activeId === h.id
                 ? "text-primary border-l-2 border-primary pl-2 font-medium"
                 : "text-on-surface-muted hover:text-primary pl-2 border-l-2 border-transparent"
@@ -47,12 +51,12 @@ export function ArticleTocInline({
 
   if (layout === "none" || headings.length === 0) return null;
 
-  // On xl+ with full layout the floating sidebar is shown; keep inline for smaller screens.
+  // Floating panel covers lg+; keep inline collapsible on smaller screens for full layout.
   const hideOnDesktop = layout === "full";
 
   return (
     <details
-      className={`article-page-ui font-sans mb-8 ${hideOnDesktop ? "xl:hidden" : ""}`}
+      className={`article-page-ui font-sans mb-8 ${hideOnDesktop ? "lg:hidden" : ""}`}
       open={layout === "inline"}
     >
       <summary className="cursor-pointer list-none text-xs uppercase tracking-[0.15em] text-on-surface-muted hover:text-primary transition-colors [&::-webkit-details-marker]:hidden">
@@ -69,8 +73,8 @@ export function ArticleTocInline({
 }
 
 /**
- * Floating TOC in the right page gutter — does NOT shrink the article column.
- * Only visible when the viewport has spare horizontal space (xl+).
+ * Viewport-fixed floating TOC — vertically centered on the right.
+ * Does not participate in content flow; body keeps full reading width.
  */
 export function ArticleTocSidebar({
   headings,
@@ -89,23 +93,20 @@ export function ArticleTocSidebar({
 
   return (
     <aside
-      className="hidden xl:block absolute top-0 left-full pl-8 w-40 2xl:w-44 article-page-ui font-sans pointer-events-auto"
+      className="article-toc-float hidden lg:flex fixed z-30 top-1/2 right-4 xl:right-6 -translate-y-1/2 flex-col article-page-ui font-sans pointer-events-auto"
       aria-label={t("blog.tocTitle")}
     >
-      <div className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
-        <p className="text-xs uppercase tracking-[0.15em] text-on-surface-muted mb-3">
+      <div className="w-44 xl:w-48 max-h-[min(70vh,32rem)] overflow-y-auto rounded-xl border border-border/70 bg-surface/90 backdrop-blur-md shadow-lg shadow-black/5 px-3 py-3">
+        <p className="text-[11px] uppercase tracking-[0.16em] text-on-surface-muted mb-2.5 px-0.5">
           {t("blog.tocTitle")}
         </p>
-        <TocList headings={headings} activeId={activeId} onSelect={onSelect} />
+        <TocList headings={headings} activeId={activeId} onSelect={onSelect} compact />
       </div>
     </aside>
   );
 }
 
-/**
- * Body always takes the full reading-column width.
- * Sidebar is absolutely positioned in the right margin outside the content box.
- */
+/** Full layout: body full-width; floating TOC is portaled via fixed positioning. */
 export function ArticleTocLayout({
   layout,
   sidebar,
@@ -120,9 +121,9 @@ export function ArticleTocLayout({
   }
 
   return (
-    <div className="relative">
+    <>
       <div className="min-w-0 w-full">{children}</div>
       {sidebar}
-    </div>
+    </>
   );
 }

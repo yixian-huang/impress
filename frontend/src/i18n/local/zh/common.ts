@@ -95,6 +95,8 @@ export const common = {
     socialLinks: '社交链接',
     readingMeta: '约 {{words}} 字 · {{minutes}} 分钟阅读',
     viewCount: '{{count}} 次阅读',
+    copyCode: '复制',
+    copiedCode: '已复制',
   },
   pagination: {
     prev: '上一页',

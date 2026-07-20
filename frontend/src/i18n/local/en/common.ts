@@ -95,6 +95,8 @@ export const common = {
     socialLinks: 'Social links',
     readingMeta: '{{words}} words · {{minutes}} min read',
     viewCount: '{{count}} views',
+    copyCode: 'Copy',
+    copiedCode: 'Copied',
   },
   pagination: {
     prev: 'Previous',
