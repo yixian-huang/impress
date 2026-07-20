@@ -58,6 +58,10 @@ const unifiedPageListSelectColumns = "id, slug, zh_title, en_title, zh_descripti
 	"zh_meta_keywords, en_meta_keywords, sort_order, show_in_nav, parent_id, " +
 	"created_at, updated_at, published_at, deleted_at"
 
+// unifiedPagePublishedSelectColumns includes published_config for public listing
+// but omits draft_config / translation_status (often multi-KB drafts).
+const unifiedPagePublishedSelectColumns = unifiedPageListSelectColumns + ", published_config"
+
 func (r *GormUnifiedPageRepository) List(ctx context.Context, status string, mode string, parentID *uint) ([]*model.UnifiedPage, error) {
 	q := r.db.WithContext(ctx).Model(&model.UnifiedPage{}).Select(unifiedPageListSelectColumns)
 	if status != "" {
@@ -84,7 +88,11 @@ func (r *GormUnifiedPageRepository) Count(ctx context.Context) (int64, error) {
 
 func (r *GormUnifiedPageRepository) ListPublished(ctx context.Context) ([]*model.UnifiedPage, error) {
 	var pages []*model.UnifiedPage
-	err := r.db.WithContext(ctx).Where("status = ?", "published").Order("sort_order ASC, created_at DESC").Find(&pages).Error
+	err := r.db.WithContext(ctx).
+		Select(unifiedPagePublishedSelectColumns).
+		Where("status = ?", "published").
+		Order("sort_order ASC, created_at DESC").
+		Find(&pages).Error
 	return pages, err
 }
 

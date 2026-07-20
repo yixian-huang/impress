@@ -132,6 +132,25 @@ func (s *UnifiedPageService) Describe(ctx context.Context, contentID uint, _ mod
 	return page.ZhTitle, page.Slug
 }
 
+// MergeRescheduleHints keeps the locked draftVersion when the client omits it.
+func (s *UnifiedPageService) MergeRescheduleHints(
+	currentVersion *int,
+	_ *time.Time,
+	currentPayload model.JSONMap,
+	requestedVersion *int,
+	requestedPayload model.JSONMap,
+) (*int, *time.Time, model.JSONMap) {
+	version := requestedVersion
+	if version == nil {
+		version = currentVersion
+	}
+	payload := requestedPayload
+	if payload == nil {
+		payload = currentPayload
+	}
+	return version, nil, payload
+}
+
 // Publish copies DraftConfig → PublishedConfig, creates a version record.
 func (s *UnifiedPageService) Publish(ctx context.Context, pageID uint, expectedDraftVersion int, userID uint) (err error) {
 	return s.publish(ctx, pageID, expectedDraftVersion, userID, false)

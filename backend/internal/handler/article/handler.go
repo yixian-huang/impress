@@ -200,19 +200,42 @@ func (h *Handler) PublicGetBySlug(c *gin.Context) {
 	// Async best-effort tracking (never blocks the response).
 	h.recordArticleViewAsync(pageKey, c)
 
-	// viewCount is read without waiting for the async write (may lag by 1).
-	var viewCount int64
-	if h.pvRepo != nil {
-		if n, err := h.pvRepo.CountByPageKey(c.Request.Context(), pageKey); err == nil {
-			viewCount = n
-		}
-	}
+	// Approximate viewCount with a short-TTL cache so cache-hit article
+	// responses do not issue a COUNT on every request.
+	viewCount := h.cachedViewCount(c.Request.Context(), pageKey)
 
 	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
 	c.JSON(http.StatusOK, publicArticleDTO{
 		Article:   *article,
 		ViewCount: viewCount,
 	})
+}
+
+const articleViewCountCacheTTL = 15 * time.Second
+
+func (h *Handler) cachedViewCount(ctx context.Context, pageKey string) int64 {
+	if h.pvRepo == nil {
+		return 0
+	}
+	cacheKey := "article-views:" + pageKey
+	if h.cache != nil {
+		if cached, ok := h.cache.Get(cacheKey); ok {
+			switch n := cached.(type) {
+			case int64:
+				return n
+			case int:
+				return int64(n)
+			}
+		}
+	}
+	n, err := h.pvRepo.CountByPageKey(ctx, pageKey)
+	if err != nil {
+		return 0
+	}
+	if h.cache != nil {
+		h.cache.SetWithTTL(cacheKey, n, articleViewCountCacheTTL)
+	}
+	return n
 }
 
 func (h *Handler) recordArticleViewAsync(pageKey string, c *gin.Context) {

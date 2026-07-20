@@ -80,6 +80,8 @@ func (h *Handler) GetPublicContent(c *gin.Context) {
 
 	cacheKey := "content:" + pageKeyStr + ":" + locale
 	if cached, ok := h.cache.Get(cacheKey); ok {
+		// Count cache hits in success metrics so dashboards reflect real traffic.
+		metrics.Global().RecordPublicGetSuccess(time.Since(startTime))
 		c.Header("X-Cache", "HIT")
 		c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
 		c.JSON(200, cached)

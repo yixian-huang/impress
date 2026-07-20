@@ -54,6 +54,16 @@ type ContentPublisher interface {
 
 	// Describe returns admin-list title/slug (payload snapshot preferred).
 	Describe(ctx context.Context, contentID uint, payload model.JSONMap) (title, slug string)
+
+	// MergeRescheduleHints applies type-specific defaults when only the schedule
+	// time changes (preserve original concurrency token / payload snapshot).
+	MergeRescheduleHints(
+		currentVersion *int,
+		currentUpdatedAt *time.Time,
+		currentPayload model.JSONMap,
+		requestedVersion *int,
+		requestedPayload model.JSONMap,
+	) (version *int, updatedAt *time.Time, payload model.JSONMap)
 }
 
 // PublicationKernel routes lifecycle operations by ScheduledContentType.

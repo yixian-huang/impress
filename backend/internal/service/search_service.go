@@ -38,6 +38,18 @@ func containsCJK(s string) bool {
 	return false
 }
 
+// truncateSnippet returns a rune-safe preview for search results.
+func truncateSnippet(s string, maxRunes int) string {
+	if maxRunes <= 0 || s == "" {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	return string(runes[:maxRunes]) + "…"
+}
+
 // Search performs a full-text search across the index.
 func (s *SearchService) Search(ctx context.Context, query, locale, contentType string, page, pageSize int) (*provider.SearchResponse, error) {
 	if s.isPostgres {
@@ -104,8 +116,10 @@ func (s *SearchService) searchSQLiteLike(ctx context.Context, query, locale, con
 		return nil, fmt.Errorf("search count: %w", err)
 	}
 
+	// Cap body payload in SQL so CJK LIKE searches do not ship full article
+	// bodies over the wire (snippet truncation is also applied in Go).
 	selectSQL := fmt.Sprintf(
-		"SELECT content_type, content_id, locale, title, body, slug FROM search_index_fts WHERE %s LIMIT ? OFFSET ?",
+		"SELECT content_type, content_id, locale, title, substr(body, 1, 280) as body, slug FROM search_index_fts WHERE %s LIMIT ? OFFSET ?",
 		where,
 	)
 	fetchArgs := make([]interface{}, len(args), len(args)+2)
@@ -134,7 +148,7 @@ func (s *SearchService) searchSQLiteLike(ctx context.Context, query, locale, con
 			ID:      row.ContentID,
 			Type:    row.ContentType,
 			Title:   row.Title,
-			Snippet: row.Body,
+			Snippet: truncateSnippet(row.Body, 200),
 			URL:     url,
 			Locale:  row.Locale,
 			Score:   1.0,

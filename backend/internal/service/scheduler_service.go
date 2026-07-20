@@ -103,21 +103,17 @@ func (s *SchedulerService) Reschedule(
 	if err != nil {
 		return nil, err
 	}
-	resolvedInputVersion := expectedVersion
-	resolvedPayload := publishPayload
-	var expectedUpdatedAt *time.Time
-	switch current.ContentType {
-	case model.ScheduledContentArticle:
-		// Preserve original version lock when only the time is changed.
-		if publishPayload == nil {
-			resolvedPayload = current.PublishPayload
-			expectedUpdatedAt = current.ExpectedUpdatedAt
-		}
-	case model.ScheduledContentPage:
-		if expectedVersion == nil {
-			resolvedInputVersion = current.ExpectedVersion
-		}
+	pub, err := s.kernel.Publisher(current.ContentType)
+	if err != nil {
+		return nil, err
 	}
+	resolvedInputVersion, expectedUpdatedAt, resolvedPayload := pub.MergeRescheduleHints(
+		current.ExpectedVersion,
+		current.ExpectedUpdatedAt,
+		current.PublishPayload,
+		expectedVersion,
+		publishPayload,
+	)
 	resolvedVersion, expectedUpdatedAt, err := s.prepareSchedule(
 		ctx,
 		current.ContentType,

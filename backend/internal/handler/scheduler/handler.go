@@ -10,9 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/yixian-huang/inkless/backend/internal/handlerutil"
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/service"
+	"github.com/yixian-huang/inkless/backend/pkg/apierror"
 )
 
 type Handler struct {
@@ -73,45 +75,32 @@ func parseJobID(c *gin.Context) (uint, bool) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 50
-	}
+	p := handlerutil.ParsePagination(c, 50, 100)
 
 	status := model.ScheduledJobStatus(c.Query("status"))
 	if status != "" && !validStatus(status) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid schedule status"})
+		apierror.Write(c, apierror.BadRequest("invalid schedule status"))
 		return
 	}
-	var resourceID uint64
-	if rawResourceID := c.Query("resourceId"); rawResourceID != "" {
-		parsed, err := strconv.ParseUint(rawResourceID, 10, 64)
-		if err != nil || parsed == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resourceId"})
-			return
-		}
-		resourceID = parsed
+	resourceID, ok := handlerutil.ParseUintParamOptional(c, "resourceId")
+	if !ok {
+		return
 	}
 	contentTypes, ok := allowedContentTypes(c, model.ScheduledContentType(c.Query("resourceType")))
 	if !ok {
 		return
 	}
 
-	offset := (page - 1) * pageSize
 	items, total, err := h.schedulerSvc.List(
 		c.Request.Context(),
 		contentTypes,
-		uint(resourceID),
+		resourceID,
 		status,
-		offset,
-		pageSize,
+		p.Offset,
+		p.PageSize,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list schedule queue"})
+		apierror.Write(c, apierror.InternalServerError("failed to list schedule queue"))
 		return
 	}
 	responses := make([]scheduledPublicationResponse, 0, len(items))
@@ -121,8 +110,8 @@ func (h *Handler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"items":    responses,
 		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
+		"page":     p.Page,
+		"pageSize": p.PageSize,
 	})
 }
 
@@ -354,14 +343,13 @@ func contentResource(contentType model.ScheduledContentType, contentID uint) str
 func writeServiceError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "schedule not found"})
-	case errors.Is(err, service.ErrPageVersionConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-	case errors.Is(err, service.ErrArticleVersionConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		apierror.Write(c, apierror.NotFound("schedule not found"))
+	case errors.Is(err, service.ErrPageVersionConflict),
+		errors.Is(err, service.ErrArticleVersionConflict):
+		apierror.Write(c, apierror.Conflict(err.Error()))
 	case strings.Contains(strings.ToLower(err.Error()), "unique"):
-		c.JSON(http.StatusConflict, gin.H{"error": "another schedule is already active for this resource"})
+		apierror.Write(c, apierror.Conflict("another schedule is already active for this resource"))
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apierror.Write(c, apierror.BadRequest(err.Error()))
 	}
 }

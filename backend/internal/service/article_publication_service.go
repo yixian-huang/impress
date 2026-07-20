@@ -130,6 +130,20 @@ func (s *ArticlePublicationService) Describe(ctx context.Context, contentID uint
 	return title, slug
 }
 
+// MergeRescheduleHints keeps the original UpdatedAt lock when only the time changes.
+func (s *ArticlePublicationService) MergeRescheduleHints(
+	_ *int,
+	currentUpdatedAt *time.Time,
+	currentPayload model.JSONMap,
+	requestedVersion *int,
+	requestedPayload model.JSONMap,
+) (*int, *time.Time, model.JSONMap) {
+	if requestedPayload == nil {
+		return requestedVersion, currentUpdatedAt, currentPayload
+	}
+	return requestedVersion, nil, requestedPayload
+}
+
 type scheduledArticlePayload struct {
 	Slug              *string        `json:"slug"`
 	ZhTitle           *string        `json:"zhTitle"`

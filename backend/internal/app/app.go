@@ -9,17 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pressly/goose/v3"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/yixian-huang/inkless/backend/internal/cache"
 	"github.com/yixian-huang/inkless/backend/internal/db"
-	"github.com/yixian-huang/inkless/backend/internal/db/migrations"
 	"github.com/yixian-huang/inkless/backend/internal/eventbus"
 	aiHandler "github.com/yixian-huang/inkless/backend/internal/handler/ai"
 	analyticsHandler "github.com/yixian-huang/inkless/backend/internal/handler/analytics"
@@ -60,7 +56,6 @@ import (
 	wizardHandler "github.com/yixian-huang/inkless/backend/internal/handler/wizard"
 	"github.com/yixian-huang/inkless/backend/internal/middleware"
 	"github.com/yixian-huang/inkless/backend/internal/migration"
-	"github.com/yixian-huang/inkless/backend/internal/model"
 	"github.com/yixian-huang/inkless/backend/internal/module"
 	backupMod "github.com/yixian-huang/inkless/backend/internal/modules/backup"
 	commentMod "github.com/yixian-huang/inkless/backend/internal/modules/comment"
@@ -86,12 +81,14 @@ type App struct {
 	Cfg   *config.Config
 	Log   *appLogger.Logger
 
-	database          *db.DB
-	router            *gin.Engine
-	schedulerService  *service.SchedulerService
-	pageViewRecorder  *service.PageViewRecorder
-	commentModule     *commentMod.Module
-	pluginManager     *pluginruntime.Manager
+	database         *db.DB
+	router           *gin.Engine
+	schedulerService *service.SchedulerService
+	pageViewRecorder *service.PageViewRecorder
+	commentModule    *commentMod.Module
+	pluginManager    *pluginruntime.Manager
+	publicCache      *cache.Cache
+	rbacCache        *cache.Cache
 }
 
 // Options configures application bootstrap.
@@ -128,11 +125,6 @@ func New(loadResult *config.LoadResult, opts Options) (*App, error) {
 		log.Warn("Setup bootstrap mode active — use /setup to persist .env and restart")
 	}
 
-	logLevel := logger.Info
-	if cfg.Env == "production" {
-		logLevel = logger.Warn
-	}
-
 	maxOpenConn := 25
 	maxIdleConn := 5
 	maxLifetime := 5 * time.Minute
@@ -147,83 +139,17 @@ func New(loadResult *config.LoadResult, opts Options) (*App, error) {
 		MaxOpenConn: maxOpenConn,
 		MaxIdleConn: maxIdleConn,
 		MaxLifetime: maxLifetime,
-		LogLevel:    logLevel,
+		LogLevel:    gormLogLevel(cfg.Env),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}
 	log.Info("Database connection established")
 
-	database.DB.Exec("DROP INDEX IF EXISTS idx_page_version")
-
-	migrator := db.NewMigrator(database)
-	if err := migrator.AutoMigrate(
-		&model.User{},
-		&model.RefreshToken{},
-		&model.ContentDocument{},
-		&model.Media{},
-		&model.PageView{},
-		&model.Category{},
-		&model.Tag{},
-		&model.Article{},
-		&model.ArticleVersion{},
-		&model.BackupRecord{},
-		&model.AuditEvent{},
-		&model.Page{},
-		&model.InstalledTheme{},
-		&model.MenuGroup{},
-		&model.MenuItem{},
-		&model.RBACRole{},
-		&model.Permission{},
-		&model.UserRole{},
-		&model.MarketplaceItem{},
-		&model.MarketplaceVersion{},
-		&model.MediaFolder{},
-		&model.ChunkedUpload{},
-		&model.Glossary{},
-		&model.StorageConfig{},
-		&model.AIConfig{},
-		&model.UnifiedPage{},
-		&model.PageVersion{},
-		&model.ScheduledPublishJob{},
-		&model.PageTemplate{},
-		&model.SiteConfig{},
-		&model.Plugin{},
-		&model.PluginSetting{},
-		&commentMod.Comment{},
-	); err != nil {
+	if err := migrateSchema(database, log); err != nil {
 		_ = database.Close()
-		return nil, fmt.Errorf("auto migrate: %w", err)
+		return nil, err
 	}
-
-	if err := migrator.RunMigrations(db.DataMigrations()); err != nil {
-		_ = database.Close()
-		return nil, fmt.Errorf("data migrations: %w", err)
-	}
-
-	{
-		sqlDB, err := database.DB.DB()
-		if err != nil {
-			_ = database.Close()
-			return nil, fmt.Errorf("sql.DB for goose: %w", err)
-		}
-		goose.SetBaseFS(migrations.EmbedMigrations)
-		dialect := "sqlite3"
-		if db.IsPostgresDSN(cfg.DBDSN) {
-			dialect = "postgres"
-		}
-		if err := goose.SetDialect(dialect); err != nil {
-			_ = database.Close()
-			return nil, fmt.Errorf("goose dialect: %w", err)
-		}
-		migrations.Dialect = dialect
-		if err := goose.Up(sqlDB, "."); err != nil {
-			_ = database.Close()
-			return nil, fmt.Errorf("goose up: %w", err)
-		}
-		log.Info("Goose migrations applied successfully")
-	}
-	log.Info("Database migrations completed")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -496,7 +422,15 @@ func New(loadResult *config.LoadResult, opts Options) (*App, error) {
 
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestLogger(log, middleware.RequestLoggerOptions{}))
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	// Skip gzip on health/metrics and already-compressed assets.
+	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{
+		"/health",
+		"/healthz",
+		"/ready",
+		"/metrics",
+	}), gzip.WithExcludedExtensions([]string{
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".woff", ".woff2", ".zip", ".gz",
+	})))
 	router.Use(middleware.AuditContext())
 
 	corsConfig := cors.Config{
@@ -576,6 +510,8 @@ func New(loadResult *config.LoadResult, opts Options) (*App, error) {
 		pageViewRecorder: pageViewRecorder,
 		commentModule:    commentModule,
 		pluginManager:    pluginManager,
+		publicCache:      publicCache,
+		rbacCache:        rbacCache,
 	}, nil
 }
 
@@ -640,6 +576,12 @@ func (a *App) shutdownWorkers() error {
 		if err := a.pluginManager.StopAll(); err != nil {
 			a.Log.Error("Failed to stop plugins cleanly", "error", err)
 		}
+	}
+	if a.publicCache != nil {
+		a.publicCache.Stop()
+	}
+	if a.rbacCache != nil {
+		a.rbacCache.Stop()
 	}
 	if a.database != nil {
 		if err := a.database.Close(); err != nil {
