@@ -1,5 +1,10 @@
 # path regex|line-content regex|reason
 ^scripts/check-brand-residue\.sh$|LEGACY_PATTERN=|The gate must declare the legacy terms it rejects.
+^scripts/check-external-identity\.sh$|yixian-huang/impress|The read-only cutover verifier must probe the pre-rename repository redirect.
+^docs/gomami-impress-to-inkless-cutover\.md$|impress|A host-specific migration note documents the legacy production identity and rollback source.
+^docs/gomami-impress-to-inkless-cutover\.md$|Impress|A host-specific migration note documents the legacy production identity and rollback source.
+^docs/gomami-impress-to-inkless-cutover\.md$|Blotting|A host-specific migration note documents the legacy production identity and rollback source.
+^docs/gomami-impress-to-inkless-cutover\.md$|blotting|A host-specific migration note documents the legacy production identity and rollback source.
 ^scripts/brand-residue-allowlist\.txt$|.*|The exact allowlist path is metadata for documented exceptions.
 ^backend/pkg/brandcompat/legacy\.go$|IMPRESS_ENV_FILE|Tested compatibility reads the deprecated environment-file variable.
 ^backend/pkg/brandcompat/legacy\.go$|IMPRESS_SECRET_KEY|Tested compatibility reads the deprecated secret variable.

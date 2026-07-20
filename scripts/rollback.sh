@@ -13,7 +13,7 @@ COMPONENT="${COMPONENT:?COMPONENT environment variable is required (frontend|bac
 TARGET_VERSION="${TARGET_VERSION:-previous}"
 
 # Service control
-BACKEND_SERVICE="${BACKEND_SERVICE:-inkless-api}"
+BACKEND_SERVICE="${BACKEND_SERVICE:-inkless}"
 FRONTEND_PATH="${FRONTEND_PATH:-${DEPLOY_ROOT}/frontend}"
 BACKEND_PATH="${BACKEND_PATH:-${DEPLOY_ROOT}/backend}"
 

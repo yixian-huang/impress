@@ -15,6 +15,7 @@ This directory contains production build and deployment automation scripts for t
 | `qb-artifact-build.sh` | Quick-Box artifact build (build server) | `artifactDeployConfig.buildCommand` |
 | `qb-artifact-activate.sh` | Quick-Box artifact activate (deploy server) | `artifactDeployConfig.activateCommand` |
 | `qb-artifact-rollback.sh` | Quick-Box artifact rollback | `artifactDeployConfig.rollbackCommand` |
+| `check-external-identity.sh` | Read-only GitHub, DNS, TLS, npm, and Go identity check | `./scripts/check-external-identity.sh --expect-cutover` |
 | `migrate-db.sh` | Migrate SQLite to PostgreSQL | `TARGET_DB_DSN="..." ./scripts/migrate-db.sh` |
 | `long-agent.mjs` | Long-running autonomous agent | `pnpm agent:run` |
 | `agent-usage.mjs` | Agent cost and usage tracking | `pnpm agent:usage` |
@@ -171,7 +172,7 @@ Deploys frontend and backend artifacts to a remote server using SSH.
 - `DEPLOY_USER`: SSH user (default: `deploy`)
 - `DEPLOY_ROOT`: Base deployment directory (default: `/opt/inkless`)
 - `ENVIRONMENT`: Environment name (default: `production`)
-- `BACKEND_SERVICE`: Systemd service name (default: `inkless-api`)
+- `BACKEND_SERVICE`: Systemd service name (default: `inkless`)
 - `FRONTEND_PATH`: Frontend deployment path (default: `${DEPLOY_ROOT}/frontend`)
 - `BACKEND_PATH`: Backend deployment path (default: `${DEPLOY_ROOT}/backend`)
 - `BACKEND_HEALTH_URL`: HTTP health check URL on remote host (default: `http://127.0.0.1:8088/health`)
@@ -221,7 +222,7 @@ Rolls back frontend and/or backend to a previous version.
 - `TARGET_VERSION`: Specific version to rollback to (default: `previous`)
 - `DEPLOY_USER`: SSH user (default: `deploy`)
 - `DEPLOY_ROOT`: Base deployment directory (default: `/opt/inkless`)
-- `BACKEND_SERVICE`: Systemd service name (default: `inkless-api`)
+- `BACKEND_SERVICE`: Systemd service name (default: `inkless`)
 
 **Rollback Process:**
 1. Validates target version exists on server
