@@ -95,6 +95,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          submodules: recursive
           ref: ${{ needs.prepare.outputs.git_ref }}
 
       - name: Setup Node.js
@@ -144,6 +145,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          submodules: recursive
           ref: ${{ needs.prepare.outputs.git_ref }}
 
       - name: Validate required SSH secrets
@@ -205,6 +207,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          submodules: recursive
           ref: ${{ needs.prepare.outputs.git_ref }}
 
       - name: Validate required HTTP secrets

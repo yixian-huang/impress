@@ -40,7 +40,9 @@ function collectMermaidNodes(root: HTMLElement): HTMLElement[] {
     const div = document.createElement("div");
     div.className = "mermaid";
     div.setAttribute("data-type", "mermaid");
-    div.textContent = code.textContent ?? "";
+    const src = (code.textContent ?? "").trim();
+    div.textContent = src;
+    if (src) div.setAttribute("data-mermaid-source", src);
     // If pre was wrapped for copy UI, replace the wrapper
     const wrap = pre.parentElement?.classList.contains("code-block-wrap") ? pre.parentElement : pre;
     wrap.replaceWith(div);
@@ -50,23 +52,43 @@ function collectMermaidNodes(root: HTMLElement): HTMLElement[] {
   return out;
 }
 
+/**
+ * Recover mermaid definition text.
+ * Never treat rendered SVG markup as source (common after scroll re-entry re-runs).
+ */
 function sourceOf(node: HTMLElement): string {
-  return (
+  const attr =
     node.getAttribute("data-mermaid-source") ||
     node.getAttribute("data-source") ||
-    node.textContent ||
-    ""
-  ).trim();
+    "";
+  if (attr.trim()) return attr.trim();
+
+  // Already has SVG but lost attributes — cannot recover definition from SVG text.
+  if (node.querySelector("svg")) return "";
+
+  const text = (node.textContent || "").trim();
+  if (!text) return "";
+  if (text.startsWith("<svg") || text.includes("<svg") || text.startsWith("<?xml")) return "";
+  return text;
 }
 
-async function renderMermaidNodes(nodes: HTMLElement[]) {
+function isMermaidRendered(node: HTMLElement): boolean {
+  return Boolean(node.querySelector("svg")) && node.getAttribute("data-processed") === "true";
+}
+
+async function renderMermaidNodes(nodes: HTMLElement[], opts?: { force?: boolean }) {
   if (nodes.length === 0) return;
   const mermaid = await loadMermaid();
 
   for (const node of nodes) {
+    if (!opts?.force && isMermaidRendered(node)) {
+      continue;
+    }
+
     const source = sourceOf(node);
     if (!source) continue;
 
+    // Persist source before any DOM wipe so later re-renders can recover.
     node.setAttribute("data-mermaid-source", source);
     node.setAttribute("data-type", "mermaid");
     node.classList.add("mermaid");
@@ -75,18 +97,57 @@ async function renderMermaidNodes(nodes: HTMLElement[]) {
 
     try {
       await mermaid.run({ nodes: [node], suppressErrors: false });
+      if (node.querySelector("svg")) {
+        node.setAttribute("data-processed", "true");
+        // Ensure attribute survives mermaid DOM rewrites.
+        node.setAttribute("data-mermaid-source", source);
+      }
     } catch {
       try {
         const id = `mermaid-pub-${++mermaidSeq}`;
         const { svg } = await mermaid.render(id, source);
         node.innerHTML = svg;
         node.setAttribute("data-processed", "true");
+        node.setAttribute("data-mermaid-source", source);
       } catch (err) {
         console.warn("Mermaid render failed:", err);
         node.innerHTML = `<pre class="mermaid-error">${source.replace(/</g, "&lt;")}</pre>`;
+        node.setAttribute("data-mermaid-source", source);
       }
     }
   }
+}
+
+/**
+ * When diagrams leave the viewport and return blank (or React rewrote HTML),
+ * re-render only nodes that are visible but missing SVG.
+ */
+function observeMermaidVisibility(
+  root: HTMLElement,
+  onNeedRender: (nodes: HTMLElement[]) => void,
+): () => void {
+  if (typeof IntersectionObserver === "undefined") return () => {};
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const need: HTMLElement[] = [];
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target as HTMLElement;
+        if (!isMermaidRendered(el) && sourceOf(el)) {
+          need.push(el);
+        }
+      }
+      if (need.length) onNeedRender(need);
+    },
+    { root: null, rootMargin: "80px", threshold: 0.01 },
+  );
+
+  root.querySelectorAll<HTMLElement>(".mermaid, [data-type='mermaid']").forEach((el) => {
+    observer.observe(el);
+  });
+
+  return () => observer.disconnect();
 }
 
 function langFromCode(code: HTMLElement | null): string {
@@ -173,6 +234,13 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
 
     const gen = ++renderGen.current;
     let cancelled = false;
+    let stopObserve: (() => void) | undefined;
+
+    const runBatch = (nodes: HTMLElement[], force = false) => {
+      void renderMermaidNodes(nodes, { force }).catch((err) => {
+        if (!cancelled) console.warn("Mermaid batch failed:", err);
+      });
+    };
 
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -183,9 +251,20 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
           copied: t("blog.copiedCode"),
         });
 
+        // Persist source attrs on raw divs before first render.
+        el.querySelectorAll<HTMLElement>(".mermaid, [data-type='mermaid']").forEach((node) => {
+          if (!node.getAttribute("data-mermaid-source")) {
+            const src = sourceOf(node);
+            if (src) node.setAttribute("data-mermaid-source", src);
+          }
+        });
+
         const nodes = collectMermaidNodes(el);
-        void renderMermaidNodes(nodes).catch((err) => {
-          if (!cancelled) console.warn("Mermaid batch failed:", err);
+        runBatch(nodes, false);
+
+        stopObserve = observeMermaidVisibility(el, (need) => {
+          if (cancelled || gen !== renderGen.current) return;
+          runBatch(need, true);
         });
       });
     });
@@ -193,6 +272,7 @@ export default function ArticlePostBody({ html, contentRef, onClick }: ArticlePo
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      stopObserve?.();
     };
   }, [html, contentRef, t]);
 

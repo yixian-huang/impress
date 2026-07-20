@@ -66,8 +66,10 @@ export { default as AuthorIntro } from "@/components/blog/AuthorIntro";
 export { default as ArticleList } from "@/components/blog/ArticleList";
 export { default as AuthorSocialLinks } from "@/components/blog/AuthorSocialLinks";
 export { default as ArticleAdjacentNav } from "@/components/blog/ArticleAdjacentNav";
+export { default as ProductPoweredBy } from "@/components/feature/ProductPoweredBy";
 
 // --- Data / i18n helpers ---
 export { getPublicArticles } from "@/api/articles";
 export { pickLocaleValue } from "@/lib/locale";
 export { SITE_CONFIG_GLOBAL_DEFAULT } from "@/types/siteConfig";
+export { PRODUCT_BRAND } from "@/config/productBrand";

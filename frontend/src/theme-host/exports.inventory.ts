@@ -40,10 +40,12 @@ export const THEME_HOST_VALUE_EXPORTS = [
   "ArticleList",
   "AuthorSocialLinks",
   "ArticleAdjacentNav",
+  "ProductPoweredBy",
   // Data / i18n helpers
   "getPublicArticles",
   "pickLocaleValue",
   "SITE_CONFIG_GLOBAL_DEFAULT",
+  "PRODUCT_BRAND",
 ] as const;
 
 export type ThemeHostValueExport = (typeof THEME_HOST_VALUE_EXPORTS)[number];

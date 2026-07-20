@@ -173,7 +173,10 @@ CI: Quality Gate runs UMD build + smoke after Playwright Chromium install.
 2. **Contract lock + export inventory + UMD CI** — done (this doc + code).
 3. Move home page into theme folder — done.
 4. Monorepo package `packages/theme-blog-first` — done.
-5. **Separate GitHub repo** + pin in Inkless; document Release assets — next.
+5. **Separate GitHub repo** — done: [`yixian-huang/inkless-theme-blog-first`](https://github.com/yixian-huang/inkless-theme-blog-first)  
+   - Inkless monorepo consumes it as a **git submodule** at `packages/theme-blog-first`  
+   - Standalone types: `types/theme-host-shim.d.ts`  
+   - Release assets: `pnpm build` → `dist/theme.umd.js`
 
 ## 9. Non-goals
 

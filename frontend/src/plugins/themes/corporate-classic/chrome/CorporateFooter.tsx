@@ -2,6 +2,7 @@ import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
 import { useThemePages } from "@/contexts/ThemePagesContext";
 import { useBranding } from "@/hooks/useBranding";
 import type { FooterChromeProps } from "@/plugins/types";
+import ProductPoweredBy from "@/components/feature/ProductPoweredBy";
 
 export default function CorporateFooter({ config }: FooterChromeProps) {
   const { config: globalConfig } = useGlobalConfig();
@@ -111,11 +112,12 @@ export default function CorporateFooter({ config }: FooterChromeProps) {
             )}
           </div>
         )}
-        <div className="mt-12 pt-8 border-t border-white/20 text-center">
+        <div className="mt-12 pt-8 border-t border-white/20 text-center space-y-2">
           <p className="text-sm text-gray-300">{copyright}</p>
           {branding.footer.icp && (
             <p className="text-xs text-gray-400 mt-1">{branding.footer.icp}</p>
           )}
+          <ProductPoweredBy className="text-xs text-gray-400" />
         </div>
       </div>
     </footer>
