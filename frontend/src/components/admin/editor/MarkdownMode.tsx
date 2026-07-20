@@ -75,46 +75,76 @@ export default function MarkdownMode({
         }),
         EditorView.domEventHandlers({
           drop: (event, view) => {
-            const upload = onImageUploadRef.current;
-            if (!upload || !event.dataTransfer) return false;
-            const files = Array.from(event.dataTransfer.files).filter((f) =>
+            // Prefer prop callback; fall back to tracked media upload
+            const files = Array.from(event.dataTransfer?.files || []).filter((f) =>
               f.type.startsWith("image/"),
             );
             if (files.length === 0) return false;
             event.preventDefault();
             void (async () => {
-              let insert = "";
+              const { uploadAndInsertImage } = await import("@/lib/mediaUploadTracked");
               for (const file of files) {
-                const url = await upload(file);
-                insert += `\n![${file.name}](${url})\n`;
+                const upload = onImageUploadRef.current;
+                if (upload) {
+                  try {
+                    const url = await upload(file);
+                    const insert = `\n![${file.name}](${url})\n`;
+                    const pos = view.state.selection.main.head;
+                    view.dispatch({
+                      changes: { from: pos, insert },
+                      selection: { anchor: pos + insert.length },
+                    });
+                  } catch {
+                    /* prop handles errors */
+                  }
+                } else {
+                  uploadAndInsertImage(file, (url, filename) => {
+                    const insert = `\n![${filename}](${url})\n`;
+                    const pos = view.state.selection.main.head;
+                    view.dispatch({
+                      changes: { from: pos, insert },
+                      selection: { anchor: pos + insert.length },
+                    });
+                  });
+                }
               }
-              const pos = view.state.selection.main.head;
-              view.dispatch({
-                changes: { from: pos, insert },
-                selection: { anchor: pos + insert.length },
-              });
             })();
             return true;
           },
           paste: (event, view) => {
-            const upload = onImageUploadRef.current;
-            if (!upload || !event.clipboardData) return false;
-            const images = Array.from(event.clipboardData.items).filter((i) =>
+            const images = Array.from(event.clipboardData?.items || []).filter((i) =>
               i.type.startsWith("image/"),
             );
             if (images.length === 0) return false;
             event.preventDefault();
             void (async () => {
+              const { uploadAndInsertImage } = await import("@/lib/mediaUploadTracked");
               for (const item of images) {
                 const file = item.getAsFile();
                 if (!file) continue;
-                const url = await upload(file);
-                const md = `![image](${url})`;
-                const pos = view.state.selection.main.head;
-                view.dispatch({
-                  changes: { from: pos, insert: md },
-                  selection: { anchor: pos + md.length },
-                });
+                const upload = onImageUploadRef.current;
+                if (upload) {
+                  try {
+                    const url = await upload(file);
+                    const md = `![image](${url})`;
+                    const pos = view.state.selection.main.head;
+                    view.dispatch({
+                      changes: { from: pos, insert: md },
+                      selection: { anchor: pos + md.length },
+                    });
+                  } catch {
+                    /* prop handles errors */
+                  }
+                } else {
+                  uploadAndInsertImage(file, (url, filename) => {
+                    const md = `![${filename}](${url})`;
+                    const pos = view.state.selection.main.head;
+                    view.dispatch({
+                      changes: { from: pos, insert: md },
+                      selection: { anchor: pos + md.length },
+                    });
+                  });
+                }
               }
             })();
             return true;

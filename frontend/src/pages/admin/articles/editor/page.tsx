@@ -36,6 +36,9 @@ import { LangEditorMount } from "./components/LangEditorMount";
 import { LocalDraftBanner } from "./components/LocalDraftBanner";
 import { EditorChrome } from "./components/EditorChrome";
 import { EditorDialogs } from "./components/EditorDialogs";
+import { MediaUploadTray } from "./components/MediaUploadTray";
+import { ShortcutHelpModal } from "./components/ShortcutHelpModal";
+import { useMediaUploadTray } from "./hooks/useMediaUploadTray";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -48,6 +51,7 @@ export default function ArticleEditorPage() {
   const form = useArticleFormState();
   const dirty = useDirtyState(!isEditing);
   const shell = useEditorShell();
+  const uploadTray = useMediaUploadTray();
   const editors = useArticleEditors({
     zhBody: form.zhBody,
     enBody: form.enBody,
@@ -248,7 +252,8 @@ export default function ArticleEditorPage() {
   }, [editors.editorMode, editors.markdownApi, shell]);
 
   const handleExitOverlay = useCallback(() => {
-    if (shell.findOpen) shell.closeFind();
+    if (shell.showShortcutHelp) shell.closeShortcutHelp();
+    else if (shell.findOpen) shell.closeFind();
     else if (shell.zenMode) shell.toggleZen();
   }, [shell]);
 
@@ -256,6 +261,7 @@ export default function ArticleEditorPage() {
     canPublish,
     zenMode: shell.zenMode,
     findOpen: shell.findOpen,
+    shortcutHelpOpen: shell.showShortcutHelp,
     onSave: (intent) => {
       if (intent === "publish") publishGate.requestPublish();
       else void persistence.handleSave(intent);
@@ -263,6 +269,7 @@ export default function ArticleEditorPage() {
     onPreview: openPreview,
     onFind: handleOpenFind,
     onToggleZen: shell.toggleZen,
+    onToggleShortcutHelp: shell.toggleShortcutHelp,
     onExitOverlay: handleExitOverlay,
   });
 
@@ -388,6 +395,7 @@ export default function ArticleEditorPage() {
         scheduleLoading={schedule.scheduleLoading}
         scheduleBusy={schedule.scheduleBusy}
         onToggleZen={shell.toggleZen}
+        onOpenShortcutHelp={shell.openShortcutHelp}
         onOpenHistory={() => {
           shell.openVersionHistory(
             editors.buildDraftSnapshot({
@@ -579,6 +587,17 @@ export default function ArticleEditorPage() {
             ? undefined
             : () => publishGate.requestPublish({ force: true })
         }
+      />
+
+      <MediaUploadTray
+        items={uploadTray.items}
+        onDismiss={uploadTray.dismiss}
+        onRetry={uploadTray.retry}
+      />
+
+      <ShortcutHelpModal
+        open={shell.showShortcutHelp}
+        onClose={shell.closeShortcutHelp}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export function EditorActionBar({
   scheduleBusy,
   zenMode,
   onToggleZen,
+  onOpenShortcutHelp,
   onToggleBasic,
   onToggleSeo,
   onToggleAdvanced,
@@ -59,6 +60,7 @@ export function EditorActionBar({
   scheduleBusy: boolean;
   zenMode?: boolean;
   onToggleZen?: () => void;
+  onOpenShortcutHelp?: () => void;
   onToggleBasic: () => void;
   onToggleSeo: () => void;
   onToggleAdvanced: () => void;
@@ -152,6 +154,16 @@ export function EditorActionBar({
             }`}
           >
             {zenMode ? "退出专注" : "专注"}
+          </button>
+        )}
+        {onOpenShortcutHelp && (
+          <button
+            type="button"
+            onClick={onOpenShortcutHelp}
+            title="快捷键 (⌘/ / Ctrl+/)"
+            className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+          >
+            快捷键
           </button>
         )}
         <button

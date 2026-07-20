@@ -18,12 +18,29 @@ interface MediaListResponse {
   pageSize: number;
 }
 
-export async function uploadMedia(file: File | Blob, filename?: string): Promise<MediaItem> {
+export type UploadMediaOptions = {
+  /** 0–100 progress while the request body is uploading */
+  onProgress?: (percent: number) => void;
+};
+
+export async function uploadMedia(
+  file: File | Blob,
+  filename?: string,
+  opts?: UploadMediaOptions,
+): Promise<MediaItem> {
   const formData = new FormData();
   formData.append("file", file, filename || (file instanceof File ? file.name : "upload.jpg"));
 
   const response = await http.post<MediaItem>("/admin/media/upload", formData, {
-
+    onUploadProgress: (event) => {
+      if (!opts?.onProgress) return;
+      const total = event.total ?? 0;
+      if (total <= 0) {
+        opts.onProgress(0);
+        return;
+      }
+      opts.onProgress(Math.min(100, Math.round((event.loaded / total) * 100)));
+    },
   });
   return response.data;
 }

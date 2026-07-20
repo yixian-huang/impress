@@ -20,6 +20,7 @@ export function useEditorShell() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   const toggleMetaPanel = useCallback((panel: Exclude<EditorMetaPanel, null>) => {
     setMetaPanel((cur) => (cur === panel ? null : panel));
@@ -46,6 +47,9 @@ export function useEditorShell() {
   const openFind = useCallback(() => setFindOpen(true), []);
   const closeFind = useCallback(() => setFindOpen(false), []);
   const toggleLangMenu = useCallback(() => setShowLangMenu((v) => !v), []);
+  const openShortcutHelp = useCallback(() => setShowShortcutHelp(true), []);
+  const closeShortcutHelp = useCallback(() => setShowShortcutHelp(false), []);
+  const toggleShortcutHelp = useCallback(() => setShowShortcutHelp((v) => !v), []);
 
   return useMemo(
     () => ({
@@ -74,6 +78,10 @@ export function useEditorShell() {
       findOpen,
       openFind,
       closeFind,
+      showShortcutHelp,
+      openShortcutHelp,
+      closeShortcutHelp,
+      toggleShortcutHelp,
     }),
     [
       metaPanel,
@@ -95,6 +103,10 @@ export function useEditorShell() {
       findOpen,
       openFind,
       closeFind,
+      showShortcutHelp,
+      openShortcutHelp,
+      closeShortcutHelp,
+      toggleShortcutHelp,
     ],
   );
 }

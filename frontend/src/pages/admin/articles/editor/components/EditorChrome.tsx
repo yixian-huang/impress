@@ -38,6 +38,7 @@ export type ChromeActionProps = {
   scheduleLoading: boolean;
   scheduleBusy: boolean;
   onToggleZen: () => void;
+  onOpenShortcutHelp?: () => void;
   onOpenHistory: () => void;
   onOpenTemplate: () => void;
   onPreview: () => void;
@@ -119,6 +120,7 @@ export function EditorChrome({
         scheduleBusy={action.scheduleBusy}
         zenMode={zenMode}
         onToggleZen={action.onToggleZen}
+        onOpenShortcutHelp={action.onOpenShortcutHelp}
         onToggleBasic={() => onToggleMetaPanel("basic")}
         onToggleSeo={() => onToggleMetaPanel("seo")}
         onToggleAdvanced={() => onToggleMetaPanel("advanced")}

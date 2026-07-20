@@ -40,8 +40,6 @@ import {
   ImagePaste,
   Mermaid,
 } from "@/components/admin/tiptap-extensions";
-import { uploadMedia } from "@/api/media";
-
 const lowlight = createLowlight(common);
 
 /** Core extensions required by all presets */
@@ -137,14 +135,8 @@ export function interactionExtensions(features: EditorFeatures): Extension[] {
   if (features.blockHandles) exts.push(BlockHandle as Extension);
   if (features.blockToolbar) exts.push(BlockToolbar as Extension);
   if (features.imagePaste) {
-    exts.push(
-      ImagePaste.configure({
-        uploadFn: async (file: File) => {
-          const media = await uploadMedia(file);
-          return { url: media.url, filename: media.filename };
-        },
-      }) as Extension
-    );
+    // Progress + retry via mediaUploadTracked bus (article editor tray)
+    exts.push(ImagePaste.configure({ maxSize: 20 * 1024 * 1024 }) as Extension);
   }
   return exts;
 }
