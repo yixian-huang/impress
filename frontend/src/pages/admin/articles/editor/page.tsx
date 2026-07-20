@@ -2,18 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Category, Tag } from "@/api/articles";
 import { getCategories, getTags } from "@/api/articles";
-import ImagePickerModal from "@/components/admin/ImagePickerModal";
-import { EditorToolbar, EditorModals } from "@/components/admin/RichTextEditor";
-import MarkdownToolbar from "@/components/admin/editor/MarkdownToolbar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useAuth } from "@/contexts/AuthContext";
-import ArticleForm from "./ArticleForm";
-import { SeoFieldsPanel, AdvancedSettingsPanel } from "./SeoFields";
-import { ArticleVersionHistoryPanel, type ArticleDraftSnapshot } from "./VersionHistoryPanel";
-import ArticlePreviewModal, { type ArticlePreviewData } from "./ArticlePreviewModal";
-import ArticleConflictDialog from "./ArticleConflictDialog";
-import TemplatePickerModal from "./TemplatePickerModal";
+import type { ArticleDraftSnapshot } from "./VersionHistoryPanel";
 import type { ArticleTemplate } from "./articleTemplates";
 import { LEAVE_UNSAVED_MESSAGE } from "./saveStatusUtils";
 import { slugifyTitle } from "./utils/slugify";
@@ -21,6 +13,7 @@ import { statusLabelOf } from "./utils/constants";
 import { toast } from "./utils/toast";
 import { pickPayloadFields } from "./utils/buildArticlePayload";
 import type { LocalDraftSnapshot } from "./utils/localDraft";
+import { applyLocalDraftToFormAndEditors } from "./utils/applyLocalDraft";
 import { useDirtyState } from "./hooks/useDirtyState";
 import { useArticleFormState } from "./hooks/useArticleFormState";
 import {
@@ -35,18 +28,14 @@ import { useSlashMediaBridge } from "./hooks/useSlashMediaBridge";
 import { useArticleSchedule } from "./hooks/useArticleSchedule";
 import { useWordStats } from "./hooks/useWordStats";
 import { useLocalDraft } from "./hooks/useLocalDraft";
+import { useEditorShell } from "./hooks/useEditorShell";
+import { usePublishGate } from "./hooks/usePublishGate";
 import { EditorMessageBars } from "./components/EditorMessageBars";
-import { EditorLangBar } from "./components/EditorLangBar";
 import { EditorWorkspace } from "./components/EditorWorkspace";
-import { EditorActionBar } from "./components/EditorActionBar";
 import { LangEditorMount } from "./components/LangEditorMount";
 import { LocalDraftBanner } from "./components/LocalDraftBanner";
-import { FindReplaceBar } from "./components/FindReplaceBar";
-import { PublishChecklistDialog } from "./components/PublishChecklistDialog";
-import {
-  evaluatePublishChecklist,
-  type ChecklistItem,
-} from "./utils/publishChecklist";
+import { EditorChrome } from "./components/EditorChrome";
+import { EditorDialogs } from "./components/EditorDialogs";
 
 export default function ArticleEditorPage() {
   useDocumentTitle("编辑文章");
@@ -56,9 +45,9 @@ export default function ArticleEditorPage() {
   const { hasPermission } = useAuth();
   const canPublish = hasPermission("articles:publish");
 
-  // ── Domain state ──
   const form = useArticleFormState();
   const dirty = useDirtyState(!isEditing);
+  const shell = useEditorShell();
   const editors = useArticleEditors({
     zhBody: form.zhBody,
     enBody: form.enBody,
@@ -67,7 +56,6 @@ export default function ArticleEditorPage() {
     touch: dirty.touch,
   });
 
-  // Live save source — mutated each render, read only inside save/schedule handlers
   const saveSourceRef = useRef<ArticleSaveSource>({
     getFields: () => pickPayloadFields(form),
     resolveBodies: () => editors.resolveBodies(),
@@ -83,25 +71,11 @@ export default function ArticleEditorPage() {
     setArticleStatus: form.setArticleStatus,
   };
 
-  // ── Shell UI ──
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [showBasicInfo, setShowBasicInfo] = useState(false);
-  const [showSeo, setShowSeo] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showCoverPicker, setShowCoverPicker] = useState(false);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [versionDraftSnapshot, setVersionDraftSnapshot] = useState<ArticleDraftSnapshot | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<ArticlePreviewData | null>(null);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const [zenMode, setZenMode] = useState(false);
-  const [findOpen, setFindOpen] = useState(false);
-  const [publishChecklist, setPublishChecklist] = useState<ChecklistItem[] | null>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
-  useOutsideClick(langMenuRef, showLangMenu, () => setShowLangMenu(false));
+  useOutsideClick(langMenuRef, shell.showLangMenu, () => shell.setShowLangMenu(false));
   useSlashMediaBridge(editors.activeEntry?.state);
 
   useEffect(() => {
@@ -169,54 +143,24 @@ export default function ArticleEditorPage() {
 
   const openPreview = useCallback(() => {
     const bodies = editors.resolveBodies();
-    const title =
-      editors.activeLang === "en"
-        ? (form.enTitle || form.zhTitle)
-        : (form.zhTitle || form.enTitle);
-    const bodyHtml =
-      editors.activeLang === "en"
-        ? (bodies.enBody || bodies.zhBody)
-        : (bodies.zhBody || bodies.enBody);
+    const isEn = editors.activeLang === "en";
     const finalSlug = form.slug.trim() || slugifyTitle(form.zhTitle, form.enTitle);
-    setPreviewData({
-      title,
-      bodyHtml,
+    shell.openPreviewWith({
+      title: isEn ? (form.enTitle || form.zhTitle) : (form.zhTitle || form.enTitle),
+      bodyHtml: isEn ? (bodies.enBody || bodies.zhBody) : (bodies.zhBody || bodies.enBody),
       coverImage: form.coverImage || undefined,
       author: form.author || undefined,
-      langLabel: editors.activeLang === "en" ? "English" : "中文",
+      langLabel: isEn ? "English" : "中文",
       statusLabel: statusLabelOf(form.articleStatus, dirty.isDirty),
       publicPath:
         form.articleStatus === "published" && finalSlug ? `/blog/${finalSlug}` : null,
       metadata: form.metadata,
     });
-    setShowPreview(true);
-  }, [editors, form, dirty.isDirty]);
+  }, [editors, form, dirty.isDirty, shell]);
 
   const applyLocalDraft = useCallback((draft: LocalDraftSnapshot) => {
     dirty.pauseReady();
-    form.setZhTitle(draft.zhTitle || "");
-    form.setEnTitle(draft.enTitle || "");
-    form.setSlug(draft.slug || "");
-    form.setCoverImage(draft.coverImage || "");
-    form.setZhSeoTitle(draft.zhSeoTitle || "");
-    form.setEnSeoTitle(draft.enSeoTitle || "");
-    form.setZhMetaDescription(draft.zhMetaDescription || "");
-    form.setEnMetaDescription(draft.enMetaDescription || "");
-    form.setOgImage(draft.ogImage || "");
-    form.setAuthor(draft.author || "");
-    editors.applyBodiesToEditors(draft.zhBody || "<p></p>", draft.enBody || "<p></p>");
-    if (draft.editorMode === "markdown") {
-      editors.setMarkdownContent({
-        zh: draft.markdownZh || "",
-        en: draft.markdownEn || "",
-      });
-      editors.setEditorMode("markdown");
-    } else {
-      editors.setEditorMode("richtext");
-    }
-    if (draft.enabledLangs?.includes("en") || draft.enTitle || draft.enBody) {
-      editors.ensureEnEnabled();
-    }
+    applyLocalDraftToFormAndEditors(draft, form, editors);
     toast(persistence.setSuccessMessage, "已恢复本地草稿（尚未保存到服务器）", 4000);
     dirty.resumeReady();
     dirty.touch();
@@ -263,31 +207,15 @@ export default function ArticleEditorPage() {
     }),
   });
 
-  // Clear local draft after a successful server save
   useEffect(() => {
     if (dirty.savePhase === "saved" && !dirty.isDirty) {
       clearLocalDraftCache();
     }
   }, [dirty.savePhase, dirty.isDirty, clearLocalDraftCache]);
 
-  const openFind = useCallback(() => {
-    if (editors.editorMode === "markdown") {
-      editors.markdownApi?.openSearch?.();
-      return;
-    }
-    setFindOpen(true);
-  }, [editors.editorMode, editors.markdownApi]);
-
-  const exitOverlay = useCallback(() => {
-    if (findOpen) setFindOpen(false);
-    else if (zenMode) setZenMode(false);
-  }, [findOpen, zenMode]);
-
-  /** Run publish checklist; force=true skips warn-only dialog. */
-  const requestPublish = useCallback((opts?: { force?: boolean }) => {
-    if (!canPublish) return;
+  const collectPublishInput = useCallback(() => {
     const bodies = editors.resolveBodies();
-    const items = evaluatePublishChecklist({
+    return {
       zhTitle: form.zhTitle,
       enTitle: form.enTitle,
       slug: form.slug,
@@ -300,32 +228,40 @@ export default function ArticleEditorPage() {
       enSeoTitle: form.enSeoTitle,
       enabledLangs: editors.enabledLangs,
       author: form.author,
-    });
-    if (items.length > 0 && !opts?.force) {
-      setPublishChecklist(items);
+    };
+  }, [editors, form]);
+
+  const publishGate = usePublishGate({
+    canPublish,
+    collect: collectPublishInput,
+    onPublish: () => void persistence.handleSave("publish"),
+  });
+
+  const handleOpenFind = useCallback(() => {
+    if (editors.editorMode === "markdown") {
+      editors.markdownApi?.openSearch?.();
       return;
     }
-    // force only allowed when no blocks (dialog enforces this)
-    if (opts?.force && items.some((i) => i.severity === "block")) {
-      setPublishChecklist(items);
-      return;
-    }
-    setPublishChecklist(null);
-    void persistence.handleSave("publish");
-  }, [canPublish, editors, form, persistence]);
+    shell.openFind();
+  }, [editors.editorMode, editors.markdownApi, shell]);
+
+  const handleExitOverlay = useCallback(() => {
+    if (shell.findOpen) shell.closeFind();
+    else if (shell.zenMode) shell.toggleZen();
+  }, [shell]);
 
   useEditorShortcuts({
     canPublish,
-    zenMode,
-    findOpen,
+    zenMode: shell.zenMode,
+    findOpen: shell.findOpen,
     onSave: (intent) => {
-      if (intent === "publish") requestPublish();
+      if (intent === "publish") publishGate.requestPublish();
       else void persistence.handleSave(intent);
     },
     onPreview: openPreview,
-    onFind: openFind,
-    onToggleZen: () => setZenMode((z) => !z),
-    onExitOverlay: exitOverlay,
+    onFind: handleOpenFind,
+    onToggleZen: shell.toggleZen,
+    onExitOverlay: handleExitOverlay,
   });
 
   const { confirmLeave } = useUnsavedChangesGuard(dirty.isDirty, LEAVE_UNSAVED_MESSAGE);
@@ -341,11 +277,11 @@ export default function ArticleEditorPage() {
       author: form.author,
     });
     editors.applyBodiesToEditors(bodies.zhBody, bodies.enBody);
-    setShowVersionHistory(false);
+    shell.closeVersionHistory();
     toast(persistence.setSuccessMessage, "已恢复到所选版本（尚未保存，请检查后保存）", 4000);
     dirty.resumeReady();
     dirty.touch();
-  }, [dirty, form, editors, persistence.setSuccessMessage]);
+  }, [dirty, form, editors, shell, persistence.setSuccessMessage]);
 
   const handleApplyTemplate = useCallback((tpl: ArticleTemplate) => {
     if (tpl.id !== "blank") {
@@ -368,14 +304,14 @@ export default function ArticleEditorPage() {
     if (tpl.enTitle) form.setEnTitle(tpl.enTitle);
     editors.applyBodiesToEditors(tpl.zhBody || "<p></p>", tpl.enBody || "<p></p>");
     if (tpl.enTitle || tpl.enBody) editors.ensureEnEnabled();
-    setShowTemplatePicker(false);
+    shell.setShowTemplatePicker(false);
     toast(
       persistence.setSuccessMessage,
       tpl.id === "blank" ? "已清空为空白文档" : `已应用模板「${tpl.name}」（未保存）`,
     );
     dirty.resumeReady();
     dirty.touch();
-  }, [form, editors, dirty, persistence.setSuccessMessage]);
+  }, [form, editors, dirty, shell, persistence.setSuccessMessage]);
 
   const sidebarArticle = useMemo(
     () =>
@@ -390,23 +326,31 @@ export default function ArticleEditorPage() {
     [isEditing, form.slug, form.author, form.articleCreatedAt, form.articlePublishedAt],
   );
 
+  const setZhTitleTracked = useMemo(() => dirty.track(form.setZhTitle), [dirty, form.setZhTitle]);
+  const setEnTitleTracked = useMemo(() => dirty.track(form.setEnTitle), [dirty, form.setEnTitle]);
+
   const langTitleMap = useMemo(
     () => ({
       zh: {
         title: form.zhTitle,
-        setTitle: dirty.track(form.setZhTitle),
+        setTitle: setZhTitleTracked,
         placeholder: "输入中文标题",
       },
       en: {
         title: form.enTitle,
-        setTitle: dirty.track(form.setEnTitle),
+        setTitle: setEnTitleTracked,
         placeholder: "Enter English title",
       },
     }),
-    [form.zhTitle, form.enTitle, form.setZhTitle, form.setEnTitle, dirty],
+    [form.zhTitle, form.enTitle, setZhTitleTracked, setEnTitleTracked],
   );
 
   const activeTitle = langTitleMap[editors.activeLang as "zh" | "en"];
+
+  const onMarkdownChange = useCallback((lang: string, val: string) => {
+    editors.setMarkdownContent((prev) => ({ ...prev, [lang]: val }));
+    dirty.touch();
+  }, [editors, dirty]);
 
   if (persistence.loading) {
     return (
@@ -419,181 +363,121 @@ export default function ArticleEditorPage() {
   return (
     <div
       className={`flex flex-col min-h-0 bg-white ${
-        zenMode ? "fixed inset-0 z-50 h-screen" : "h-full"
+        shell.zenMode ? "fixed inset-0 z-50 h-screen" : "h-full"
       }`}
     >
-      <div className="flex-shrink-0 z-20 bg-white border-b border-slate-200 shadow-sm">
-        <EditorActionBar
-          title={activeTitle?.title || ""}
-          titlePlaceholder={activeTitle?.placeholder || "标题"}
-          onTitleChange={(v) => activeTitle?.setTitle(v)}
-          onBack={handleBack}
-          savePhase={dirty.savePhase}
-          lastSavedAt={dirty.lastSavedAt}
-          lastSaveWasAutosave={dirty.lastSaveWasAutosave}
-          showBasicInfo={showBasicInfo}
-          showSeo={showSeo}
-          showAdvanced={showAdvanced}
-          showVersionHistory={showVersionHistory}
-          isEditing={isEditing}
-          canPublish={canPublish}
-          saving={persistence.saving}
-          articleStatus={form.articleStatus}
-          scheduledPublication={schedule.scheduledPublication}
-          scheduleLoading={schedule.scheduleLoading}
-          scheduleBusy={schedule.scheduleBusy}
-          zenMode={zenMode}
-          onToggleZen={() => setZenMode((z) => !z)}
-          onToggleBasic={() => {
-            setShowBasicInfo((v) => !v);
-            setShowSeo(false);
-            setShowAdvanced(false);
-          }}
-          onToggleSeo={() => {
-            setShowSeo((v) => !v);
-            setShowBasicInfo(false);
-            setShowAdvanced(false);
-          }}
-          onToggleAdvanced={() => {
-            setShowAdvanced((v) => !v);
-            setShowBasicInfo(false);
-            setShowSeo(false);
-          }}
-          onOpenHistory={() => {
-            setVersionDraftSnapshot(
-              editors.buildDraftSnapshot({
-                zhTitle: form.zhTitle,
-                enTitle: form.enTitle,
-                slug: form.slug,
-                articleStatus: form.articleStatus,
-                coverImage: form.coverImage,
-                zhSeoTitle: form.zhSeoTitle,
-                enSeoTitle: form.enSeoTitle,
-                zhMetaDescription: form.zhMetaDescription,
-                enMetaDescription: form.enMetaDescription,
-                ogImage: form.ogImage,
-                author: form.author,
-              }),
-            );
-            setShowVersionHistory(true);
-          }}
-          onOpenTemplate={() => setShowTemplatePicker(true)}
-          onPreview={openPreview}
-          onFind={openFind}
-          onSave={() => void persistence.handleSave("draft")}
-          onPublish={() => requestPublish()}
-          onSchedule={schedule.handleSchedulePublish}
-          onCancelSchedule={schedule.handleCancelSchedule}
-          onRetrySchedule={schedule.handleRetrySchedule}
-          onRefreshSchedule={schedule.loadArticleSchedule}
-        />
-
-        {!zenMode && showBasicInfo && (
-          <ArticleForm
-            slug={form.slug}
-            setSlug={dirty.track(form.setSlug)}
-            author={form.author}
-            setAuthor={dirty.track(form.setAuthor)}
-            coverImage={form.coverImage}
-            setCoverImage={dirty.track(form.setCoverImage)}
-            showCoverPicker={showCoverPicker}
-            setShowCoverPicker={setShowCoverPicker}
-            categories={categories}
-            selectedCategoryIds={form.selectedCategoryIds}
-            toggleCategory={(cid) => {
-              form.toggleCategory(cid);
-              dirty.touch();
-            }}
-            tags={tags}
-            selectedTagIds={form.selectedTagIds}
-            toggleTag={(tid) => {
-              form.toggleTag(tid);
-              dirty.touch();
-            }}
-          />
-        )}
-        {!zenMode && showSeo && (
-          <SeoFieldsPanel
-            zhSeoTitle={form.zhSeoTitle}
-            setZhSeoTitle={dirty.track(form.setZhSeoTitle)}
-            enSeoTitle={form.enSeoTitle}
-            setEnSeoTitle={dirty.track(form.setEnSeoTitle)}
-            zhMetaDescription={form.zhMetaDescription}
-            setZhMetaDescription={dirty.track(form.setZhMetaDescription)}
-            enMetaDescription={form.enMetaDescription}
-            setEnMetaDescription={dirty.track(form.setEnMetaDescription)}
-            ogImage={form.ogImage}
-            setOgImage={dirty.track(form.setOgImage)}
-          />
-        )}
-        {!zenMode && showAdvanced && (
-          <AdvancedSettingsPanel
-            visibility={form.visibility}
-            setVisibility={dirty.track(form.setVisibility)}
-            autoSummary={form.autoSummary}
-            setAutoSummary={dirty.track(form.setAutoSummary)}
-            allowComments={form.allowComments}
-            setAllowComments={dirty.track(form.setAllowComments)}
-            pinned={form.pinned}
-            setPinned={dirty.track(form.setPinned)}
-            metadata={form.metadata}
-            setMetadata={dirty.track(form.setMetadata)}
-          />
-        )}
-
-        {!zenMode && (
-          <EditorLangBar
-            enabledLangs={editors.enabledLangs}
-            activeLangIdx={editors.activeLangIdx}
-            viewLayout={editors.viewLayout}
-            wordStats={wordStats}
-            editorMode={editors.editorMode}
-            translateBusy={bilingual.translateBusy}
-            showLangMenu={showLangMenu}
-            langMenuRef={langMenuRef}
-            onSelectLang={editors.setActiveLangIdx}
-            onRemoveLang={editors.removeLang}
-            onAddLang={(key) => {
-              editors.addLang(key);
-              setShowLangMenu(false);
-            }}
-            onToggleLangMenu={() => setShowLangMenu((v) => !v)}
-            onToggleSplit={() =>
-              editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))
-            }
-            onCopyZhToEn={() => bilingual.handleCopyToOtherLang("zh")}
-            onTranslateZhToEn={() => void bilingual.handleTranslateToOtherLang("zh")}
-            onModeChange={editors.handleModeChange}
-          />
-        )}
-
-        {!zenMode && (
-          <div className="flex items-stretch border-t border-slate-200 bg-slate-50">
-            {editors.editorMode === "richtext" && editors.activeEntry?.editor ? (
-              <div className="flex-1 min-w-0 overflow-x-auto">
-                <EditorToolbar
-                  editor={editors.activeEntry.editor}
-                  modals={editors.activeEntry.modals}
-                />
-              </div>
-            ) : editors.editorMode === "markdown" ? (
-              <div className="flex-1 min-w-0 overflow-x-auto">
-                <MarkdownToolbar api={editors.markdownApi} />
-              </div>
-            ) : (
-              <div className="flex-1 py-2" />
-            )}
-          </div>
-        )}
-
-        {editors.editorMode === "richtext" && (
-          <FindReplaceBar
-            open={findOpen}
-            editor={editors.activeEntry?.editor ?? null}
-            onClose={() => setFindOpen(false)}
-          />
-        )}
-      </div>
+      <EditorChrome
+        zenMode={shell.zenMode}
+        title={activeTitle?.title || ""}
+        titlePlaceholder={activeTitle?.placeholder || "标题"}
+        onTitleChange={(v) => activeTitle?.setTitle(v)}
+        onBack={handleBack}
+        savePhase={dirty.savePhase}
+        lastSavedAt={dirty.lastSavedAt}
+        lastSaveWasAutosave={dirty.lastSaveWasAutosave}
+        metaPanel={shell.metaPanel}
+        onToggleMetaPanel={shell.toggleMetaPanel}
+        showVersionHistory={shell.showVersionHistory}
+        isEditing={isEditing}
+        canPublish={canPublish}
+        saving={persistence.saving}
+        articleStatus={form.articleStatus}
+        scheduledPublication={schedule.scheduledPublication}
+        scheduleLoading={schedule.scheduleLoading}
+        scheduleBusy={schedule.scheduleBusy}
+        onToggleZen={shell.toggleZen}
+        onOpenHistory={() => {
+          shell.openVersionHistory(
+            editors.buildDraftSnapshot({
+              zhTitle: form.zhTitle,
+              enTitle: form.enTitle,
+              slug: form.slug,
+              articleStatus: form.articleStatus,
+              coverImage: form.coverImage,
+              zhSeoTitle: form.zhSeoTitle,
+              enSeoTitle: form.enSeoTitle,
+              zhMetaDescription: form.zhMetaDescription,
+              enMetaDescription: form.enMetaDescription,
+              ogImage: form.ogImage,
+              author: form.author,
+            }),
+          );
+        }}
+        onOpenTemplate={() => shell.setShowTemplatePicker(true)}
+        onPreview={openPreview}
+        onFind={handleOpenFind}
+        onSave={() => void persistence.handleSave("draft")}
+        onPublish={() => publishGate.requestPublish()}
+        onSchedule={schedule.handleSchedulePublish}
+        onCancelSchedule={schedule.handleCancelSchedule}
+        onRetrySchedule={schedule.handleRetrySchedule}
+        onRefreshSchedule={schedule.loadArticleSchedule}
+        formSlug={form.slug}
+        setSlug={dirty.track(form.setSlug)}
+        formAuthor={form.author}
+        setAuthor={dirty.track(form.setAuthor)}
+        formCover={form.coverImage}
+        setCover={dirty.track(form.setCoverImage)}
+        showCoverPicker={shell.showCoverPicker}
+        setShowCoverPicker={shell.setShowCoverPicker}
+        categories={categories}
+        selectedCategoryIds={form.selectedCategoryIds}
+        onToggleCategory={(cid) => {
+          form.toggleCategory(cid);
+          dirty.touch();
+        }}
+        tags={tags}
+        selectedTagIds={form.selectedTagIds}
+        onToggleTag={(tid) => {
+          form.toggleTag(tid);
+          dirty.touch();
+        }}
+        zhSeoTitle={form.zhSeoTitle}
+        setZhSeoTitle={dirty.track(form.setZhSeoTitle)}
+        enSeoTitle={form.enSeoTitle}
+        setEnSeoTitle={dirty.track(form.setEnSeoTitle)}
+        zhMetaDescription={form.zhMetaDescription}
+        setZhMetaDescription={dirty.track(form.setZhMetaDescription)}
+        enMetaDescription={form.enMetaDescription}
+        setEnMetaDescription={dirty.track(form.setEnMetaDescription)}
+        ogImage={form.ogImage}
+        setOgImage={dirty.track(form.setOgImage)}
+        visibility={form.visibility}
+        setVisibility={dirty.track(form.setVisibility)}
+        autoSummary={form.autoSummary}
+        setAutoSummary={dirty.track(form.setAutoSummary)}
+        allowComments={form.allowComments}
+        setAllowComments={dirty.track(form.setAllowComments)}
+        pinned={form.pinned}
+        setPinned={dirty.track(form.setPinned)}
+        metadata={form.metadata}
+        setMetadata={dirty.track(form.setMetadata)}
+        enabledLangs={editors.enabledLangs}
+        activeLangIdx={editors.activeLangIdx}
+        viewLayout={editors.viewLayout}
+        wordStats={wordStats}
+        editorMode={editors.editorMode}
+        translateBusy={bilingual.translateBusy}
+        showLangMenu={shell.showLangMenu}
+        langMenuRef={langMenuRef}
+        onSelectLang={editors.setActiveLangIdx}
+        onRemoveLang={editors.removeLang}
+        onAddLang={(key) => {
+          editors.addLang(key);
+          shell.setShowLangMenu(false);
+        }}
+        onToggleLangMenu={shell.toggleLangMenu}
+        onToggleSplit={() =>
+          editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))
+        }
+        onCopyZhToEn={() => bilingual.handleCopyToOtherLang("zh")}
+        onTranslateZhToEn={() => void bilingual.handleTranslateToOtherLang("zh")}
+        onModeChange={editors.handleModeChange}
+        activeEditorEntry={editors.activeEntry}
+        markdownApi={editors.markdownApi}
+        findOpen={shell.findOpen}
+        onCloseFind={shell.closeFind}
+      />
 
       {localDraftOffer && (
         <LocalDraftBanner
@@ -627,17 +511,13 @@ export default function ArticleEditorPage() {
         metadata={form.metadata}
         sidebarArticle={sidebarArticle}
         showOutline
-        outlineCompact={zenMode}
+        outlineCompact={shell.zenMode}
         onSelectLangKey={editors.selectLangKey}
-        onMarkdownChange={(lang, val) => {
-          editors.setMarkdownContent((prev) => ({ ...prev, [lang]: val }));
-          dirty.touch();
-        }}
+        onMarkdownChange={onMarkdownChange}
         onMarkdownApiReady={editors.setMarkdownApi}
         onJumpMarkdownLine={(line) => editors.markdownApi?.gotoLine?.(line)}
       />
 
-      {/* TipTap instances: ZH always; EN only when bilingual is active */}
       <LangEditorMount
         enabled={editors.needZhEditor}
         html={form.zhBody}
@@ -655,68 +535,42 @@ export default function ArticleEditorPage() {
         onFlushBody={editors.onEnFlushBody}
       />
 
-      {Object.entries(editors.langEditors).map(([lang, entry]) =>
-        entry.editor ? (
-          <EditorModals key={lang} editor={entry.editor} state={entry.state} />
-        ) : null,
-      )}
-
-      <ImagePickerModal
-        open={showCoverPicker}
-        onClose={() => setShowCoverPicker(false)}
-        onSelect={(item) => {
-          form.setCoverImage(item.url);
-          setShowCoverPicker(false);
+      <EditorDialogs
+        langEditors={editors.langEditors}
+        showCoverPicker={shell.showCoverPicker}
+        onCloseCoverPicker={() => shell.setShowCoverPicker(false)}
+        onSelectCover={(url) => {
+          form.setCoverImage(url);
+          shell.setShowCoverPicker(false);
           dirty.touch();
         }}
-      />
-
-      {showVersionHistory && isEditing && (
-        <ArticleVersionHistoryPanel
-          articleId={Number(id)}
-          onClose={() => {
-            setShowVersionHistory(false);
-            setVersionDraftSnapshot(null);
-          }}
-          currentDraft={versionDraftSnapshot}
-          onRestore={handleRestoreVersion}
-          canRestore
-        />
-      )}
-
-      <ArticlePreviewModal
-        open={showPreview}
-        data={previewData}
-        onClose={() => setShowPreview(false)}
-      />
-      <TemplatePickerModal
-        open={showTemplatePicker}
-        onClose={() => setShowTemplatePicker(false)}
-        onSelect={handleApplyTemplate}
-      />
-
-      {persistence.conflict && (
-        <ArticleConflictDialog
-          serverUpdatedAt={persistence.conflict.serverUpdatedAt}
-          busy={persistence.saving}
-          onDismiss={() => persistence.setConflict(null)}
-          onReload={persistence.forceReload}
-          onForceOverwrite={() => {
-            persistence.setConflict(null);
-            void persistence.handleSave("draft", { force: true });
-          }}
-        />
-      )}
-
-      <PublishChecklistDialog
-        open={!!publishChecklist && publishChecklist.length > 0}
-        items={publishChecklist || []}
-        busy={persistence.saving}
-        onCancel={() => setPublishChecklist(null)}
+        showVersionHistory={shell.showVersionHistory}
+        isEditing={isEditing}
+        articleId={id}
+        versionDraftSnapshot={shell.versionDraftSnapshot}
+        onCloseVersionHistory={shell.closeVersionHistory}
+        onRestoreVersion={handleRestoreVersion}
+        showPreview={shell.showPreview}
+        previewData={shell.previewData}
+        onClosePreview={shell.closePreview}
+        showTemplatePicker={shell.showTemplatePicker}
+        onCloseTemplatePicker={() => shell.setShowTemplatePicker(false)}
+        onSelectTemplate={handleApplyTemplate}
+        conflict={persistence.conflict}
+        saving={persistence.saving}
+        onDismissConflict={() => persistence.setConflict(null)}
+        onReloadConflict={persistence.forceReload}
+        onForceOverwrite={() => {
+          persistence.setConflict(null);
+          void persistence.handleSave("draft", { force: true });
+        }}
+        publishChecklistOpen={publishGate.open}
+        publishChecklistItems={publishGate.items || []}
+        onCancelPublishChecklist={publishGate.dismiss}
         onForcePublish={
-          publishChecklist?.some((i) => i.severity === "block")
+          publishGate.hasBlocks
             ? undefined
-            : () => requestPublish({ force: true })
+            : () => publishGate.requestPublish({ force: true })
         }
       />
     </div>

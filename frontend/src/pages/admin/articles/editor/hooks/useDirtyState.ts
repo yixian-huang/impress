@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { EditorSavePhase } from "../saveStatusUtils";
 
 /**
  * Tracks unsaved edits without thrashing on programmatic hydrate/setContent.
+ * Return object identity is stable when values/callbacks are unchanged.
  */
 export function useDirtyState(initialReady: boolean) {
   const [isDirty, setIsDirty] = useState(false);
@@ -11,6 +12,8 @@ export function useDirtyState(initialReady: boolean) {
   const [lastSaveWasAutosave, setLastSaveWasAutosave] = useState(false);
   const readyRef = useRef(initialReady);
   const savingRef = useRef(false);
+  /** Cache track wrappers so dirty.track(setX) is referentially stable. */
+  const trackedCache = useRef(new WeakMap<(v: never) => void, (v: never) => void>());
 
   const touch = useCallback(() => {
     if (!readyRef.current) return;
@@ -19,11 +22,18 @@ export function useDirtyState(initialReady: boolean) {
   }, []);
 
   const track = useCallback(
-    <T,>(setter: (v: T) => void) =>
-      (v: T) => {
-        setter(v);
-        touch();
-      },
+    <T,>(setter: (v: T) => void): ((v: T) => void) => {
+      const cache = trackedCache.current as WeakMap<(v: T) => void, (v: T) => void>;
+      let wrapped = cache.get(setter);
+      if (!wrapped) {
+        wrapped = (v: T) => {
+          setter(v);
+          touch();
+        };
+        cache.set(setter, wrapped);
+      }
+      return wrapped;
+    },
     [touch],
   );
 
@@ -62,22 +72,38 @@ export function useDirtyState(initialReady: boolean) {
     readyRef.current = false;
   }, []);
 
-  return {
-    isDirty,
-    setIsDirty,
-    savePhase,
-    setSavePhase,
-    lastSavedAt,
-    lastSaveWasAutosave,
-    readyRef,
-    savingRef,
-    touch,
-    track,
-    markClean,
-    markSaving,
-    markError,
-    markHydrated,
-    resumeReady,
-    pauseReady,
-  };
+  return useMemo(
+    () => ({
+      isDirty,
+      setIsDirty,
+      savePhase,
+      setSavePhase,
+      lastSavedAt,
+      lastSaveWasAutosave,
+      readyRef,
+      savingRef,
+      touch,
+      track,
+      markClean,
+      markSaving,
+      markError,
+      markHydrated,
+      resumeReady,
+      pauseReady,
+    }),
+    [
+      isDirty,
+      savePhase,
+      lastSavedAt,
+      lastSaveWasAutosave,
+      touch,
+      track,
+      markClean,
+      markSaving,
+      markError,
+      markHydrated,
+      resumeReady,
+      pauseReady,
+    ],
+  );
 }

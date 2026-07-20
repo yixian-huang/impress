@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Article } from "@/api/articles";
 import type { ArticleDraftSnapshot } from "../VersionHistoryPanel";
 
@@ -6,6 +6,7 @@ export type ArticleStatus = "draft" | "published" | "scheduled";
 
 /**
  * All serializable article fields + helpers to hydrate from API / snapshot.
+ * Return object identity is stable when field values are unchanged.
  */
 export function useArticleFormState() {
   const [zhTitle, setZhTitle] = useState("");
@@ -59,7 +60,10 @@ export function useArticleFormState() {
     setArticleStatus(article.status || "draft");
   }, []);
 
-  const hydrateFromSnapshot = useCallback((snapshot: ArticleDraftSnapshot, fallback: { slug: string; author: string }) => {
+  const hydrateFromSnapshot = useCallback((
+    snapshot: ArticleDraftSnapshot,
+    fallback: { slug: string; author: string },
+  ) => {
     setZhTitle(typeof snapshot.zhTitle === "string" ? snapshot.zhTitle : "");
     setEnTitle(typeof snapshot.enTitle === "string" ? snapshot.enTitle : "");
     setSlug(typeof snapshot.slug === "string" ? snapshot.slug : fallback.slug);
@@ -89,30 +93,39 @@ export function useArticleFormState() {
     );
   }, []);
 
-  return {
-    zhTitle, setZhTitle,
-    enTitle, setEnTitle,
-    slug, setSlug,
-    selectedCategoryIds, setSelectedCategoryIds, toggleCategory,
-    selectedTagIds, setSelectedTagIds, toggleTag,
-    coverImage, setCoverImage,
-    zhBody, setZhBody,
-    enBody, setEnBody,
-    zhSeoTitle, setZhSeoTitle,
-    enSeoTitle, setEnSeoTitle,
-    zhMetaDescription, setZhMetaDescription,
-    enMetaDescription, setEnMetaDescription,
-    ogImage, setOgImage,
-    author, setAuthor,
-    autoSummary, setAutoSummary,
-    allowComments, setAllowComments,
-    pinned, setPinned,
-    visibility, setVisibility,
-    metadata, setMetadata,
-    articleCreatedAt, setArticleCreatedAt,
-    articlePublishedAt, setArticlePublishedAt,
-    articleStatus, setArticleStatus,
-    hydrateFromArticle,
-    hydrateFromSnapshot,
-  };
+  return useMemo(
+    () => ({
+      zhTitle, setZhTitle,
+      enTitle, setEnTitle,
+      slug, setSlug,
+      selectedCategoryIds, setSelectedCategoryIds, toggleCategory,
+      selectedTagIds, setSelectedTagIds, toggleTag,
+      coverImage, setCoverImage,
+      zhBody, setZhBody,
+      enBody, setEnBody,
+      zhSeoTitle, setZhSeoTitle,
+      enSeoTitle, setEnSeoTitle,
+      zhMetaDescription, setZhMetaDescription,
+      enMetaDescription, setEnMetaDescription,
+      ogImage, setOgImage,
+      author, setAuthor,
+      autoSummary, setAutoSummary,
+      allowComments, setAllowComments,
+      pinned, setPinned,
+      visibility, setVisibility,
+      metadata, setMetadata,
+      articleCreatedAt, setArticleCreatedAt,
+      articlePublishedAt, setArticlePublishedAt,
+      articleStatus, setArticleStatus,
+      hydrateFromArticle,
+      hydrateFromSnapshot,
+    }),
+    [
+      zhTitle, enTitle, slug, selectedCategoryIds, selectedTagIds, coverImage,
+      zhBody, enBody, zhSeoTitle, enSeoTitle, zhMetaDescription, enMetaDescription,
+      ogImage, author, autoSummary, allowComments, pinned, visibility, metadata,
+      articleCreatedAt, articlePublishedAt, articleStatus,
+      toggleCategory, toggleTag, hydrateFromArticle, hydrateFromSnapshot,
+    ],
+  );
 }

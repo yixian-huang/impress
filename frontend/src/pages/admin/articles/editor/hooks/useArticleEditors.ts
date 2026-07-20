@@ -65,11 +65,12 @@ export function useArticleEditors(opts: {
   const activeLang = enabledLangs[activeLangIdx] || "zh";
   const activeEntry = langEditors[activeLang as "zh" | "en"];
 
+  const enEnabled = enabledLangs.includes("en");
   useEffect(() => {
-    if (viewLayout === "split" && !enabledLangs.includes("en")) {
+    if (viewLayout === "split" && !enEnabled) {
       setEnabledLangs((prev) => (prev.includes("en") ? prev : [...prev, "en"]));
     }
-  }, [viewLayout, enabledLangs]);
+  }, [viewLayout, enEnabled]);
 
   const getEnHtml = useCallback(() => enEditor?.getHTML() || enBody || "", [enEditor, enBody]);
   const getZhHtml = useCallback(() => zhEditor?.getHTML() || zhBody || "", [zhEditor, zhBody]);
