@@ -277,28 +277,36 @@ func (s *SearchService) Suggest(ctx context.Context, prefix, locale string, limi
 	return titles, nil
 }
 
-// IndexArticle adds or replaces an article in the search index.
+// IndexArticle adds or replaces one locale row for an article in the search index.
+// Only the target locale is deleted so bilingual (zh+en) rows can coexist after
+// sequential IndexArticle calls from article publication.
 func (s *SearchService) IndexArticle(ctx context.Context, id uint, locale, title, body, slug string) error {
-	if err := s.RemoveFromIndex(ctx, "article", id); err != nil {
+	if err := s.removeLocaleFromIndex(ctx, "article", id, locale); err != nil {
 		return err
 	}
 	sql := "INSERT INTO search_index_fts(content_type, content_id, locale, title, body, slug) VALUES(?, ?, ?, ?, ?, ?)"
 	return s.db.WithContext(ctx).Exec(sql, "article", id, locale, title, body, slug).Error
 }
 
-// IndexPage adds or replaces a page in the search index.
+// IndexPage adds or replaces one locale row for a page in the search index.
 func (s *SearchService) IndexPage(ctx context.Context, id uint, locale, title, body, slug string) error {
-	if err := s.RemoveFromIndex(ctx, "page", id); err != nil {
+	if err := s.removeLocaleFromIndex(ctx, "page", id, locale); err != nil {
 		return err
 	}
 	sql := "INSERT INTO search_index_fts(content_type, content_id, locale, title, body, slug) VALUES(?, ?, ?, ?, ?, ?)"
 	return s.db.WithContext(ctx).Exec(sql, "page", id, locale, title, body, slug).Error
 }
 
-// RemoveFromIndex deletes entries for a given content type and ID.
+// RemoveFromIndex deletes all locale entries for a given content type and ID.
 func (s *SearchService) RemoveFromIndex(ctx context.Context, contentType string, id uint) error {
 	sql := "DELETE FROM search_index_fts WHERE content_type = ? AND content_id = ?"
 	return s.db.WithContext(ctx).Exec(sql, contentType, id).Error
+}
+
+// removeLocaleFromIndex deletes a single locale row so re-index does not wipe siblings.
+func (s *SearchService) removeLocaleFromIndex(ctx context.Context, contentType string, id uint, locale string) error {
+	sql := "DELETE FROM search_index_fts WHERE content_type = ? AND content_id = ? AND locale = ?"
+	return s.db.WithContext(ctx).Exec(sql, contentType, id, locale).Error
 }
 
 // RebuildIndex drops and recreates the entire search index from published articles.

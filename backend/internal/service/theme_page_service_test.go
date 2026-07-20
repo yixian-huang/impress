@@ -88,13 +88,18 @@ func TestSeedThemePages_ReassignsSlugWhenThemeSwitches(t *testing.T) {
 	if err := svc.SeedThemePages(context.Background(), "blog-first"); err != nil {
 		t.Fatalf("SeedThemePages: %v", err)
 	}
-	if len(repo.created) != 0 {
-		t.Fatalf("expected no create, got %d", len(repo.created))
-	}
+	// Shared slug "home" is reassigned; theme-only pages (e.g. author) are created.
 	if len(repo.updated) != 1 {
-		t.Fatalf("expected 1 update, got %d", len(repo.updated))
+		t.Fatalf("expected 1 update (home reassign), got %d", len(repo.updated))
 	}
 	if repo.updated[0].ThemeID != "blog-first" {
 		t.Fatalf("expected theme blog-first, got %s", repo.updated[0].ThemeID)
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected 1 create (author), got %d", len(repo.created))
+	}
+	if repo.created[0].Slug != "author" || repo.created[0].ThemeID != "blog-first" {
+		t.Fatalf("expected created author page for blog-first, got slug=%s theme=%s",
+			repo.created[0].Slug, repo.created[0].ThemeID)
 	}
 }

@@ -111,6 +111,48 @@ func TestSearchServiceRemoveFromIndex(t *testing.T) {
 	}
 }
 
+// Sequential IndexArticle for zh then en must keep both locale rows (publish path).
+func TestSearchServiceIndexArticleKeepsBothLocales(t *testing.T) {
+	db := setupSearchTestDB(t)
+	svc := service.NewSearchService(db, false)
+	ctx := context.Background()
+
+	if err := svc.IndexArticle(ctx, 42, "zh", "中文标题可搜索", "中文正文", "bilingual-post"); err != nil {
+		t.Fatalf("index zh: %v", err)
+	}
+	if err := svc.IndexArticle(ctx, 42, "en", "English Title Searchable", "English body", "bilingual-post"); err != nil {
+		t.Fatalf("index en: %v", err)
+	}
+
+	zhResp, err := svc.Search(ctx, "中文标题", "zh", "article", 1, 10)
+	if err != nil {
+		t.Fatalf("search zh: %v", err)
+	}
+	if zhResp.Total == 0 {
+		t.Fatal("expected zh locale row to survive after indexing en")
+	}
+
+	enResp, err := svc.Search(ctx, "Searchable", "en", "article", 1, 10)
+	if err != nil {
+		t.Fatalf("search en: %v", err)
+	}
+	if enResp.Total == 0 {
+		t.Fatal("expected en locale row after bilingual index")
+	}
+
+	// Re-index en only should not wipe zh.
+	if err := svc.IndexArticle(ctx, 42, "en", "English Title Updated", "English body v2", "bilingual-post"); err != nil {
+		t.Fatalf("re-index en: %v", err)
+	}
+	zhAgain, err := svc.Search(ctx, "中文标题", "zh", "article", 1, 10)
+	if err != nil {
+		t.Fatalf("search zh after en refresh: %v", err)
+	}
+	if zhAgain.Total == 0 {
+		t.Fatal("expected zh row to remain after en-only re-index")
+	}
+}
+
 func TestSearchServiceIndexPage(t *testing.T) {
 	db := setupSearchTestDB(t)
 	svc := service.NewSearchService(db, false)
