@@ -6,17 +6,8 @@ import {
   type ArticleVersionDetail,
   type ArticleVersionListItem,
 } from "@/api/articles";
-import { FieldDiff } from "./components/TextDiffView";
-import { snapStr } from "./utils/snapshot";
-
-const ACTION_LABEL: Record<string, string> = {
-  create: "创建",
-  save: "保存",
-  publish: "发布",
-  update: "更新",
-  current: "当前编辑",
-  restore: "恢复",
-};
+import { VersionHistoryList } from "./components/VersionHistoryList";
+import { VersionCompareView } from "./components/VersionCompareView";
 
 /** Snapshot shape used for compare/restore (subset of article fields). */
 export type ArticleDraftSnapshot = {
@@ -35,14 +26,6 @@ export type ArticleDraftSnapshot = {
   author?: string;
   [key: string]: unknown;
 };
-
-function formatTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleString("zh-CN");
-  } catch {
-    return iso;
-  }
-}
 
 function syntheticCurrentDetail(
   articleId: number,
@@ -69,9 +52,7 @@ export function ArticleVersionHistoryPanel({
 }: {
   articleId: number;
   onClose: () => void;
-  /** Live editor snapshot for "compare with current". */
   currentDraft?: ArticleDraftSnapshot | null;
-  /** Apply a historical snapshot into the editor (caller marks dirty). */
   onRestore?: (snapshot: ArticleDraftSnapshot) => void;
   canRestore?: boolean;
 }) {
@@ -79,7 +60,6 @@ export function ArticleVersionHistoryPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [leftVer, setLeftVer] = useState<number | null>(null);
-  /** null version number means "current draft" when supported */
   const [rightVer, setRightVer] = useState<number | "current" | null>(null);
   const [comparing, setComparing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -98,7 +78,13 @@ export function ArticleVersionHistoryPanel({
       setVersions(items);
       if (items.length >= 1) {
         setLeftVer(items[0].version);
-        setRightVer(currentDraft ? "current" : items.length >= 2 ? items[1].version : items[0].version);
+        setRightVer(
+          currentDraft
+            ? "current"
+            : items.length >= 2
+              ? items[1].version
+              : items[0].version,
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载版本失败");
@@ -127,8 +113,7 @@ export function ArticleVersionHistoryPanel({
           right: syntheticCurrentDetail(articleId, currentDraft),
         });
       } else {
-        const result = await compareArticleVersions(articleId, leftVer, rightVer);
-        setCompareResult(result);
+        setCompareResult(await compareArticleVersions(articleId, leftVer, rightVer));
       }
       setView("compare");
     } catch (err) {
@@ -159,9 +144,31 @@ export function ArticleVersionHistoryPanel({
     }
   };
 
-  const leftSnap = compareResult?.left.snapshot;
-  const rightSnap = compareResult?.right.snapshot;
-  const compareRightIsCurrent = compareResult?.right.action === "current";
+  const handleQuickCompare = async (version: number) => {
+    setLeftVer(version);
+    setRightVer(currentDraft ? "current" : version);
+    setComparing(true);
+    setError(null);
+    try {
+      if (currentDraft) {
+        const left = await getArticleVersion(articleId, version);
+        setCompareResult({
+          left,
+          right: syntheticCurrentDetail(articleId, currentDraft),
+        });
+      } else {
+        const older = versions.find((x) => x.version < version);
+        setCompareResult(
+          await compareArticleVersions(articleId, older?.version ?? version, version),
+        );
+      }
+      setView("compare");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "比对失败");
+    } finally {
+      setComparing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
@@ -186,7 +193,11 @@ export function ArticleVersionHistoryPanel({
               {view === "compare" ? "版本比对" : "历史版本"}
             </h3>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+          >
             &times;
           </button>
         </div>
@@ -198,224 +209,31 @@ export function ArticleVersionHistoryPanel({
         )}
 
         {view === "list" ? (
-          <>
-            <div className="px-4 py-3 border-b border-gray-100 space-y-2 flex-shrink-0 bg-gray-50">
-              <p className="text-xs text-gray-500">
-                选择两个版本比对；右侧可选「当前编辑」对比未保存内容。
-              </p>
-              <div className="flex items-center gap-2">
-                <select
-                  value={leftVer ?? ""}
-                  onChange={(e) => setLeftVer(Number(e.target.value))}
-                  className="flex-1 text-sm border border-gray-300 rounded-lg px-2 py-1.5"
-                  disabled={versions.length === 0}
-                >
-                  {versions.map((v) => (
-                    <option key={`L-${v.version}`} value={v.version}>
-                      v{v.version} · {ACTION_LABEL[v.action] || v.action} · {formatTime(v.createdAt)}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs text-gray-400">vs</span>
-                <select
-                  value={rightVer === "current" ? "current" : (rightVer ?? "")}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setRightVer(v === "current" ? "current" : Number(v));
-                  }}
-                  className="flex-1 text-sm border border-gray-300 rounded-lg px-2 py-1.5"
-                  disabled={versions.length === 0 && !currentDraft}
-                >
-                  {currentDraft && (
-                    <option value="current">当前编辑（含未保存）</option>
-                  )}
-                  {versions.map((v) => (
-                    <option key={`R-${v.version}`} value={v.version}>
-                      v{v.version} · {ACTION_LABEL[v.action] || v.action} · {formatTime(v.createdAt)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => void runCompare()}
-                disabled={
-                  comparing ||
-                  leftVer == null ||
-                  rightVer == null ||
-                  (versions.length === 0 && rightVer !== "current")
-                }
-                className="w-full px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {comparing ? "比对中…" : "开始比对"}
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {loading ? (
-                <div className="text-center text-gray-500 py-8">加载中…</div>
-              ) : versions.length === 0 ? (
-                <div className="text-center text-gray-500 py-8 text-sm">
-                  暂无版本记录
-                  <p className="mt-1 text-xs text-gray-400">保存或发布文章后会自动生成版本快照。</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {versions.map((v) => (
-                    <div
-                      key={v.id}
-                      className="p-3 border border-gray-200 rounded-lg hover:border-blue-200 transition-colors"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm font-medium text-gray-800">
-                          版本 {v.version}
-                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                            {ACTION_LABEL[v.action] || v.action}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {canRestore && onRestore && (
-                            <button
-                              type="button"
-                              disabled={restoring}
-                              className="text-xs text-amber-700 hover:text-amber-900 disabled:opacity-50"
-                              onClick={() => void handleRestore(v.version)}
-                            >
-                              恢复
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="text-xs text-blue-600 hover:text-blue-800"
-                            onClick={() => {
-                              setLeftVer(v.version);
-                              setRightVer(currentDraft ? "current" : v.version);
-                              void (async () => {
-                                setComparing(true);
-                                setError(null);
-                                try {
-                                  if (currentDraft) {
-                                    const left = await getArticleVersion(articleId, v.version);
-                                    setCompareResult({
-                                      left,
-                                      right: syntheticCurrentDetail(articleId, currentDraft),
-                                    });
-                                  } else {
-                                    const older = versions.find((x) => x.version < v.version);
-                                    const result = await compareArticleVersions(
-                                      articleId,
-                                      older?.version ?? v.version,
-                                      v.version,
-                                    );
-                                    setCompareResult(result);
-                                  }
-                                  setView("compare");
-                                } catch (err) {
-                                  setError(err instanceof Error ? err.message : "比对失败");
-                                } finally {
-                                  setComparing(false);
-                                }
-                              })();
-                            }}
-                          >
-                            {currentDraft ? "与当前比对" : "查看"}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">{formatTime(v.createdAt)}</div>
-                      {(v.zhTitle || v.summary) && (
-                        <div className="text-xs text-gray-600 mt-1 truncate">
-                          {v.zhTitle || v.summary}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+          <VersionHistoryList
+            versions={versions}
+            loading={loading}
+            currentDraft={currentDraft}
+            leftVer={leftVer}
+            rightVer={rightVer}
+            comparing={comparing}
+            restoring={restoring}
+            canRestore={canRestore && !!onRestore}
+            onLeftChange={setLeftVer}
+            onRightChange={setRightVer}
+            onCompare={() => void runCompare()}
+            onRestore={onRestore ? (v) => void handleRestore(v) : undefined}
+            onQuickCompare={(v) => void handleQuickCompare(v)}
+          />
         ) : (
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {compareResult && (
-              <>
-                <div className="flex items-center gap-3 text-sm bg-gray-50 rounded-lg p-3 border border-gray-100">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-400">左</div>
-                    <div className="font-medium">v{compareResult.left.version}</div>
-                    <div className="text-xs text-gray-500">{formatTime(compareResult.left.createdAt)}</div>
-                  </div>
-                  <div className="text-gray-300">→</div>
-                  <div className="flex-1 text-right">
-                    <div className="text-xs text-gray-400">右</div>
-                    <div className="font-medium">
-                      {compareRightIsCurrent
-                        ? "当前编辑"
-                        : `v${compareResult.right.version}`}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {compareRightIsCurrent
-                        ? "含未保存更改"
-                        : formatTime(compareResult.right.createdAt)}
-                    </div>
-                  </div>
-                </div>
-
-                {canRestore && onRestore && !compareRightIsCurrent && (
-                  <button
-                    type="button"
-                    disabled={restoring}
-                    onClick={() => void handleRestore(compareResult.left.version)}
-                    className="w-full px-3 py-1.5 text-sm border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-50 disabled:opacity-50"
-                  >
-                    恢复左侧版本 v{compareResult.left.version} 到编辑器
-                  </button>
-                )}
-                {canRestore && onRestore && compareRightIsCurrent && (
-                  <button
-                    type="button"
-                    disabled={restoring}
-                    onClick={() => void handleRestore(compareResult.left.version)}
-                    className="w-full px-3 py-1.5 text-sm border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-50 disabled:opacity-50"
-                  >
-                    用 v{compareResult.left.version} 覆盖当前编辑
-                  </button>
-                )}
-
-                <FieldDiff
-                  label="中文标题"
-                  left={snapStr(leftSnap, "zhTitle")}
-                  right={snapStr(rightSnap, "zhTitle")}
-                />
-                <FieldDiff
-                  label="英文标题"
-                  left={snapStr(leftSnap, "enTitle")}
-                  right={snapStr(rightSnap, "enTitle")}
-                />
-                <FieldDiff
-                  label="Slug"
-                  left={snapStr(leftSnap, "slug")}
-                  right={snapStr(rightSnap, "slug")}
-                />
-                <FieldDiff
-                  label="状态"
-                  left={snapStr(leftSnap, "status")}
-                  right={snapStr(rightSnap, "status")}
-                />
-                <FieldDiff
-                  label="中文正文"
-                  left={snapStr(leftSnap, "zhBody")}
-                  right={snapStr(rightSnap, "zhBody")}
-                  asHtml
-                />
-                <FieldDiff
-                  label="英文正文"
-                  left={snapStr(leftSnap, "enBody")}
-                  right={snapStr(rightSnap, "enBody")}
-                  asHtml
-                />
-              </>
-            )}
-          </div>
+          compareResult && (
+            <VersionCompareView
+              left={compareResult.left}
+              right={compareResult.right}
+              restoring={restoring}
+              canRestore={canRestore && !!onRestore}
+              onRestoreLeft={onRestore ? (v) => void handleRestore(v) : undefined}
+            />
+          )
         )}
       </div>
     </div>

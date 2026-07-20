@@ -19,9 +19,13 @@ import { LEAVE_UNSAVED_MESSAGE } from "./saveStatusUtils";
 import { slugifyTitle } from "./utils/slugify";
 import { statusLabelOf } from "./utils/constants";
 import { toast } from "./utils/toast";
+import { pickPayloadFields } from "./utils/buildArticlePayload";
 import { useDirtyState } from "./hooks/useDirtyState";
 import { useArticleFormState } from "./hooks/useArticleFormState";
-import { useArticlePersistence } from "./hooks/useArticlePersistence";
+import {
+  useArticlePersistence,
+  type ArticleSaveSource,
+} from "./hooks/useArticlePersistence";
 import { useArticleEditors } from "./hooks/useArticleEditors";
 import { useBilingualActions } from "./hooks/useBilingualActions";
 import { useEditorShortcuts } from "./hooks/useEditorShortcuts";
@@ -42,7 +46,7 @@ export default function ArticleEditorPage() {
   const { hasPermission } = useAuth();
   const canPublish = hasPermission("articles:publish");
 
-  // ── Domain state (form + dirty + editors) ──
+  // ── Domain state ──
   const form = useArticleFormState();
   const dirty = useDirtyState(!isEditing);
   const editors = useArticleEditors({
@@ -53,6 +57,22 @@ export default function ArticleEditorPage() {
     isDirty: dirty.isDirty,
     touch: dirty.touch,
   });
+
+  // Live save source — mutated each render, read only inside save/schedule handlers
+  const saveSourceRef = useRef<ArticleSaveSource>({
+    getFields: () => pickPayloadFields(form),
+    resolveBodies: () => editors.resolveBodies(),
+    getArticleStatus: () => form.articleStatus,
+    setSlug: form.setSlug,
+    setArticleStatus: form.setArticleStatus,
+  });
+  saveSourceRef.current = {
+    getFields: () => pickPayloadFields(form),
+    resolveBodies: () => editors.resolveBodies(),
+    getArticleStatus: () => form.articleStatus,
+    setSlug: form.setSlug,
+    setArticleStatus: form.setArticleStatus,
+  };
 
   // ── Shell UI ──
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,7 +92,6 @@ export default function ArticleEditorPage() {
   useOutsideClick(langMenuRef, showLangMenu, () => setShowLangMenu(false));
   useSlashMediaBridge(editors.activeEntry?.state);
 
-  // Meta catalogs
   useEffect(() => {
     void (async () => {
       try {
@@ -83,44 +102,10 @@ export default function ArticleEditorPage() {
     })();
   }, []);
 
-  const buildPayload = useCallback((status: "draft" | "published", publishedAt?: string) => {
-    const bodies = editors.resolveBodies();
-    const finalSlug = form.slug.trim() || slugifyTitle(form.zhTitle);
-    const payload: Record<string, unknown> = {
-      zhTitle: form.zhTitle,
-      enTitle: form.enTitle,
-      slug: finalSlug,
-      coverImage: form.coverImage,
-      zhBody: bodies.zhBody,
-      enBody: bodies.enBody,
-      zhSeoTitle: form.zhSeoTitle,
-      enSeoTitle: form.enSeoTitle,
-      zhMetaDescription: form.zhMetaDescription,
-      enMetaDescription: form.enMetaDescription,
-      ogImage: form.ogImage,
-      status,
-      categoryIds: form.selectedCategoryIds,
-      tagIds: form.selectedTagIds,
-      author: form.author,
-      autoSummary: form.autoSummary,
-      allowComments: form.allowComments,
-      pinned: form.pinned,
-      visibility: form.visibility,
-      metadata: form.metadata,
-    };
-    if (status === "published") payload.publishedAt = publishedAt ?? new Date().toISOString();
-    return payload;
-  }, [editors, form]);
-
   const persistence = useArticlePersistence({
     id,
     isEditing,
-    zhTitle: form.zhTitle,
-    slug: form.slug,
-    setSlug: form.setSlug,
-    articleStatus: form.articleStatus,
-    setArticleStatus: form.setArticleStatus,
-    buildPayload,
+    sourceRef: saveSourceRef,
     hydrateFromArticle: (article) => {
       form.hydrateFromArticle(article);
       editors.resetMarkdownOnLoad(!!(article.enBody || article.enTitle));
@@ -133,12 +118,8 @@ export default function ArticleEditorPage() {
     id,
     isEditing,
     canPublish,
-    zhTitle: form.zhTitle,
-    slug: form.slug,
-    setSlug: form.setSlug,
-    articleStatus: form.articleStatus,
-    setArticleStatus: form.setArticleStatus,
-    buildPayload,
+    sourceRef: saveSourceRef,
+    buildPayload: persistence.buildPayload,
     navigate,
     setError: persistence.setError,
   });
@@ -213,7 +194,10 @@ export default function ArticleEditorPage() {
 
   const handleRestoreVersion = useCallback((snapshot: ArticleDraftSnapshot) => {
     dirty.pauseReady();
-    const bodies = form.hydrateFromSnapshot(snapshot, { slug: form.slug, author: form.author });
+    const bodies = form.hydrateFromSnapshot(snapshot, {
+      slug: form.slug,
+      author: form.author,
+    });
     editors.applyBodiesToEditors(bodies.zhBody, bodies.enBody);
     setShowVersionHistory(false);
     toast(persistence.setSuccessMessage, "已恢复到所选版本（尚未保存，请检查后保存）", 4000);
@@ -230,7 +214,10 @@ export default function ArticleEditorPage() {
         || (editors.enEditor?.getText() || "").trim()
         || (editors.markdownContent.zh || "").trim()
         || (editors.markdownContent.en || "").trim();
-      if (hasContent && !window.confirm(`应用模板「${tpl.name}」将覆盖当前标题与正文，是否继续？`)) {
+      if (
+        hasContent
+        && !window.confirm(`应用模板「${tpl.name}」将覆盖当前标题与正文，是否继续？`)
+      ) {
         return;
       }
     }
@@ -263,8 +250,16 @@ export default function ArticleEditorPage() {
 
   const langTitleMap = useMemo(
     () => ({
-      zh: { title: form.zhTitle, setTitle: dirty.track(form.setZhTitle), placeholder: "输入中文标题" },
-      en: { title: form.enTitle, setTitle: dirty.track(form.setEnTitle), placeholder: "Enter English title" },
+      zh: {
+        title: form.zhTitle,
+        setTitle: dirty.track(form.setZhTitle),
+        placeholder: "输入中文标题",
+      },
+      en: {
+        title: form.enTitle,
+        setTitle: dirty.track(form.setEnTitle),
+        placeholder: "Enter English title",
+      },
     }),
     [form.zhTitle, form.enTitle, form.setZhTitle, form.setEnTitle, dirty],
   );
@@ -301,9 +296,21 @@ export default function ArticleEditorPage() {
           scheduledPublication={schedule.scheduledPublication}
           scheduleLoading={schedule.scheduleLoading}
           scheduleBusy={schedule.scheduleBusy}
-          onToggleBasic={() => { setShowBasicInfo((v) => !v); setShowSeo(false); setShowAdvanced(false); }}
-          onToggleSeo={() => { setShowSeo((v) => !v); setShowBasicInfo(false); setShowAdvanced(false); }}
-          onToggleAdvanced={() => { setShowAdvanced((v) => !v); setShowBasicInfo(false); setShowSeo(false); }}
+          onToggleBasic={() => {
+            setShowBasicInfo((v) => !v);
+            setShowSeo(false);
+            setShowAdvanced(false);
+          }}
+          onToggleSeo={() => {
+            setShowSeo((v) => !v);
+            setShowBasicInfo(false);
+            setShowAdvanced(false);
+          }}
+          onToggleAdvanced={() => {
+            setShowAdvanced((v) => !v);
+            setShowBasicInfo(false);
+            setShowSeo(false);
+          }}
           onOpenHistory={() => {
             setVersionDraftSnapshot(
               editors.buildDraftSnapshot({
@@ -334,34 +341,54 @@ export default function ArticleEditorPage() {
 
         {showBasicInfo && (
           <ArticleForm
-            slug={form.slug} setSlug={dirty.track(form.setSlug)}
-            author={form.author} setAuthor={dirty.track(form.setAuthor)}
-            coverImage={form.coverImage} setCoverImage={dirty.track(form.setCoverImage)}
-            showCoverPicker={showCoverPicker} setShowCoverPicker={setShowCoverPicker}
+            slug={form.slug}
+            setSlug={dirty.track(form.setSlug)}
+            author={form.author}
+            setAuthor={dirty.track(form.setAuthor)}
+            coverImage={form.coverImage}
+            setCoverImage={dirty.track(form.setCoverImage)}
+            showCoverPicker={showCoverPicker}
+            setShowCoverPicker={setShowCoverPicker}
             categories={categories}
             selectedCategoryIds={form.selectedCategoryIds}
-            toggleCategory={(id) => { form.toggleCategory(id); dirty.touch(); }}
+            toggleCategory={(cid) => {
+              form.toggleCategory(cid);
+              dirty.touch();
+            }}
             tags={tags}
             selectedTagIds={form.selectedTagIds}
-            toggleTag={(id) => { form.toggleTag(id); dirty.touch(); }}
+            toggleTag={(tid) => {
+              form.toggleTag(tid);
+              dirty.touch();
+            }}
           />
         )}
         {showSeo && (
           <SeoFieldsPanel
-            zhSeoTitle={form.zhSeoTitle} setZhSeoTitle={dirty.track(form.setZhSeoTitle)}
-            enSeoTitle={form.enSeoTitle} setEnSeoTitle={dirty.track(form.setEnSeoTitle)}
-            zhMetaDescription={form.zhMetaDescription} setZhMetaDescription={dirty.track(form.setZhMetaDescription)}
-            enMetaDescription={form.enMetaDescription} setEnMetaDescription={dirty.track(form.setEnMetaDescription)}
-            ogImage={form.ogImage} setOgImage={dirty.track(form.setOgImage)}
+            zhSeoTitle={form.zhSeoTitle}
+            setZhSeoTitle={dirty.track(form.setZhSeoTitle)}
+            enSeoTitle={form.enSeoTitle}
+            setEnSeoTitle={dirty.track(form.setEnSeoTitle)}
+            zhMetaDescription={form.zhMetaDescription}
+            setZhMetaDescription={dirty.track(form.setZhMetaDescription)}
+            enMetaDescription={form.enMetaDescription}
+            setEnMetaDescription={dirty.track(form.setEnMetaDescription)}
+            ogImage={form.ogImage}
+            setOgImage={dirty.track(form.setOgImage)}
           />
         )}
         {showAdvanced && (
           <AdvancedSettingsPanel
-            visibility={form.visibility} setVisibility={dirty.track(form.setVisibility)}
-            autoSummary={form.autoSummary} setAutoSummary={dirty.track(form.setAutoSummary)}
-            allowComments={form.allowComments} setAllowComments={dirty.track(form.setAllowComments)}
-            pinned={form.pinned} setPinned={dirty.track(form.setPinned)}
-            metadata={form.metadata} setMetadata={dirty.track(form.setMetadata)}
+            visibility={form.visibility}
+            setVisibility={dirty.track(form.setVisibility)}
+            autoSummary={form.autoSummary}
+            setAutoSummary={dirty.track(form.setAutoSummary)}
+            allowComments={form.allowComments}
+            setAllowComments={dirty.track(form.setAllowComments)}
+            pinned={form.pinned}
+            setPinned={dirty.track(form.setPinned)}
+            metadata={form.metadata}
+            setMetadata={dirty.track(form.setMetadata)}
           />
         )}
 
@@ -376,9 +403,14 @@ export default function ArticleEditorPage() {
           langMenuRef={langMenuRef}
           onSelectLang={editors.setActiveLangIdx}
           onRemoveLang={editors.removeLang}
-          onAddLang={(key) => { editors.addLang(key); setShowLangMenu(false); }}
+          onAddLang={(key) => {
+            editors.addLang(key);
+            setShowLangMenu(false);
+          }}
           onToggleLangMenu={() => setShowLangMenu((v) => !v)}
-          onToggleSplit={() => editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))}
+          onToggleSplit={() =>
+            editors.setViewLayout((v) => (v === "split" ? "focus" : "split"))
+          }
           onCopyZhToEn={() => bilingual.handleCopyToOtherLang("zh")}
           onTranslateZhToEn={() => void bilingual.handleTranslateToOtherLang("zh")}
           onModeChange={editors.handleModeChange}

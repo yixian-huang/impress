@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import type { Article } from "@/api/articles";
 import {
@@ -11,47 +11,43 @@ import { resolveSaveStatus } from "../saveStatusUtils";
 import { slugifyTitle } from "../utils/slugify";
 import { AUTOSAVE_DEBOUNCE_MS } from "../utils/constants";
 import { toast } from "../utils/toast";
+import {
+  buildArticlePayload,
+  type ArticleBodies,
+  type ArticlePayloadFields,
+} from "../utils/buildArticlePayload";
 import type { useDirtyState } from "./useDirtyState";
 import type { ArticleStatus } from "./useArticleFormState";
 
 type DirtyApi = ReturnType<typeof useDirtyState>;
 
-type BuildPayload = (
-  status: "draft" | "published",
-  publishedAt?: string,
-) => Record<string, unknown>;
+/**
+ * Live save source — read only at save/schedule time (via ref) so callers
+ * do not rebuild persistence callbacks on every keystroke.
+ */
+export type ArticleSaveSource = {
+  getFields: () => ArticlePayloadFields;
+  resolveBodies: () => ArticleBodies;
+  getArticleStatus: () => ArticleStatus;
+  setSlug: (v: string) => void;
+  setArticleStatus: (s: ArticleStatus) => void;
+};
 
 /**
  * Load / save / autosave with optimistic concurrency (baseUpdatedAt).
+ * Payload assembly lives here via `buildArticlePayload` + `sourceRef`.
  */
 export function useArticlePersistence(opts: {
   id: string | undefined;
   isEditing: boolean;
-  zhTitle: string;
-  slug: string;
-  setSlug: (v: string) => void;
-  articleStatus: ArticleStatus;
-  setArticleStatus: (s: ArticleStatus) => void;
-  buildPayload: BuildPayload;
+  /** Updated every render by the page; read only inside save handlers. */
+  sourceRef: MutableRefObject<ArticleSaveSource>;
   hydrateFromArticle: (a: Article) => void;
   onLoaded?: (a: Article) => void;
   navigate: NavigateFunction;
   dirty: DirtyApi;
 }) {
-  const {
-    id,
-    isEditing,
-    zhTitle,
-    slug,
-    setSlug,
-    articleStatus,
-    setArticleStatus,
-    buildPayload,
-    hydrateFromArticle,
-    onLoaded,
-    navigate,
-    dirty,
-  } = opts;
+  const { id, isEditing, sourceRef, hydrateFromArticle, onLoaded, navigate, dirty } = opts;
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
@@ -72,6 +68,12 @@ export function useArticlePersistence(opts: {
     markError,
     readyRef,
   } = dirty;
+
+  /** Assemble payload from the latest form/editor snapshot. */
+  const buildPayload = useCallback((status: "draft" | "published", publishedAt?: string) => {
+    const src = sourceRef.current;
+    return buildArticlePayload(src.getFields(), src.resolveBodies(), status, publishedAt);
+  }, [sourceRef]);
 
   const loadArticle = useCallback(async () => {
     if (!id || loadedIdRef.current === id) return;
@@ -109,13 +111,16 @@ export function useArticlePersistence(opts: {
     opts?: { force?: boolean },
   ) => {
     if (savingRef.current) return;
-    if (!zhTitle.trim()) {
+    const src = sourceRef.current;
+    const fields = src.getFields();
+    if (!fields.zhTitle.trim()) {
       if (intent !== "autosave") setError("请填写中文标题");
       return;
     }
-    const finalSlug = slug.trim() || slugifyTitle(zhTitle);
-    if (!slug.trim()) setSlug(finalSlug);
+    const finalSlug = fields.slug.trim() || slugifyTitle(fields.zhTitle);
+    if (!fields.slug.trim()) src.setSlug(finalSlug);
 
+    const articleStatus = src.getArticleStatus();
     const status = resolveSaveStatus(intent, articleStatus);
     const silent = intent === "autosave";
     const force = !!opts?.force;
@@ -137,7 +142,7 @@ export function useArticlePersistence(opts: {
         });
         if (updated?.updatedAt) setBaseUpdatedAt(updated.updatedAt);
         setConflict(null);
-        setArticleStatus(
+        src.setArticleStatus(
           status === "published"
             ? "published"
             : articleStatus === "scheduled"
@@ -152,7 +157,7 @@ export function useArticlePersistence(opts: {
         }
       } else {
         const created = await createArticle(payload as Partial<Article>);
-        setArticleStatus(status === "published" ? "published" : "draft");
+        src.setArticleStatus(status === "published" ? "published" : "draft");
         loadedIdRef.current = String(created.id);
         if (created.updatedAt) setBaseUpdatedAt(created.updatedAt);
         if (!silent) {
@@ -184,16 +189,19 @@ export function useArticlePersistence(opts: {
       setSaving(false);
     }
   }, [
-    zhTitle, slug, setSlug, articleStatus, setArticleStatus, buildPayload,
-    id, navigate, baseUpdatedAt, savingRef, markSaving, markClean, markError,
+    sourceRef, id, navigate, baseUpdatedAt, savingRef,
+    markSaving, markClean, markError, buildPayload,
   ]);
 
-  // Debounced autosave
+  // Debounced autosave — title check uses sourceRef at fire time
   useEffect(() => {
-    if (!isDirty || saving || loading || !zhTitle.trim()) return;
-    const t = window.setTimeout(() => void handleSave("autosave"), AUTOSAVE_DEBOUNCE_MS);
+    if (!isDirty || saving || loading) return;
+    const t = window.setTimeout(() => {
+      if (!sourceRef.current.getFields().zhTitle.trim()) return;
+      void handleSave("autosave");
+    }, AUTOSAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [isDirty, saving, loading, zhTitle, handleSave]);
+  }, [isDirty, saving, loading, handleSave, sourceRef]);
 
   const forceReload = useCallback(() => {
     setConflict(null);
@@ -216,5 +224,7 @@ export function useArticlePersistence(opts: {
     loadArticle,
     handleSave,
     forceReload,
+    /** Shared with schedule hook so both use the same pure builder + live source. */
+    buildPayload,
   };
 }
