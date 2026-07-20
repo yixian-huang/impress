@@ -1,52 +1,23 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { EditorView, basicSetup } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { keymap, placeholder as cmPlaceholder } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
 import { markdownToHtml } from "@/lib/markdown";
 import MarkdownHtmlPreview from "./MermaidPreview";
 import type { MarkdownSelectionApi } from "./MarkdownToolbar";
+import {
+  createMarkdownBaseExtensions,
+  PREVIEW_TYPOGRAPHY_CLASS,
+  syncScrollRatio,
+} from "./markdownCmSetup";
 
 interface MarkdownModeProps {
   value: string;
   onChange: (value: string) => void;
   onImageUpload?: (file: File) => Promise<string>;
-  /** Expose selection/wrap API for the external Markdown toolbar. */
   onApiReady?: (api: MarkdownSelectionApi | null) => void;
-  /** Optional key identity (e.g. active locale) — forces debounce reset when it changes. */
   contentKey?: string;
-  /** Show live preview pane (default true). Set false in bilingual split layouts. */
   showPreview?: boolean;
-  /** Compact chrome label override */
   label?: string;
-}
-
-const PREVIEW_CLASS =
-  "markdown-preview article-typography max-w-none text-sm leading-relaxed " +
-  "[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 " +
-  "[&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-4 " +
-  "[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-3 " +
-  "[&_p]:mb-3 [&_p]:leading-relaxed " +
-  "[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-3 " +
-  "[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-3 " +
-  "[&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-600 [&_blockquote]:italic " +
-  "[&_a]:text-blue-600 [&_a]:underline " +
-  "[&_code]:bg-gray-100 [&_code]:px-1 [&_code]:rounded [&_code]:text-[0.9em] " +
-  "[&_pre]:bg-gray-900 [&_pre]:text-gray-100 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:mb-3 " +
-  "[&_pre_code]:bg-transparent [&_pre_code]:p-0 " +
-  "[&_img]:max-w-full [&_img]:rounded " +
-  "[&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:bg-gray-50 " +
-  "[&_.mermaid]:my-4 [&_.mermaid]:flex [&_.mermaid]:justify-center [&_.mermaid]:overflow-x-auto";
-
-function wrapSelection(view: EditorView, before: string, after: string, placeholder: string) {
-  const { from, to } = view.state.selection.main;
-  const selected = view.state.sliceDoc(from, to) || placeholder;
-  const insert = before + selected + after;
-  view.dispatch({
-    changes: { from, to, insert },
-    selection: { anchor: from + before.length, head: from + before.length + selected.length },
-  });
-  view.focus();
 }
 
 export default function MarkdownMode({
@@ -68,7 +39,6 @@ export default function MarkdownMode({
   onImageUploadRef.current = onImageUpload;
   const valueRef = useRef(value);
   valueRef.current = value;
-  /** Skip echoing CM updates that we ourselves dispatched from props. */
   const applyingExternalRef = useRef(false);
 
   const [debounced, setDebounced] = useState(value);
@@ -76,7 +46,7 @@ export default function MarkdownMode({
 
   useEffect(() => {
     setDebounced(value);
-  }, [contentKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [contentKey]); // eslint-disable-line react-hooks/exhaustive-deps -- locale switch
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(value), 150);
@@ -85,57 +55,21 @@ export default function MarkdownMode({
 
   const previewHtml = useMemo(() => markdownToHtml(debounced), [debounced]);
 
-  // Mount CodeMirror once
   useEffect(() => {
     if (!hostRef.current) return;
-
-    const syncFromEditor = (view: EditorView) => {
-      if (applyingExternalRef.current) return;
-      const next = view.state.doc.toString();
-      valueRef.current = next;
-      onChangeRef.current(next);
-    };
 
     const state = EditorState.create({
       doc: valueRef.current,
       extensions: [
-        basicSetup,
-        markdown(),
-        cmPlaceholder("# 标题\n\n支持 **Markdown**、表格与 ```mermaid 图表```…"),
-        EditorView.lineWrapping,
-        keymap.of([
-          {
-            key: "Mod-b",
-            run: (view) => {
-              wrapSelection(view, "**", "**", "粗体");
-              return true;
-            },
-          },
-          {
-            key: "Mod-i",
-            run: (view) => {
-              wrapSelection(view, "*", "*", "斜体");
-              return true;
-            },
-          },
-          {
-            key: "Mod-k",
-            run: (view) => {
-              wrapSelection(view, "[", "](url)", "链接文字");
-              return true;
-            },
-          },
-        ]),
+        ...createMarkdownBaseExtensions(),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            syncFromEditor(update.view);
+          if (update.docChanged && !applyingExternalRef.current) {
+            const next = update.state.doc.toString();
+            valueRef.current = next;
+            onChangeRef.current(next);
           }
           if (update.selectionSet || update.docChanged) {
-            const line = update.state.doc.lineAt(update.state.selection.main.head).number;
-            setCursorLine(line);
-          }
-          if (update.geometryChanged || update.docChanged) {
-            // scroll sync handled via dom scroll listener
+            setCursorLine(update.state.doc.lineAt(update.state.selection.main.head).number);
           }
         }),
         EditorView.domEventHandlers({
@@ -164,8 +98,9 @@ export default function MarkdownMode({
           paste: (event, view) => {
             const upload = onImageUploadRef.current;
             if (!upload || !event.clipboardData) return false;
-            const items = Array.from(event.clipboardData.items);
-            const images = items.filter((i) => i.type.startsWith("image/"));
+            const images = Array.from(event.clipboardData.items).filter((i) =>
+              i.type.startsWith("image/"),
+            );
             if (images.length === 0) return false;
             event.preventDefault();
             void (async () => {
@@ -183,58 +118,18 @@ export default function MarkdownMode({
             })();
             return true;
           },
-          scroll: () => {
-            // bubbled from scroller — handled below via scroller listener
-            return false;
-          },
-        }),
-        EditorView.theme({
-          "&": {
-            height: "100%",
-            fontSize: "13px",
-            backgroundColor: "#fff",
-          },
-          "&.cm-focused": { outline: "none" },
-          ".cm-scroller": {
-            overflow: "auto",
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            lineHeight: "1.5",
-          },
-          ".cm-content": {
-            padding: "12px 8px",
-            caretColor: "#111827",
-          },
-          ".cm-gutters": {
-            backgroundColor: "#f9fafb",
-            color: "#9ca3af",
-            borderRight: "1px solid #f3f4f6",
-          },
-          ".cm-activeLineGutter": { backgroundColor: "#f3f4f6" },
-          ".cm-activeLine": { backgroundColor: "#f9fafb" },
         }),
       ],
     });
 
-    const view = new EditorView({
-      state,
-      parent: hostRef.current,
-    });
+    const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
 
     const scroller = view.scrollDOM;
     const onEditorScroll = () => {
-      if (syncingRef.current === "preview") return;
       const previewEl = previewScrollRef.current;
       if (!previewEl) return;
-      const fromMax = scroller.scrollHeight - scroller.clientHeight;
-      const toMax = previewEl.scrollHeight - previewEl.clientHeight;
-      if (fromMax <= 0 || toMax <= 0) return;
-      syncingRef.current = "editor";
-      previewEl.scrollTop = (scroller.scrollTop / fromMax) * toMax;
-      requestAnimationFrame(() => {
-        syncingRef.current = null;
-      });
+      syncScrollRatio(scroller, previewEl, syncingRef, "editor");
     };
     scroller.addEventListener("scroll", onEditorScroll, { passive: true });
 
@@ -243,24 +138,19 @@ export default function MarkdownMode({
       view.destroy();
       viewRef.current = null;
     };
-    // Mount once; external value sync is handled below.
   }, []);
 
-  // Sync external value → CodeMirror (locale switch / restore / mode change)
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
     if (current === value) return;
     applyingExternalRef.current = true;
-    view.dispatch({
-      changes: { from: 0, to: current.length, insert: value },
-    });
+    view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
     applyingExternalRef.current = false;
     valueRef.current = value;
   }, [value, contentKey]);
 
-  // Selection API for MarkdownToolbar
   useEffect(() => {
     if (!onApiReady) return;
     const api: MarkdownSelectionApi = {
@@ -292,7 +182,6 @@ export default function MarkdownMode({
     return () => onApiReady(null);
   }, [onApiReady]);
 
-  // Cursor line → preview scroll (ratio by line / total lines)
   useEffect(() => {
     if (!showPreview) return;
     const previewEl = previewScrollRef.current;
@@ -301,8 +190,7 @@ export default function MarkdownMode({
     const total = Math.max(1, view.state.doc.lines);
     const ratio = (cursorLine - 1) / total;
     const toMax = previewEl.scrollHeight - previewEl.clientHeight;
-    if (toMax <= 0) return;
-    if (syncingRef.current === "editor") return;
+    if (toMax <= 0 || syncingRef.current === "editor") return;
     syncingRef.current = "editor";
     previewEl.scrollTop = ratio * toMax;
     requestAnimationFrame(() => {
@@ -311,19 +199,10 @@ export default function MarkdownMode({
   }, [cursorLine, showPreview, debounced]);
 
   const handlePreviewScroll = useCallback(() => {
-    if (syncingRef.current === "editor") return;
     const view = viewRef.current;
     const previewEl = previewScrollRef.current;
     if (!view || !previewEl) return;
-    const scroller = view.scrollDOM;
-    const fromMax = previewEl.scrollHeight - previewEl.clientHeight;
-    const toMax = scroller.scrollHeight - scroller.clientHeight;
-    if (fromMax <= 0 || toMax <= 0) return;
-    syncingRef.current = "preview";
-    scroller.scrollTop = (previewEl.scrollTop / fromMax) * toMax;
-    requestAnimationFrame(() => {
-      syncingRef.current = null;
-    });
+    syncScrollRatio(previewEl, view.scrollDOM, syncingRef, "preview");
   }, []);
 
   return (
@@ -351,7 +230,7 @@ export default function MarkdownMode({
             onScroll={handlePreviewScroll}
             className="flex-1 min-h-0 overflow-auto p-4"
           >
-            <MarkdownHtmlPreview html={previewHtml} className={PREVIEW_CLASS} />
+            <MarkdownHtmlPreview html={previewHtml} className={PREVIEW_TYPOGRAPHY_CLASS} />
           </div>
         </div>
       )}
