@@ -5,6 +5,7 @@ import {
   type WizardPlan,
   type WizardPlanRequest,
 } from "@/api/wizard";
+import { AdminErrorBanner, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const INDUSTRY_OPTIONS = [
@@ -536,14 +537,16 @@ export default function AdminWizardPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">AI 建站向导</h2>
-      <p className="text-sm text-gray-500 mb-8">通过 AI 快速生成并应用个性化建站方案</p>
+      <AdminPageHeader
+        title="AI 建站向导"
+        description="通过 AI 快速生成并应用个性化建站方案"
+      />
 
       <StepIndicator current={step} />
 
       {error && (
-        <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {error}
+        <div className="mx-auto mb-6 max-w-2xl">
+          <AdminErrorBanner message={error} onDismiss={() => setError(null)} />
         </div>
       )}
 

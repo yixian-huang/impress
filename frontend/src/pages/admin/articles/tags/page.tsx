@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { getTags, createTag, updateTag, deleteTag } from "@/api/articles";
 import type { Tag } from "@/api/articles";
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function TagsPage() {
   useDocumentTitle("标签管理");
-  const navigate = useNavigate();
 
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,34 +138,26 @@ export default function TagsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => navigate("/admin/articles")}
-            className="text-blue-600 hover:text-blue-800 mb-2 inline-flex items-center text-sm"
-          >
-            &larr; Back to Articles
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Tags</h1>
-        </div>
-        <button
-          onClick={() => setShowNew(!showNew)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-        >
-          {showNew ? "Cancel" : "New Tag"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="标签管理"
+        description="管理文章标签"
+        breadcrumbs={[
+          { label: "文章管理", to: "/admin/articles" },
+          { label: "标签" },
+        ]}
+        actions={
+          <AdminButton size="sm" onClick={() => setShowNew(!showNew)}>
+            {showNew ? "取消" : "新建标签"}
+          </AdminButton>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* New tag form */}
       {showNew && (
-        <div className="mb-6 bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">New Tag</h2>
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-slate-900">新建标签</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>

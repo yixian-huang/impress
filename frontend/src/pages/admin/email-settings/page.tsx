@@ -4,6 +4,7 @@ import type { EmailConfig } from "./types";
 import { defaultEmailConfig } from "./defaults";
 import SmtpConfigTab from "./SmtpConfigTab";
 import TemplateEditorTab from "./TemplateEditorTab";
+import { AdminLoading, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type TabKey = "smtp" | "autoReply" | "forward";
@@ -107,13 +108,10 @@ export default function AdminEmailSettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">邮箱设置</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          配置 SMTP 服务器、自动回复和转发通知邮件模板
-        </p>
-      </div>
+      <AdminPageHeader
+        title="邮箱设置"
+        description="配置 SMTP 服务器、自动回复和转发通知邮件模板"
+      />
 
       {/* Status Message */}
       {status && (
@@ -136,9 +134,7 @@ export default function AdminEmailSettingsPage() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-          加载中...
-        </div>
+        <AdminLoading />
       ) : (
         <div className="bg-white rounded-lg shadow">
           {/* Tab Navigation */}

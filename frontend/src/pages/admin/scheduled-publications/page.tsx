@@ -7,6 +7,13 @@ import {
   type ScheduledPublicationResourceType,
   type ScheduledPublicationStatus,
 } from "@/api/scheduledPublications";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+  AdminPagination,
+} from "@/components/admin/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -132,20 +139,15 @@ export default function AdminScheduledPublicationsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">定时发布</h1>
-          <p className="mt-1 text-sm text-gray-500">{summaryText}</p>
-        </div>
-        <button
-          type="button"
-          onClick={loadQueue}
-          disabled={loading}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          刷新
-        </button>
-      </div>
+      <AdminPageHeader
+        title="定时发布"
+        description={summaryText}
+        actions={
+          <AdminButton variant="secondary" size="sm" onClick={loadQueue} disabled={loading}>
+            刷新
+          </AdminButton>
+        }
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
@@ -181,16 +183,12 @@ export default function AdminScheduledPublicationsPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError("")} />}
 
       {loading ? (
-        <div className="py-12 text-center text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : items.length === 0 ? (
-        <div className="rounded-lg bg-white py-16 text-center text-sm text-gray-500 shadow">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 py-16 text-center text-sm text-slate-500">
           暂无定时发布任务
         </div>
       ) : (
@@ -266,27 +264,12 @@ export default function AdminScheduledPublicationsPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            disabled={page <= 1}
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
-          >
-            上一页
-          </button>
-          <span className="text-sm text-gray-600">{page} / {totalPages}</span>
-          <button
-            type="button"
-            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-            disabled={page >= totalPages}
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
-          >
-            下一页
-          </button>
-        </div>
-      )}
+      <AdminPagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

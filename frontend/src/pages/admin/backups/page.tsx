@@ -10,6 +10,7 @@ import {
   type ExportRecord,
   type ValidationResult,
 } from "@/api/backups";
+import { AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { removeStoredAccessToken, removeStoredRefreshToken } from "@/lib/browserStorage";
 
@@ -394,10 +395,13 @@ export default function AdminBackupsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">备份管理</h2>
+      <AdminPageHeader
+        title="数据备份"
+        description="数据库备份、站点导出与导入"
+      />
 
       {/* Tab navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-slate-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button

@@ -7,6 +7,7 @@ import {
   type GlossaryTerm,
   type GlossaryListResponse,
 } from "@/api/translation";
+import { AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const LANG_OPTIONS = [
@@ -363,7 +364,10 @@ export default function AdminTranslationPage() {
   useDocumentTitle("翻译管理");
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">翻译管理</h2>
+      <AdminPageHeader
+        title="翻译管理"
+        description="双语内容翻译与术语表管理"
+      />
       <TranslationTool />
       <GlossaryManagement />
     </div>

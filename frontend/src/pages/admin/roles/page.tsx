@@ -10,6 +10,7 @@ import {
   type CreateRoleRequest,
   type UpdateRoleRequest,
 } from "@/api/roles";
+import { AdminButton, AdminErrorBanner, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface RoleFormData {
@@ -170,20 +171,17 @@ export default function AdminRolesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">角色管理</h1>
-        <button
-          onClick={openCreate}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          创建角色
-        </button>
-      </div>
+      <AdminPageHeader
+        title="角色管理"
+        description="配置角色与权限集合"
+        actions={
+          <AdminButton size="sm" onClick={openCreate}>
+            创建角色
+          </AdminButton>
+        }
+      />
 
-      {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
-      )}
+      {error && <AdminErrorBanner message={error} />}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

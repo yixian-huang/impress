@@ -1,4 +1,10 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import AdminCommentReplyPanel from "./AdminCommentReplyPanel";
 import {
@@ -181,17 +187,15 @@ export default function AdminCommentsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">评论管理</h2>
-        <button
-          type="button"
-          onClick={fetchData}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "加载中..." : "刷新"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="评论管理"
+        description="审核与回复访客评论"
+        actions={
+          <AdminButton size="sm" onClick={fetchData} disabled={loading}>
+            {loading ? "加载中…" : "刷新"}
+          </AdminButton>
+        }
+      />
 
       <div className="mb-6 flex gap-1 border-b border-gray-200">
         {STATUS_TABS.map((tab) => {
@@ -243,14 +247,10 @@ export default function AdminCommentsPage() {
         </div>
       )}
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {loading && !data ? (
-        <div className="text-center py-12 text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : data ? (
         <>
           <div className="bg-white shadow rounded-lg overflow-hidden">

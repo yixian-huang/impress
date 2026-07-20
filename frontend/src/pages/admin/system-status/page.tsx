@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { getSystemStatus, type SystemStatusResponse } from "@/api/systemStatus";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface Metric {
@@ -120,29 +126,24 @@ export default function AdminSystemStatusPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">系统状态</h1>
-          <p className="mt-1 text-sm text-gray-500">查看应用版本、数据库、存储、运行时和内容统计。</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => fetchStatus(true)}
-          disabled={loading || refreshing}
-          className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-        >
-          {refreshing ? "刷新中..." : "刷新"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="系统状态"
+        description="查看应用版本、数据库、存储、运行时和内容统计。"
+        actions={
+          <AdminButton
+            size="sm"
+            onClick={() => fetchStatus(true)}
+            disabled={loading || refreshing}
+          >
+            {refreshing ? "刷新中…" : "刷新"}
+          </AdminButton>
+        }
+      />
 
-      {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError("")} />}
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : status ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <InfoCard title="版本">

@@ -6,6 +6,11 @@ import {
   type StorageConfig,
   type UpdateStorageConfigRequest,
 } from "@/api/storage";
+import {
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type Strategy = "local" | "s3" | "oss";
@@ -128,20 +133,15 @@ export default function AdminStoragePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">存储配置</h1>
-          <p className="text-sm text-gray-500 mt-1">配置文件上传和存储方式</p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="存储配置"
+        description="配置文件上传和存储方式"
+      />
 
-      {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
-      )}
+      {error && <AdminErrorBanner message={error} />}
 
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Config Form */}

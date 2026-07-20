@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAuditLogs, type AuditEvent, type AuditLogListResponse, type AuditLogFilters } from "@/api/auditLogs";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const ACTION_OPTIONS = [
@@ -91,16 +97,15 @@ export default function AdminAuditLogsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">审计日志</h2>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "加载中..." : "刷新"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="审计日志"
+        description="追踪后台关键操作记录"
+        actions={
+          <AdminButton size="sm" onClick={fetchData} disabled={loading}>
+            {loading ? "加载中…" : "刷新"}
+          </AdminButton>
+        }
+      />
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-4">
@@ -139,14 +144,10 @@ export default function AdminAuditLogsPage() {
         />
       </div>
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {loading && !data ? (
-        <div className="text-center py-12 text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : data ? (
         <>
           <div className="bg-white shadow rounded-lg overflow-hidden">

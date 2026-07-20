@@ -9,6 +9,7 @@ import {
   type MigrationFormat,
   type MigrationJobPhase,
 } from "@/api/migration";
+import { AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { isAxiosError } from "axios";
 
@@ -601,10 +602,10 @@ export default function AdminMigrationPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">数据迁移</h2>
-      <p className="text-sm text-gray-500 mb-6">
-        从其他平台导入数据，支持 WordPress、Halo 和 Markdown 格式。
-      </p>
+      <AdminPageHeader
+        title="数据迁移"
+        description="从其他平台导入数据，支持 WordPress、Halo 和 Markdown 格式。"
+      />
 
       <ImportSection onJobCreated={handleJobCreated} />
       <JobsTable key={refreshKey} />

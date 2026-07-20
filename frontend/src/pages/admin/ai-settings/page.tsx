@@ -7,6 +7,7 @@ import {
   type AIHealthResult,
   type AIProviderName,
 } from "@/api/aiConfig";
+import { AdminLoading, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface AIFormState {
@@ -117,15 +118,15 @@ export default function AdminAISettingsPage() {
   const enabled = form.provider !== "disabled";
 
   if (loading) {
-    return <div className="rounded-lg bg-white p-8 text-center text-gray-500 shadow">加载中...</div>;
+    return <AdminLoading />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">AI 配置</h1>
-        <p className="mt-1 text-sm text-gray-500">统一管理翻译、知识问答和建站向导使用的 AI 提供方</p>
-      </div>
+      <AdminPageHeader
+        title="AI 配置"
+        description="统一管理翻译、知识问答和建站向导使用的 AI 提供方"
+      />
 
       <div className="rounded-lg bg-white p-6 shadow">
         <div className="grid gap-3 md:grid-cols-3">

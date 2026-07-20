@@ -6,6 +6,12 @@ import {
   type QALog,
   type QALogsResponse,
 } from "../api";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const PAGE_SIZE = 20;
@@ -95,33 +101,20 @@ export default function AdminQAPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">知识问答</h2>
-        <div className="flex gap-3">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 disabled:opacity-50"
-          >
-            {loading ? "加载中..." : "刷新"}
-          </button>
-          <button
-            onClick={handleReindex}
-            disabled={indexing}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            {indexing ? (
-              <>
-                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                索引中...
-              </>
-            ) : "重新索引内容"}
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="知识问答"
+        description="问答日志、反馈与内容索引（实验性）"
+        actions={
+          <>
+            <AdminButton variant="secondary" size="sm" onClick={fetchData} disabled={loading}>
+              {loading ? "加载中…" : "刷新"}
+            </AdminButton>
+            <AdminButton size="sm" onClick={handleReindex} disabled={indexing}>
+              {indexing ? "索引中…" : "重新索引内容"}
+            </AdminButton>
+          </>
+        }
+      />
 
       {indexSuccess && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
@@ -129,14 +122,10 @@ export default function AdminQAPage() {
         </div>
       )}
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {loading && !data ? (
-        <div className="text-center py-12 text-gray-500">加载中...</div>
+        <AdminLoading />
       ) : data ? (
         <>
           <div className="bg-white shadow rounded-lg overflow-hidden">

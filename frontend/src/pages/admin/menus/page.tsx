@@ -12,6 +12,11 @@ import {
   reorderMenuItems,
 } from "@/api/menus";
 import type { MenuGroup, MenuItem } from "@/api/menus";
+import {
+  AdminErrorBanner,
+  AdminLoading,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import TreeItemRow from "./MenuTree";
 import { buildTree, flattenIds } from "./menuTreeUtils";
@@ -332,22 +337,15 @@ export default function MenusPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">菜单管理</h1>
-        <p className="text-sm text-gray-500 mt-1">管理导航菜单组和菜单项，支持多级嵌套</p>
-      </div>
+      <AdminPageHeader
+        title="菜单管理"
+        description="管理导航菜单组和菜单项，支持多级嵌套"
+      />
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-lg leading-none cursor-pointer">&times;</button>
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">加载中...</div>
-        </div>
+        <AdminLoading />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* ── Left: Menu Groups ── */}

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   getCategoryTree,
   createCategory,
@@ -8,6 +7,11 @@ import {
 } from "@/api/articles";
 import type { Category } from "@/api/articles";
 import MetadataEditor from "@/components/admin/MetadataEditor";
+import {
+  AdminButton,
+  AdminErrorBanner,
+  AdminPageHeader,
+} from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // Flatten tree into a list with depth info for rendering
@@ -36,7 +40,6 @@ function flattenAll(cats: Category[]): Category[] {
 
 export default function CategoriesPage() {
   useDocumentTitle("分类管理");
-  const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -339,34 +342,26 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => navigate("/admin/articles")}
-            className="text-blue-600 hover:text-blue-800 mb-2 inline-flex items-center text-sm"
-          >
-            &larr; Back to Articles
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        </div>
-        <button
-          onClick={() => setShowNew(!showNew)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-        >
-          {showNew ? "Cancel" : "New Category"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="分类管理"
+        description="管理文章分类与层级"
+        breadcrumbs={[
+          { label: "文章管理", to: "/admin/articles" },
+          { label: "分类" },
+        ]}
+        actions={
+          <AdminButton size="sm" onClick={() => setShowNew(!showNew)}>
+            {showNew ? "取消" : "新建分类"}
+          </AdminButton>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
-        </div>
-      )}
+      {error && <AdminErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* New category form */}
       {showNew && (
-        <div className="mb-6 bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">New Category</h2>
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-slate-900">新建分类</h2>
           {renderFormFields(
             "new",
             {

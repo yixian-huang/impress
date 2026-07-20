@@ -5,6 +5,7 @@ import {
   publishAdminGlobalConfig,
 } from "@/api/globalConfig";
 import { useBootstrap } from "@/contexts/BootstrapContext";
+import { AdminLoading, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   SITE_CONFIG_GLOBAL_DEFAULT,
@@ -106,19 +107,15 @@ export default function AdminSiteConfigPage() {
   const tabMeta = useMemo(() => TABS.find((t) => t.key === tab), [tab]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-48 text-gray-500 text-sm">加载中…</div>
-    );
+    return <AdminLoading />;
   }
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">站点配置</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          配置全站名称、品牌图、作者与 SEO 默认值。先保存草稿，确认无误后再发布。
-        </p>
-      </div>
+      <AdminPageHeader
+        title="站点配置"
+        description="配置全站名称、品牌图、作者与 SEO 默认值。先保存草稿，确认无误后再发布。"
+      />
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-5 overflow-x-auto">

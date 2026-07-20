@@ -7,6 +7,7 @@ import { useThemeManager } from "@/plugins/hooks";
 import ThemeManagementModal from "./ThemeManagementModal";
 import ThemeSettingsForm from "./ThemeSettingsForm";
 import FontPresetSection from "./FontPresetSection";
+import { AdminButton, AdminPageHeader } from "@/components/admin/ui";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useBootstrap } from "@/contexts/BootstrapContext";
 
@@ -172,37 +173,30 @@ export default function AdminThemePage() {
 
   return (
     <div>
-      {/* Header row */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">主题</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-          >
-            导出主题
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-          >
-            导入主题
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-          <button
-            onClick={() => setShowThemeModal(true)}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-          >
-            主题管理
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="主题"
+        description="切换主题包、导出导入与样式定制"
+        actions={
+          <>
+            <AdminButton variant="secondary" size="sm" onClick={handleExport}>
+              导出主题
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+              导入主题
+            </AdminButton>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <AdminButton variant="secondary" size="sm" onClick={() => setShowThemeModal(true)}>
+              主题管理
+            </AdminButton>
+          </>
+        }
+      />
 
       {exportImportMsg && (
         <div className={`mb-4 p-3 rounded-md text-sm ${exportImportMsg.includes("成功") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
