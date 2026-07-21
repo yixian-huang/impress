@@ -48,15 +48,19 @@ Globals for UMD: `window.InklessThemeHost` and `window.__INKLESS_SHARED__.host`
 | `resolveThemeContractVersion` | Effective version (legacy default) |
 | `assertThemeContractCompatible` | Throw if incompatible |
 | `BLOG_DEFAULT_LAYOUT` | Reading layout default |
+| `CORPORATE_DEFAULT_LAYOUT` | Wide corporate layout default |
 | `BaseSiteHeader` | Header shell |
 | `BrandMark` | Logo / avatar / text brand |
 | `HeaderUtilities` | RSS + socials |
 | `useHeaderSettings` | brandMode / showRss / showSocials |
+| `useHeaderScroll` | Sticky header scroll state |
 | `useBranding` | Site identity view |
 | `useContentMaxWidth` | Theme max width |
 | `useIsReadingLayout` | contentProfile === reading |
 | `useIsThemeHomePath` | Path is theme home |
+| `useThemeSettings` | Active theme settings map |
 | `useGlobalConfig` | Published global config |
+| `useThemePages` | Header/footer nav from theme pages + menus |
 | `useSEODefaults` | Title / description helpers |
 | `useLocaleMode` | Locale mode triple |
 | `SeoHead` | Document meta |

@@ -40,12 +40,13 @@ export type { HeaderBrandMode } from "@/types/siteConfig";
 export type { BrandingView } from "@/hooks/useBranding";
 
 // --- Layout defaults / chrome primitives ---
-export { BLOG_DEFAULT_LAYOUT } from "@/theme/layouts/defaults";
+export { BLOG_DEFAULT_LAYOUT, CORPORATE_DEFAULT_LAYOUT } from "@/theme/layouts/defaults";
 export {
   BaseSiteHeader,
   BrandMark,
   HeaderUtilities,
   useHeaderSettings,
+  useHeaderScroll,
 } from "@/theme/layouts/chrome";
 
 // --- Hooks ---
@@ -57,6 +58,7 @@ export {
   useThemeSettings,
 } from "@/plugins/hooks";
 export { useGlobalConfig } from "@/contexts/GlobalConfigContext";
+export { useThemePages } from "@/contexts/ThemePagesContext";
 export { useSEODefaults } from "@/hooks/useSEODefaults";
 export { useLocaleMode } from "@/hooks/useLocaleMode";
 

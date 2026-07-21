@@ -1,0 +1,58 @@
+{
+  "name": "@inkless/theme-corporate-classic",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Inkless corporate-classic theme — consulting/company site chrome, tokens, and page IA",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./register": "./src/register.ts",
+    "./package.json": "./package.json",
+    "./inkless.theme.json": "./inkless.theme.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "inkless.theme.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-i18next": "^15.0.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react-swc": "^3.10.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-i18next": "^15.6.0",
+    "react-router-dom": "^7.6.3",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.3",
+    "vitest": "^4.0.18"
+  },
+  "inkless": {
+    "type": "theme",
+    "id": "corporate-classic",
+    "contractVersion": "1",
+    "hostPackage": "@inkless/theme-host",
+    "umd": "dist/theme.umd.js",
+    "esm": "dist/theme.es.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yixian-huang/inkless-theme-corporate-classic.git"
+  },
+  "homepage": "https://github.com/yixian-huang/inkless-theme-corporate-classic#readme"
+}

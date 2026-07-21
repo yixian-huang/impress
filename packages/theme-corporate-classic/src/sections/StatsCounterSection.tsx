@@ -1,5 +1,3 @@
-import type { SectionProps } from "@/theme/types";
-
 interface StatItem {
   value?: string;
   label?: string;
@@ -8,6 +6,13 @@ interface StatItem {
 interface StatsCounterData {
   title?: string;
   stats?: StatItem[];
+}
+
+/** Minimal section props — avoid deep host imports for builder blocks. */
+interface SectionProps<T = Record<string, unknown>> {
+  data: T;
+  settings?: Record<string, unknown>;
+  variant?: string;
 }
 
 export default function StatsCounterSection({ data }: SectionProps<StatsCounterData>) {

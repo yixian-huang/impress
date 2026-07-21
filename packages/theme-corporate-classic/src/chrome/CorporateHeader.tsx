@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
-import { useBranding } from "@/hooks/useBranding";
-import type { HeaderChromeProps } from "@/plugins/types";
-import { BaseSiteHeader, useHeaderScroll } from "@/theme/layouts/chrome";
+import {
+  BaseSiteHeader,
+  useBranding,
+  useHeaderScroll,
+  type HeaderChromeProps,
+} from "@inkless/theme-host";
 
 export default function CorporateHeader({ config }: HeaderChromeProps) {
   const branding = useBranding();

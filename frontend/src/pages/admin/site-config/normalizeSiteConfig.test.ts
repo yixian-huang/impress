@@ -26,4 +26,25 @@ describe("normalizeSiteConfig", () => {
     expect(cfg.seo.defaultTitle?.zh).toBe("一弦 · 首页");
     expect(cfg.seo.titleTemplate).toBe("{page} | {site}");
   });
+
+  it("maps legacy impress branding/header/footer into siteConfig fields", () => {
+    const cfg = normalizeSiteConfig({
+      branding: {
+        companyName: { zh: "印迹安合法规咨询", en: "Blotting Consultancy" },
+        logo: { url: "/uploads/logo.png", alt: { zh: "", en: "" } },
+      },
+      header: { logo: { url: "/images/logo.svg" } },
+      footer: {
+        copyright: { zh: "版权所有 © 2018-2025 印迹法规 京ICP备12345678号" },
+        phone: { zh: "+86 159 1076 9614" },
+      },
+    });
+    expect(cfg.identity.name.zh).toBe("印迹安合法规咨询");
+    expect(cfg.identity.name.en).toBe("Blotting Consultancy");
+    expect(cfg.brand.logo.light).toBe("/uploads/logo.png");
+    expect(cfg.header?.brandMode).toBe("logo");
+    expect(cfg.footer.copyright?.zh).toContain("版权所有");
+    expect(cfg.footer.icp).toBe("京ICP备12345678号");
+    expect(cfg.identity.name.zh).not.toMatch(/My Site/i);
+  });
 });

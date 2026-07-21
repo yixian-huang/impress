@@ -112,36 +112,56 @@ export interface LocalizedText {
 
 /**
  * Apply locale fallback to localized text
- * Returns the requested locale value, or falls back to zh if missing
+ * Returns the requested locale value, or falls back to zh / en if missing
  * Does NOT mutate the source object
  *
- * @param text - LocalizedText object or undefined
+ * Accepts partial shapes such as `{ zh: "…" }` (no `en`) — common after
+ * admin saves a single locale or legacy migration.
+ *
+ * @param text - LocalizedText object or partial / undefined
  * @param locale - Requested locale
- * @returns The text value in the requested locale, or zh fallback, or empty string
+ * @returns The text value in the requested locale, or zh/en fallback, or empty string
  */
 export function getLocalizedText(
-  text: LocalizedText | undefined,
+  text: Partial<LocalizedText> | undefined,
   locale: Locale
 ): string {
   if (!text) return "";
 
-  const value = text[locale];
-  if (value && value.trim().length > 0) {
-    return value;
+  const preferred = text[locale];
+  if (typeof preferred === "string" && preferred.trim().length > 0) {
+    return preferred;
   }
 
-  // Fallback to zh if requested locale is missing
-  if (locale === "en" && text.zh && text.zh.trim().length > 0) {
+  if (typeof text.zh === "string" && text.zh.trim().length > 0) {
     return text.zh;
+  }
+  if (typeof text.en === "string" && text.en.trim().length > 0) {
+    return text.en;
   }
 
   return "";
 }
 
+/** True when value is a leaf bilingual bag: only zh/en keys, string-ish values. */
+function isLocalizedTextLike(value: object): boolean {
+  const keys = Object.keys(value);
+  if (keys.length === 0) return false;
+  if (!keys.every((k) => k === "zh" || k === "en")) return false;
+  return keys.every((k) => {
+    const v = (value as Record<string, unknown>)[k];
+    return v === null || v === undefined || typeof v === "string";
+  });
+}
+
 /**
  * Recursively apply locale selection to a config object
- * For any LocalizedText-like object ({ zh, en }), returns the locale-selected value
+ * For any LocalizedText-like object ({ zh?, en? }), returns the locale-selected value
  * Does NOT mutate the source config
+ *
+ * Partial bags (only `zh` or only `en`) are flattened too — previously only
+ * objects with *both* keys were selected, which left `{ zh: "…" }` as an object
+ * and crashed React when components rendered it as a child (error #31).
  *
  * @param config - Page config object
  * @param locale - Target locale
@@ -161,14 +181,13 @@ export function normalizeConfigForLocale(
       continue;
     }
 
-    // Check if it's a LocalizedText object (has both zh and en keys)
+    // LocalizedText-like leaf (both keys, or zh-only / en-only)
     if (
       typeof value === "object" &&
       !Array.isArray(value) &&
-      "zh" in value &&
-      "en" in value
+      isLocalizedTextLike(value)
     ) {
-      result[key] = getLocalizedText(value as LocalizedText, locale);
+      result[key] = getLocalizedText(value as Partial<LocalizedText>, locale);
       continue;
     }
 
@@ -185,12 +204,8 @@ export function normalizeConfigForLocale(
     if (Array.isArray(value)) {
       result[key] = value.map((item) => {
         if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-          // Check if item itself is a LocalizedText (e.g., array of {zh, en} like descriptions)
-          if ("zh" in item && "en" in item) {
-            const itemKeys = Object.keys(item);
-            if (itemKeys.length === 2) {
-              return getLocalizedText(item as LocalizedText, locale);
-            }
+          if (isLocalizedTextLike(item)) {
+            return getLocalizedText(item as Partial<LocalizedText>, locale);
           }
           return normalizeConfigForLocale(item as Record<string, unknown>, locale);
         }

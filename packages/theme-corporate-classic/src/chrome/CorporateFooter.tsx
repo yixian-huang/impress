@@ -1,8 +1,23 @@
-import { useGlobalConfig } from "@/contexts/GlobalConfigContext";
-import { useThemePages } from "@/contexts/ThemePagesContext";
-import { useBranding } from "@/hooks/useBranding";
-import type { FooterChromeProps } from "@/plugins/types";
-import ProductPoweredBy from "@/components/feature/ProductPoweredBy";
+import {
+  ProductPoweredBy,
+  useBranding,
+  useGlobalConfig,
+  useThemePages,
+  type FooterChromeProps,
+} from "@inkless/theme-host";
+
+/** Coerce legacy/partial LocalizedString bags to a safe display string. */
+function asDisplayText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const o = value as Record<string, unknown>;
+    for (const key of ["zh", "en"] as const) {
+      const v = o[key];
+      if (typeof v === "string" && v.trim()) return v;
+    }
+  }
+  return "";
+}
 
 export default function CorporateFooter({ config }: FooterChromeProps) {
   const { config: globalConfig } = useGlobalConfig();
@@ -13,12 +28,18 @@ export default function CorporateFooter({ config }: FooterChromeProps) {
   const style = config?.style ?? "full";
   const logoSrc = config?.logo ?? branding.logo.light?.trim();
   const logoAlt = branding.siteName || "Site";
-  const address = config?.address ?? globalFooter.address;
-  const phone = config?.phone ?? globalFooter.phone;
+  const address =
+    asDisplayText(config?.address) || asDisplayText(globalFooter.address);
+  const phone =
+    asDisplayText(config?.phone) || asDisplayText(globalFooter.phone);
   const links = footerNavItems.length > 0
     ? footerNavItems.map((item) => ({ label: item.label, href: item.path }))
     : (globalFooter.links ?? []);
-  const copyright = config?.copyright ?? globalFooter.copyright ?? branding.footer.copyright;
+  // Prefer branding (always string); never render a {zh}/{en} object as a child.
+  const copyright =
+    asDisplayText(config?.copyright) ||
+    asDisplayText(globalFooter.copyright) ||
+    branding.footer.copyright;
 
   if (style === "none") {
     return null;

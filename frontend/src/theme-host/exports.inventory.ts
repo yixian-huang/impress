@@ -21,10 +21,12 @@ export const THEME_HOST_VALUE_EXPORTS = [
   "assertThemeContractCompatible",
   // Layout / chrome
   "BLOG_DEFAULT_LAYOUT",
+  "CORPORATE_DEFAULT_LAYOUT",
   "BaseSiteHeader",
   "BrandMark",
   "HeaderUtilities",
   "useHeaderSettings",
+  "useHeaderScroll",
   // Hooks
   "useBranding",
   "useContentMaxWidth",
@@ -32,6 +34,7 @@ export const THEME_HOST_VALUE_EXPORTS = [
   "useIsThemeHomePath",
   "useThemeSettings",
   "useGlobalConfig",
+  "useThemePages",
   "useSEODefaults",
   "useLocaleMode",
   // Public UI primitives
