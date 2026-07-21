@@ -39,8 +39,14 @@ data/
 
 # Test artifacts
 test-screenshots/
+test-results/
+frontend/test-results/
 test-*.png
 test/site-export-*.zip
+# Ad-hoc local screenshots / brand handoff zips at repo root
+/inkless-home-*.png
+/*品牌设计.zip
+/Yixian*.zip
 
 # Deploy credentials (copy from .prod_server.example)
 .prod_server
