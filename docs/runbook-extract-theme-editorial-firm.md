@@ -87,63 +87,40 @@ inkless-theme-editorial-firm/
 | Dual seed drift | Add a small test or script that compares `pageConfigs.ts` export to `editorial_firm_seeds.json` (host) — or generate JSON from TS in CI before extract |
 | README “does not replace classic” | Keep on both repos |
 
-### 3.2 Add UMD build in monorepo package (can land pre-extract)
+### 3.2 Add UMD build in monorepo package — **done (pre-extract)**
 
-Copy pattern from `inkless-theme-blog-first` `vite.config.ts`:
+Landed under `packages/theme-editorial-firm/`:
 
-- **Entry:** `src/register.ts`
-- **Formats:** `umd` + `es`
-- **Externals / globals:**
-  - `react` → `React`
-  - `react-dom` → `ReactDOM`
-  - `react-router-dom` → `ReactRouterDOM`
-  - `react-i18next` → `ReactI18next`
-  - `@inkless/theme-host` → `InklessThemeHost`
-- **UMD name:** e.g. `InklessThemeEditorialFirm`
-- **Outputs:** `dist/theme.umd.js`, `dist/theme.es.js`
-
-Update `package.json`:
-
-```json
-"scripts": {
-  "build": "vite build",
-  "type-check": "tsc --noEmit -p tsconfig.json",
-  "test": "vitest run"
-},
-"inkless": {
-  "type": "theme",
-  "id": "editorial-firm",
-  "contractVersion": "1",
-  "hostPackage": "@inkless/theme-host",
-  "umd": "dist/theme.umd.js",
-  "esm": "dist/theme.es.js"
-}
-```
-
-Update `inkless.theme.json` `entry` if needed to list dist paths for remote install.
-
-### 3.3 Smoke UMD (host)
-
-Extend or clone `scripts/theme-umd-smoke.mjs` to accept theme package name / path (today hardcodes blog-first). Minimum:
+- `vite.config.ts` — entry `src/register.ts`, UMD name `InklessThemeEditorialFirm`, externals/globals same as blog-first
+- `package.json` scripts: `build` / `type-check` / `test`; `inkless.umd` / `inkless.esm`
+- `inkless.theme.json` entry includes `umd` / `esm` dist paths
+- Outputs: `dist/theme.umd.js`, `dist/theme.es.js`
 
 ```bash
 pnpm --filter @inkless/theme-editorial-firm build
-# then smoke load dist/theme.umd.js with host stubs; assert:
-# - register called
-# - theme.manifest.id === "editorial-firm"
-# - theme.contractVersion === host THEME_CONTRACT_VERSION
 ```
 
-Do **not** ship extract without green UMD smoke once.
+### 3.3 Smoke UMD (host) — **done (pre-extract)**
 
-### 3.4 Standalone typecheck
+`scripts/theme-umd-smoke.mjs` accepts theme id (default `blog-first`):
 
-Add `types/theme-host-shim.d.ts` (start from blog-first shim; ensure exports the theme actually imports: `useBranding`, `useThemePages`, `useHeaderScroll`, `BaseSiteHeader`, `ProductPoweredBy`, `ThemePlugin`, `ThemeTokens`, chrome prop types, etc.).
+```bash
+pnpm theme:umd:smoke:editorial-firm
+# or: node scripts/theme-umd-smoke.mjs editorial-firm
+```
 
-`tsconfig.json` for standalone:
+Asserts register, `manifest.id === "editorial-firm"`, contractVersion, non-empty pages.
 
-- `paths` / types include shim instead of monorepo `../../frontend/src/theme-host`
-- `skipLibCheck: true` as in blog-first
+### 3.4 Standalone typecheck — **done (pre-extract)**
+
+- `types/theme-host-shim.d.ts` — extract-ready ambient host surface
+- Monorepo still uses `src/__typecheck__/theme-host.ts` via tsconfig paths for a thin package graph
+- On extract day: drop monorepo paths; `include: ["src", "types"]` like blog-first
+
+Also landed with pre-extract:
+
+- Contact form resolves `VITE_API_BASE_URL` / `window.__INKLESS_API_BASE__`
+- Vitest `src/seed/hostSeedParity.test.ts` fingerprints TS seeds vs host `editorial_firm_seeds.json`
 
 ---
 

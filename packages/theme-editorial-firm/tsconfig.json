@@ -19,5 +19,6 @@
       "@inkless/theme-host/*": ["../../frontend/src/theme-host/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

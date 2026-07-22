@@ -76,11 +76,25 @@ On theme **activate**, the backend:
 
 Operators who switch from another theme with non-empty shared slugs must clear sections or recreate pages to pick up editorial copy.
 
+## Build (UMD / ESM)
+
+```bash
+# from monorepo root
+pnpm --filter @inkless/theme-editorial-firm build
+# → dist/theme.umd.js + dist/theme.es.js
+
+pnpm theme:umd:smoke:editorial-firm
+```
+
+Standalone extract uses `types/theme-host-shim.d.ts` (same pattern as blog-first). Monorepo `tsc` still maps `@inkless/theme-host` to `src/__typecheck__/theme-host.ts` for a thin graph.
+
 ## Extraction to a standalone repo
 
 Today this package lives in the Inkless monorepo (`workspace:*`). Long-term it should follow **blog-first**: own GitHub repo + host pin.
 
-When ready (after soak + UMD), use the full checklist:
+**Pre-extract readiness (landed):** UMD/ESM build, host shim types, UMD smoke script, contact API base resolution, TS↔JSON seed parity test.
+
+When ready (after soak), use the full checklist:
 
 → **[`docs/runbook-extract-theme-editorial-firm.md`](../../docs/runbook-extract-theme-editorial-firm.md)**
 

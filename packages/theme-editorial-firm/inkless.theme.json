@@ -10,7 +10,9 @@
   "tags": ["corporate", "editorial", "bilingual", "dynamic"],
   "entry": {
     "builtin": "src/index.ts",
-    "register": "src/register.ts"
+    "register": "src/register.ts",
+    "umd": "dist/theme.umd.js",
+    "esm": "dist/theme.es.js"
   },
   "peerHost": {
     "sharedGlobal": "__INKLESS_SHARED__",

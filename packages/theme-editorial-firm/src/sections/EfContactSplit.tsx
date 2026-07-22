@@ -17,6 +17,29 @@ export interface EfContactSplitData {
 }
 
 /**
+ * Resolve public form URL so split-origin dev works when host sets API base.
+ * Priority: import.meta.env.VITE_API_BASE_URL → window.__INKLESS_API_BASE__ → relative.
+ */
+function resolvePublicFormUrl(): string {
+  const path = "/public/form-submissions";
+  try {
+    const env = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env;
+    const envBase =
+      env && typeof env.VITE_API_BASE_URL === "string" ? env.VITE_API_BASE_URL.trim() : "";
+    if (envBase) return `${envBase.replace(/\/$/, "")}${path}`;
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== "undefined") {
+    const w = (window as unknown as { __INKLESS_API_BASE__?: string }).__INKLESS_API_BASE__;
+    if (typeof w === "string" && w.trim()) {
+      return `${w.replace(/\/$/, "")}${path}`;
+    }
+  }
+  return path;
+}
+
+/**
  * POST to host public form-submissions endpoint (same path as ContactFormSection).
  * On failure, surface mailto fallback using the contact email prop.
  */
@@ -26,7 +49,7 @@ async function submitContact(payload: {
   message: string;
   locale: string;
 }): Promise<void> {
-  const res = await fetch("/public/form-submissions", {
+  const res = await fetch(resolvePublicFormUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
