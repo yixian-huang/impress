@@ -46,3 +46,21 @@ npc server exec command gomami -- 'docker logs --tail 100 inkless-theme-demo'
 Feature work lives on `feat/editorial-firm-theme` (theme package, extract pin, demo docs, Dockerfile packages/ fix). Merge to `main` when ready via PR (was opened as editorial-firm stack). Demo site does **not** require main merge to stay up — image built from that branch SHA on gomami.
 
 KB snapshot: omni page `ops/inkless/self-hosted-sites-and-themes-2026-07`.
+
+## Credentials (npc vault)
+
+| Item | Value |
+|------|--------|
+| Vault name | `inkless-themes-demo-admin` |
+| Vault id | `fbfb4b27-93cf-486d-ad84-bf329af3f115` |
+| Kind | `login` |
+| Username (public) | `admin` |
+| URL (public) | `https://themes.inkless.run/admin` |
+
+```bash
+npc vault get fbfb4b27-93cf-486d-ad84-bf329af3f115 -o json   # metadata only
+# Reveal is TTY/JWT only — not for agents:
+# npc vault reveal fbfb4b27-93cf-486d-ad84-bf329af3f115
+```
+
+Default seed password was rotated; do not use `admin123`.
