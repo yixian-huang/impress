@@ -6,6 +6,7 @@ export function PublishChecklistDialog({
   busy,
   onCancel,
   onForcePublish,
+  onAIFill,
 }: {
   open: boolean;
   items: ChecklistItem[];
@@ -13,11 +14,16 @@ export function PublishChecklistDialog({
   onCancel: () => void;
   /** Only for warn-only lists — blocks cannot force */
   onForcePublish?: () => void;
+  /** Open AI meta fill for missing SEO / title fields */
+  onAIFill?: () => void;
 }) {
   if (!open) return null;
 
   const blocks = items.filter((i) => i.severity === "block");
   const canForce = blocks.length === 0 && !!onForcePublish;
+  const aiHelpful = items.some((i) =>
+    ["zh-title", "zh-meta", "zh-meta-short", "en-title-missing", "slug"].includes(i.id),
+  );
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
@@ -72,6 +78,16 @@ export function PublishChecklistDialog({
           >
             返回修改
           </button>
+          {onAIFill && aiHelpful && (
+            <button
+              type="button"
+              onClick={onAIFill}
+              disabled={busy}
+              className="px-3 py-1.5 text-sm border border-violet-200 bg-violet-50 text-violet-800 rounded-lg hover:bg-violet-100 disabled:opacity-50"
+            >
+              用 AI 补齐
+            </button>
+          )}
           {canForce && (
             <button
               type="button"

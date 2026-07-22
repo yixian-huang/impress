@@ -1,8 +1,8 @@
 # 文章 AI 元数据补齐与 SEO 评估
 
-> 状态：设计定稿，待实现  
+> 状态：Phase 1 已实现（2026-07-22）  
 > 范围：文章编辑器 AI 补齐（title / slug / SEO / meta 等）→ 可评估 → 单页 SEO 优化  
-> 相关实现：`backend/internal/provider/ai.go`、`backend/internal/handler/ai/`、`frontend/src/pages/admin/articles/editor/`、`frontend/src/pages/admin/ai-settings/`
+> 相关实现：`backend/internal/service/article_meta_ai.go`、`backend/internal/handler/ai/`、`frontend/src/api/ai.ts`、`frontend/src/pages/admin/articles/editor/`、`frontend/src/pages/admin/ai-settings/`
 
 ---
 
@@ -287,13 +287,13 @@ Phase 2     单页 SEO 体检 / 优化（诊断 → 建议 → 逐项采纳）
 
 **交付：**
 
-- [ ] `POST /admin/ai/article-meta`（titles + slug + seo + meta，双语；可选 tags/excerpts）
-- [ ] 权限 `articles:update`
-- [ ] 编辑器主按钮 + `AIMetaPreviewDialog` + `fill_empty` / rewrite
-- [ ] 发布清单「用 AI 补齐」
-- [ ] `api/ai.ts` + `useArticleAIMeta` + apply 规则单测
-- [ ] 应用后轻量反馈钩子（可先本地/埋点占位，后端可后续落表）
-- [ ] AI 设置页文案：说明文章元数据共用此配置
+- [x] `POST /admin/ai/article-meta`（titles + slug + seo + meta，双语；可选 tags/excerpts）
+- [x] 权限 `articles:update`
+- [x] 编辑器主按钮 + `AIMetaPreviewDialog` + `fill_empty` / rewrite
+- [x] 发布清单「用 AI 补齐」
+- [x] `api/ai.ts` + `useArticleAIMeta` + apply 规则单测
+- [x] 应用后轻量反馈钩子（localStorage 占位）
+- [x] AI 设置页文案：说明文章元数据共用此配置
 
 **验收：**
 
@@ -375,3 +375,4 @@ Phase 2     单页 SEO 体检 / 优化（诊断 → 建议 → 逐项采纳）
 | 日期 | 说明 |
 |------|------|
 | 2026-07-22 | 初版：交互、API、评估三层、模型选型、Phase 1 / 1.5 / 2 |
+| 2026-07-22 | Phase 1 实现：`POST /admin/ai/article-meta`、编辑器「AI 元数据」预览面板、发布清单入口、localStorage 反馈钩子 |

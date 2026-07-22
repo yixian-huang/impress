@@ -30,6 +30,7 @@ import { useWordStats } from "./hooks/useWordStats";
 import { useLocalDraft } from "./hooks/useLocalDraft";
 import { useEditorShell } from "./hooks/useEditorShell";
 import { usePublishGate } from "./hooks/usePublishGate";
+import { useArticleAIMeta } from "./hooks/useArticleAIMeta";
 import { EditorMessageBars } from "./components/EditorMessageBars";
 import { EditorWorkspace } from "./components/EditorWorkspace";
 import { LangEditorMount } from "./components/LangEditorMount";
@@ -126,6 +127,37 @@ export default function ArticleEditorPage() {
     setZhTitle: form.setZhTitle,
     setEnTitle: form.setEnTitle,
     enabledLangs: editors.enabledLangs,
+    ensureEnEnabled: editors.ensureEnEnabled,
+    touch: dirty.touch,
+    setError: persistence.setError,
+    setSuccessMessage: persistence.setSuccessMessage,
+  });
+
+  const aiMeta = useArticleAIMeta({
+    getBodies: () => editors.resolveBodies(),
+    getTitles: () => ({ zhTitle: form.zhTitle, enTitle: form.enTitle }),
+    getExistingMeta: () => ({
+      slug: form.slug,
+      zhSeoTitle: form.zhSeoTitle,
+      enSeoTitle: form.enSeoTitle,
+      zhMetaDescription: form.zhMetaDescription,
+      enMetaDescription: form.enMetaDescription,
+    }),
+    getExistingTagNames: () =>
+      tags
+        .filter((t) => form.selectedTagIds.includes(t.id))
+        .map((t) => t.zhName || t.enName || "")
+        .filter(Boolean),
+    slugLocked: form.articleStatus === "published",
+    setters: {
+      setZhTitle: form.setZhTitle,
+      setEnTitle: form.setEnTitle,
+      setSlug: form.setSlug,
+      setZhSeoTitle: form.setZhSeoTitle,
+      setEnSeoTitle: form.setEnSeoTitle,
+      setZhMetaDescription: form.setZhMetaDescription,
+      setEnMetaDescription: form.setEnMetaDescription,
+    },
     ensureEnEnabled: editors.ensureEnEnabled,
     touch: dirty.touch,
     setError: persistence.setError,
@@ -413,6 +445,8 @@ export default function ArticleEditorPage() {
         onOpenTemplate={() => shell.setShowTemplatePicker(true)}
         onPreview={openPreview}
         onFind={handleOpenFind}
+        onOpenAIMeta={() => void aiMeta.openPreview()}
+        aiMetaBusy={aiMeta.busy}
         onSave={() => void persistence.handleSave("draft")}
         onPublish={() => publishGate.requestPublish()}
         onSchedule={schedule.handleSchedulePublish}
@@ -584,6 +618,36 @@ export default function ArticleEditorPage() {
             ? undefined
             : () => publishGate.requestPublish({ force: true })
         }
+        onAIFillFromChecklist={() => {
+          publishGate.dismiss();
+          void aiMeta.openPreview({ mode: "fill_empty" });
+        }}
+        aiMeta={{
+          open: aiMeta.open,
+          busy: aiMeta.busy,
+          mode: aiMeta.mode,
+          onModeChange: aiMeta.setMode,
+          sourceLang: aiMeta.sourceLang,
+          onSourceLangChange: aiMeta.setSourceLang,
+          values: aiMeta.values,
+          selected: aiMeta.selected,
+          onToggle: aiMeta.toggleKey,
+          skipped: aiMeta.response?.skipped,
+          titleIndex: aiMeta.titleIndex,
+          titleCount: aiMeta.titleCount,
+          onCycleTitle: aiMeta.cycleTitle,
+          slugLocked: aiMeta.slugLocked,
+          panelError: aiMeta.panelError,
+          model: aiMeta.response?.model,
+          onClose: aiMeta.close,
+          onApply: aiMeta.apply,
+          onRegenerate: () =>
+            void aiMeta.openPreview({
+              mode: aiMeta.mode,
+              sourceLang: aiMeta.sourceLang,
+            }),
+          onFeedback: aiMeta.feedback,
+        }}
       />
 
       <ShortcutHelpModal

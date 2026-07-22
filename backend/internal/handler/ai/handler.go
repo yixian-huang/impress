@@ -205,6 +205,37 @@ func (h *Handler) Complete(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// ArticleMeta handles POST /admin/ai/article-meta — bilingual title/slug/SEO package for the article editor.
+func (h *Handler) ArticleMeta(c *gin.Context) {
+	var input service.ArticleMetaRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		apierror.Message(c, http.StatusBadRequest, "invalid request: "+err.Error())
+		return
+	}
+
+	ai := h.getAI(c)
+	if ai == nil {
+		return
+	}
+
+	resp, err := service.GenerateArticleMeta(c.Request.Context(), ai, input)
+	if err != nil {
+		if errors.Is(err, service.ErrArticleMetaContentTooShort) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": gin.H{
+					"code":    "CONTENT_TOO_SHORT",
+					"message": "正文过短，请多写几段后再生成元数据。",
+				},
+			})
+			return
+		}
+		h.handleAIError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
 // GetConfig handles GET /admin/ai/config
 func (h *Handler) GetConfig(c *gin.Context) {
 	if h.configService != nil {

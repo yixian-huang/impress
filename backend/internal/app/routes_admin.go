@@ -251,6 +251,8 @@ func registerAdminAI(admin *gin.RouterGroup, h *Handlers, require requireFn) {
 	admin.POST("/ai/suggest-titles", require("settings", "manage"), h.AI.SuggestTitles)
 	admin.POST("/ai/suggest-tags", require("settings", "manage"), h.AI.SuggestTags)
 	admin.POST("/ai/complete", require("settings", "manage"), h.AI.Complete)
+	// Article editor metadata: authors with update permission (not settings:manage).
+	admin.POST("/ai/article-meta", require("articles", "update"), h.AI.ArticleMeta)
 	admin.GET("/ai/config", require("settings", "manage"), h.AI.GetConfig)
 	admin.PUT("/ai/config", require("settings", "manage"), h.AI.UpdateConfig)
 	admin.POST("/ai/config/test", require("settings", "manage"), h.AI.TestConfig)

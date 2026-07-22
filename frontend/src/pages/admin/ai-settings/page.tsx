@@ -134,7 +134,7 @@ export default function AdminAISettingsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="AI 配置"
-        description="统一管理翻译、知识问答和建站向导使用的 AI 提供方"
+        description="统一管理翻译、文章元数据（标题/slug/SEO）、知识问答和建站向导使用的 AI 提供方"
       />
 
       <AdminCard>

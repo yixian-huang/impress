@@ -33,6 +33,8 @@ export function EditorActionBar({
   onOpenTemplate,
   onPreview,
   onFind,
+  onOpenAIMeta,
+  aiMetaBusy,
   onSave,
   onPublish,
   onSchedule,
@@ -68,6 +70,8 @@ export function EditorActionBar({
   onOpenTemplate: () => void;
   onPreview: () => void;
   onFind?: () => void;
+  onOpenAIMeta?: () => void;
+  aiMetaBusy?: boolean;
   onSave: () => void;
   onPublish: () => void;
   onSchedule: (at: string) => void;
@@ -107,6 +111,17 @@ export function EditorActionBar({
             >
               模板
             </button>
+            {onOpenAIMeta && (
+              <button
+                type="button"
+                onClick={onOpenAIMeta}
+                disabled={aiMetaBusy}
+                title="根据正文生成标题、slug、SEO 与 Meta"
+                className="px-2.5 py-1.5 text-xs border border-violet-200 bg-violet-50 text-violet-800 rounded-lg hover:bg-violet-100 disabled:opacity-50"
+              >
+                {aiMetaBusy ? "AI…" : "AI 元数据"}
+              </button>
+            )}
             <button
               type="button"
               onClick={onPreview}

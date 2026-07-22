@@ -10,6 +10,9 @@ import type { ArticleTemplate } from "../articleTemplates";
 import { PublishChecklistDialog } from "./PublishChecklistDialog";
 import type { ChecklistItem } from "../utils/publishChecklist";
 import { LazyEditorModals } from "./lazyEditorSurfaces";
+import { AIMetaPreviewDialog } from "./AIMetaPreviewDialog";
+import type { ArticleMetaMode } from "@/api/ai";
+import type { AIMetaApplyKey } from "../utils/applyAIMeta";
 
 type LangEntry = {
   editor: Editor | null;
@@ -45,6 +48,8 @@ export function EditorDialogs({
   publishChecklistItems,
   onCancelPublishChecklist,
   onForcePublish,
+  onAIFillFromChecklist,
+  aiMeta,
 }: {
   langEditors: Record<string, LangEntry>;
   showCoverPicker: boolean;
@@ -71,6 +76,29 @@ export function EditorDialogs({
   publishChecklistItems: ChecklistItem[];
   onCancelPublishChecklist: () => void;
   onForcePublish?: () => void;
+  onAIFillFromChecklist?: () => void;
+  aiMeta?: {
+    open: boolean;
+    busy: boolean;
+    mode: ArticleMetaMode;
+    onModeChange: (m: ArticleMetaMode) => void;
+    sourceLang: "zh" | "en";
+    onSourceLangChange: (l: "zh" | "en") => void;
+    values: Partial<Record<AIMetaApplyKey, string>>;
+    selected: Set<AIMetaApplyKey>;
+    onToggle: (k: AIMetaApplyKey) => void;
+    skipped?: string[];
+    titleIndex: number;
+    titleCount: number;
+    onCycleTitle: (delta: 1 | -1) => void;
+    slugLocked: boolean;
+    panelError: string | null;
+    model?: string;
+    onClose: () => void;
+    onApply: () => void;
+    onRegenerate: () => void;
+    onFeedback?: (kind: "useful" | "needs_edit" | "unusable") => void;
+  };
 }) {
   return (
     <>
@@ -125,7 +153,33 @@ export function EditorDialogs({
         busy={saving}
         onCancel={onCancelPublishChecklist}
         onForcePublish={onForcePublish}
+        onAIFill={onAIFillFromChecklist}
       />
+
+      {aiMeta && (
+        <AIMetaPreviewDialog
+          open={aiMeta.open}
+          busy={aiMeta.busy}
+          mode={aiMeta.mode}
+          onModeChange={aiMeta.onModeChange}
+          sourceLang={aiMeta.sourceLang}
+          onSourceLangChange={aiMeta.onSourceLangChange}
+          values={aiMeta.values}
+          selected={aiMeta.selected}
+          onToggle={aiMeta.onToggle}
+          skipped={aiMeta.skipped}
+          titleIndex={aiMeta.titleIndex}
+          titleCount={aiMeta.titleCount}
+          onCycleTitle={aiMeta.onCycleTitle}
+          slugLocked={aiMeta.slugLocked}
+          panelError={aiMeta.panelError}
+          model={aiMeta.model}
+          onClose={aiMeta.onClose}
+          onApply={aiMeta.onApply}
+          onRegenerate={aiMeta.onRegenerate}
+          onFeedback={aiMeta.onFeedback}
+        />
+      )}
     </>
   );
 }

@@ -43,6 +43,8 @@ export type ChromeActionProps = {
   onOpenTemplate: () => void;
   onPreview: () => void;
   onFind: () => void;
+  onOpenAIMeta?: () => void;
+  aiMetaBusy?: boolean;
   onSave: () => void;
   onPublish: () => void;
   onSchedule: (at: string) => void;
@@ -128,6 +130,8 @@ export function EditorChrome({
         onOpenTemplate={action.onOpenTemplate}
         onPreview={action.onPreview}
         onFind={action.onFind}
+        onOpenAIMeta={action.onOpenAIMeta}
+        aiMetaBusy={action.aiMetaBusy}
         onSave={action.onSave}
         onPublish={action.onPublish}
         onSchedule={action.onSchedule}
