@@ -60,4 +60,5 @@ npc deploy impress hk-artifact --ref <branch-or-sha> --wait
 | Architecture, backend, long-agent | `Claude.md` |
 | Deploy targets, dual-process helpers | `OPS.md` |
 | yx.ink vs inkless.run incident rules | `docs/ops-lessons-yx-ink-vs-inkless-run.md` |
+| Article AI meta / SEO (design + eval) | `docs/article-ai-meta-seo.md` |
 | Frontend flags | `BASE_PATH`, `IS_PREVIEW`, … in `frontend/vite.config.ts` |
