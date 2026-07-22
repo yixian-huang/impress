@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { EfShell } from "./shell";
 import { asBool, asString, type SectionProps } from "./types";
 
@@ -16,13 +17,14 @@ export interface EfContactSplitData {
 }
 
 /**
- * POST to host public form-submissions endpoint (same path as app http client).
+ * POST to host public form-submissions endpoint (same path as ContactFormSection).
  * On failure, surface mailto fallback using the contact email prop.
  */
 async function submitContact(payload: {
   name: string;
   email: string;
   message: string;
+  locale: string;
 }): Promise<void> {
   const res = await fetch("/public/form-submissions", {
     method: "POST",
@@ -32,6 +34,7 @@ async function submitContact(payload: {
       name: payload.name,
       email: payload.email,
       message: payload.message,
+      locale: payload.locale,
       sourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
     }),
   });
@@ -48,16 +51,20 @@ async function submitContact(payload: {
 }
 
 export default function EfContactSplit({ data }: SectionProps<EfContactSplitData>) {
+  const { i18n } = useTranslation();
+  const locale = i18n.language?.startsWith("zh") ? "zh" : "en";
+  const isZh = locale === "zh";
+
   const title = asString(data.title);
   const intro = asString(data.intro);
   const phone = asString(data.phone);
   const email = asString(data.email);
   const address = asString(data.address);
   const showForm = asBool(data.showForm, true);
-  const nameLabel = asString(data.nameLabel, "Name") || "Name";
-  const emailLabel = asString(data.emailLabel, "Email") || "Email";
-  const messageLabel = asString(data.messageLabel, "Message") || "Message";
-  const submitLabel = asString(data.submitLabel, "Send") || "Send";
+  const nameLabel = asString(data.nameLabel, isZh ? "姓名" : "Name") || (isZh ? "姓名" : "Name");
+  const emailLabel = asString(data.emailLabel, isZh ? "邮箱" : "Email") || (isZh ? "邮箱" : "Email");
+  const messageLabel = asString(data.messageLabel, isZh ? "留言" : "Message") || (isZh ? "留言" : "Message");
+  const submitLabel = asString(data.submitLabel, isZh ? "发送" : "Send") || (isZh ? "发送" : "Send");
 
   const [name, setName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -74,13 +81,18 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
     setShowMailto(false);
     setIsSuccess(false);
     try {
-      await submitContact({ name, email: formEmail, message });
+      await submitContact({ name, email: formEmail, message, locale });
       setIsSuccess(true);
       setName("");
       setFormEmail("");
       setMessage("");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Submission failed";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isZh
+            ? "提交失败"
+            : "Submission failed";
       setError(msg);
       setShowMailto(true);
     } finally {
@@ -90,8 +102,10 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
 
   const mailtoHref =
     email
-      ? `mailto:${email}?subject=${encodeURIComponent("Contact")}&body=${encodeURIComponent(
-          `Name: ${name}\nEmail: ${formEmail}\n\n${message}`,
+      ? `mailto:${email}?subject=${encodeURIComponent(isZh ? "联系咨询" : "Contact")}&body=${encodeURIComponent(
+          isZh
+            ? `姓名: ${name}\n邮箱: ${formEmail}\n\n${message}`
+            : `Name: ${name}\nEmail: ${formEmail}\n\n${message}`,
         )}`
       : "";
 
@@ -114,7 +128,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
             {phone ? (
               <div>
                 <dt className="text-xs uppercase tracking-wider text-on-surface-muted mb-1">
-                  Phone
+                  {isZh ? "电话" : "Phone"}
                 </dt>
                 <dd className="text-on-surface">
                   <a href={`tel:${phone.replace(/\s+/g, "")}`} className="hover:text-accent transition-colors">
@@ -126,7 +140,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
             {email ? (
               <div>
                 <dt className="text-xs uppercase tracking-wider text-on-surface-muted mb-1">
-                  Email
+                  {isZh ? "邮箱" : "Email"}
                 </dt>
                 <dd className="text-on-surface">
                   <a href={`mailto:${email}`} className="hover:text-accent transition-colors">
@@ -138,7 +152,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
             {address ? (
               <div>
                 <dt className="text-xs uppercase tracking-wider text-on-surface-muted mb-1">
-                  Address
+                  {isZh ? "地址" : "Address"}
                 </dt>
                 <dd className="text-on-surface whitespace-pre-line">{address}</dd>
               </div>
@@ -149,17 +163,17 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
         {showForm ? (
           <div>
             {isSuccess ? (
-              <p className="mb-4 p-4 border border-border bg-surface-alt text-on-surface text-sm">
-                Thank you — we will be in touch soon.
+              <p className="mb-4 p-4 border border-border bg-surface-alt text-on-surface text-sm" role="status">
+                {isZh ? "提交成功！我们会尽快与您联系。" : "Thank you — we will be in touch soon."}
               </p>
             ) : null}
             {error ? (
-              <div className="mb-4 p-4 border border-border bg-surface-alt text-sm text-on-surface space-y-2">
+              <div className="mb-4 p-4 border border-border bg-surface-alt text-sm text-on-surface space-y-2" role="alert">
                 <p>{error}</p>
                 {showMailto && mailtoHref ? (
                   <p>
                     <a href={mailtoHref} className="text-accent underline underline-offset-2">
-                      Or email us directly
+                      {isZh ? "或直接发送邮件" : "Or email us directly"}
                     </a>
                   </p>
                 ) : null}
@@ -175,6 +189,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
                   id="ef-contact-name"
                   type="text"
                   required
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 bg-surface border border-border rounded-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
@@ -188,6 +203,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
                   id="ef-contact-email"
                   type="email"
                   required
+                  autoComplete="email"
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-surface border border-border rounded-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
@@ -210,7 +226,7 @@ export default function EfContactSplit({ data }: SectionProps<EfContactSplitData
                 disabled={isSubmitting}
                 className="px-7 py-3 bg-primary text-on-primary text-sm uppercase tracking-wider font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "…" : submitLabel}
+                {isSubmitting ? (isZh ? "提交中…" : "…") : submitLabel}
               </button>
             </form>
           </div>

@@ -23,7 +23,7 @@ export default function EfFeatureSplit({ data }: SectionProps<EfFeatureSplitData
         {image ? (
           <img
             src={image}
-            alt={title || caption || ""}
+            alt={caption || title || ""}
             className="w-full h-full object-cover object-center"
           />
         ) : null}
