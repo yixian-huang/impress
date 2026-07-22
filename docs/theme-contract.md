@@ -190,6 +190,14 @@ CI: Quality Gate runs UMD build + smoke after Playwright Chromium install.
    - Standalone types: `types/theme-host-shim.d.ts`  
    - Release assets: `pnpm build` → `dist/theme.umd.js`
 
+### 8.1 Extraction roadmap (editorial-firm)
+
+1. Monorepo package `packages/theme-editorial-firm` + host register / seeds — **in progress** (see feature branch / PR).
+2. Soak on activate + section editing (post-merge).
+3. UMD build + host smoke + `theme-host-shim` (mirror blog-first).
+4. **Separate GitHub repo** (planned): `inkless-theme-editorial-firm`  
+   - Full cut procedure: [`docs/runbook-extract-theme-editorial-firm.md`](runbook-extract-theme-editorial-firm.md)
+
 ## 9. Non-goals
 
 - Themes shipping their own React copy.

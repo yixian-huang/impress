@@ -76,6 +76,14 @@ On theme **activate**, the backend:
 
 Operators who switch from another theme with non-empty shared slugs must clear sections or recreate pages to pick up editorial copy.
 
+## Extraction to a standalone repo
+
+Today this package lives in the Inkless monorepo (`workspace:*`). Long-term it should follow **blog-first**: own GitHub repo + host pin.
+
+When ready (after soak + UMD), use the full checklist:
+
+→ **[`docs/runbook-extract-theme-editorial-firm.md`](../../docs/runbook-extract-theme-editorial-firm.md)**
+
 ## Authoring tips
 
 1. Prefer CMS props already used in seeds (`kicker`, `title`, `deck`, bilingual `{ zh, en }` objects resolved by the host).
