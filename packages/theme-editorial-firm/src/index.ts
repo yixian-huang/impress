@@ -122,3 +122,13 @@ export {
   EfContactSplit,
   EfRichText,
 } from "./sections";
+export {
+  editorialFirmPageConfigs,
+  EDITORIAL_FIRM_SEED_PAGE_KEYS,
+} from "./seed/pageConfigs";
+export type {
+  EditorialFirmPageConfigs,
+  EditorialPageSeed,
+  EditorialSectionSeed,
+  Bilingual,
+} from "./seed/pageConfigs";
