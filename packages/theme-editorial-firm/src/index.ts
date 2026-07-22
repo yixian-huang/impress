@@ -1,4 +1,6 @@
 import type { ThemePlugin } from "@inkless/theme-host";
+import EditorialHeader from "./chrome/EditorialHeader";
+import EditorialFooter from "./chrome/EditorialFooter";
 import { editorialFirmTokens, noirGalleryTokens } from "./tokens";
 
 /** Theme id — keep in sync with host `BUILTIN_THEME_IDS.EDITORIAL_FIRM` and DB. */
@@ -38,8 +40,8 @@ export const EDITORIAL_DEFAULT_LAYOUT = {
 /**
  * Build the editorial-firm theme plugin.
  *
- * Chrome (layoutChrome) and custom sections land in later tasks.
  * Pages are CMS section-driven (`renderMode: "dynamic"`).
+ * Custom sections land in later tasks.
  */
 export function createEditorialFirmTheme(): ThemePlugin {
   return {
@@ -89,14 +91,15 @@ export function createEditorialFirmTheme(): ThemePlugin {
     defaultLayout: EDITORIAL_DEFAULT_LAYOUT,
     sections: {},
     sectionMetas: [],
-    // layoutChrome filled in Task 2
+    layoutChrome: {
+      Header: EditorialHeader,
+      Footer: EditorialFooter,
+    },
   };
 }
 
-/**
- * Theme shell without host chrome/sections (scaffold).
- * Prefer registering via host after Task 2+ wires chrome.
- */
+/** Theme shell with layout chrome; host registration wires loaders/sections later. */
 export const editorialFirmTheme: ThemePlugin = createEditorialFirmTheme();
 
+export { EditorialHeader, EditorialFooter };
 export { editorialFirmTokens, noirGalleryTokens } from "./tokens";
