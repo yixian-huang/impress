@@ -73,7 +73,14 @@ func (h *Handler) handleTranslationError(c *gin.Context, err error) {
 		})
 		return
 	}
-	apierror.Message(c, http.StatusInternalServerError, err.Error())
+	// Upstream LLM / network failures: surface as 502 so clients can distinguish timeouts/gateway.
+	msg := err.Error()
+	c.JSON(http.StatusBadGateway, gin.H{
+		"error": gin.H{
+			"code":    "AI_TRANSLATE_FAILED",
+			"message": msg,
+		},
+	})
 }
 
 // --- Translation endpoints ---

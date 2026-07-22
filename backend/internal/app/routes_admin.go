@@ -193,9 +193,10 @@ func registerAdminSettings(admin *gin.RouterGroup, h *Handlers, require requireF
 	admin.PUT("/storage/config", require("settings", "manage"), h.Storage.UpdateConfig)
 	admin.POST("/storage/test", require("settings", "manage"), h.Storage.TestConnection)
 
-	admin.POST("/translate", require("settings", "manage"), h.Translation.Translate)
-	admin.POST("/translate/batch", require("settings", "manage"), h.Translation.BatchTranslate)
-	admin.POST("/translate/article/:id", require("settings", "manage"), h.Translation.TranslateArticle)
+	// Article authors need translate in the editor; settings:manage was too narrow.
+	admin.POST("/translate", require("articles", "update"), h.Translation.Translate)
+	admin.POST("/translate/batch", require("articles", "update"), h.Translation.BatchTranslate)
+	admin.POST("/translate/article/:id", require("articles", "update"), h.Translation.TranslateArticle)
 	admin.GET("/glossary", require("settings", "manage"), h.Translation.GlossaryList)
 	admin.POST("/glossary", require("settings", "manage"), h.Translation.GlossaryCreate)
 	admin.PUT("/glossary/:id", require("settings", "manage"), h.Translation.GlossaryUpdate)

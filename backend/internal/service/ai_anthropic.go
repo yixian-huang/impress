@@ -9,9 +9,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
+
+const anthropicHTTPClientTimeout = 120 * time.Second
 
 // AnthropicProvider implements AIProvider using the Anthropic Messages API.
 type AnthropicProvider struct {
@@ -41,7 +44,7 @@ func NewAnthropicProvider(cfg AnthropicConfig) *AnthropicProvider {
 	}
 	client := cfg.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: anthropicHTTPClientTimeout}
 	}
 	return &AnthropicProvider{
 		apiKey:  cfg.APIKey,

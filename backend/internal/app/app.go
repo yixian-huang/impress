@@ -184,12 +184,16 @@ func (a *App) Handler() http.Handler {
 // Run starts the HTTP server and blocks until SIGINT/SIGTERM, then shuts down cleanly.
 func (a *App) Run() error {
 	addr := fmt.Sprintf(":%d", a.Cfg.Port)
+	// AI routes (translate, article-meta) often take 10–60s for long bodies.
+	// WriteTimeout covers the full handler duration until the response is written;
+	// 15s was too low and caused reverse proxies to surface client-side 502s.
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      a.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              addr,
+		Handler:           a.router,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      180 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)

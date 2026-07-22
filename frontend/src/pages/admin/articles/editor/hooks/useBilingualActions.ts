@@ -107,10 +107,27 @@ export function useBilingualActions(opts: {
         from === "zh" ? "已翻译到英文（未保存，请校对）" : "已翻译到中文（未保存，请校对）",
       );
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: { message?: string } | string } } };
-      const msg = (ax?.response?.data?.error as { message?: string })?.message
+      const ax = err as {
+        response?: {
+          status?: number;
+          data?: { error?: { message?: string; code?: string } | string };
+        };
+        code?: string;
+        message?: string;
+      };
+      const status = ax?.response?.status;
+      const bodyMsg = (ax?.response?.data?.error as { message?: string })?.message
         ?? (typeof ax?.response?.data?.error === "string" ? ax.response.data.error : undefined);
-      setError(msg || (err instanceof Error ? err.message : "翻译失败（请检查 AI/翻译配置）"));
+      let msg = bodyMsg || (err instanceof Error ? err.message : "翻译失败（请检查 AI/翻译配置）");
+      if (status === 502 || status === 504 || ax?.code === "ECONNABORTED") {
+        msg =
+          "翻译请求超时或网关中断（长文 AI 调用可能超过服务端/代理时限）。请缩短正文后重试，或检查 AI 配置与网络。";
+      } else if (status === 503) {
+        msg = bodyMsg || "AI 未配置或暂不可用，请在「AI 配置」中启用提供方。";
+      } else if (status === 403) {
+        msg = "没有翻译权限（需要相应后台权限）。";
+      }
+      setError(msg);
     } finally {
       setTranslateBusy(false);
     }

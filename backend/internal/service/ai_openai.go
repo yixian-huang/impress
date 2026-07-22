@@ -9,9 +9,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/yixian-huang/inkless/backend/internal/provider"
 )
+
+// Default timeout for outbound OpenAI-compatible API calls (chat + embeddings).
+const openAIHTTPClientTimeout = 120 * time.Second
 
 // OpenAIProvider implements AIProvider using the OpenAI-compatible API.
 type OpenAIProvider struct {
@@ -41,7 +45,7 @@ func NewOpenAIProvider(cfg OpenAIConfig) *OpenAIProvider {
 	}
 	client := cfg.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: openAIHTTPClientTimeout}
 	}
 	return &OpenAIProvider{
 		apiKey:  cfg.APIKey,
